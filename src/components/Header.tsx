@@ -1,36 +1,45 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Text, Icon } from "@wraith/ghost/components";
+import { Text, Button, Toggle } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
-import { Colors } from "@wraith/ghost/tokens";
 
 export function Header() {
   return (
     <View style={styles.container}>
-      <View style={styles.logo}>
-        <View style={styles.logoIcon}>
-          <Icon name="eye" size={Size.Large} appearance={TextAppearance.Link} />
+      <View style={styles.logoSection}>
+        <View style={styles.logo}>
+          <Text style={styles.logoText}>W</Text>
         </View>
-        <Text size={Size.ExtraLarge} weight="bold">
+        <Text size={Size.Large} weight="bold" style={styles.brand}>
           Wraith
         </Text>
       </View>
 
       <View style={styles.nav}>
+        <Text size={Size.Small} weight="medium" style={styles.navItemActive}>
+          Market
+        </Text>
         <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.navItem}>
-          Markets
+          Portfolio
         </Text>
         <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.navItem}>
           Watchlist
         </Text>
         <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.navItem}>
-          Portfolio
+          News
         </Text>
       </View>
 
       <View style={styles.actions}>
-        <Icon name="bell" size={Size.Medium} appearance={TextAppearance.Muted} />
-        <Icon name="settings" size={Size.Medium} appearance={TextAppearance.Muted} />
+        <Toggle
+          value={false}
+          onValueChange={() => {}}
+          leftIcon="sun"
+          rightIcon="moon"
+        />
+        <Button size={Size.Small} variant="secondary">
+          Connect Wallet
+        </Button>
       </View>
     </View>
   );
@@ -43,21 +52,29 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 16,
     marginBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.subtle,
   },
-  logo: {
+  logoSection: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
-  logoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: Colors.background.overlay,
+  logo: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#3b82f6",
     alignItems: "center",
     justifyContent: "center",
+  },
+  logoText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#ffffff",
+    fontFamily: "Plus Jakarta Sans, sans-serif",
+  },
+  brand: {
+    fontFamily: "Plus Jakarta Sans, sans-serif",
+    letterSpacing: -0.5,
   },
   nav: {
     flexDirection: "row",
@@ -66,8 +83,12 @@ const styles = StyleSheet.create({
   navItem: {
     cursor: "pointer",
   },
+  navItemActive: {
+    color: "#ffffff",
+  },
   actions: {
     flexDirection: "row",
-    gap: 16,
+    alignItems: "center",
+    gap: 12,
   },
 });

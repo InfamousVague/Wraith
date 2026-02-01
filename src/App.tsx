@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { Colors } from "@wraith/ghost/tokens";
 import { Header } from "./components/Header";
 import { SearchBar } from "./components/SearchBar";
-import { MarketOverview } from "./components/MarketOverview";
+import { MarketCharts } from "./components/MarketCharts";
 import { AssetList } from "./components/AssetList";
 import { FearGreedIndex } from "./components/FearGreedIndex";
 
@@ -16,22 +16,25 @@ export function App() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Header />
 
-        <View style={styles.topSection}>
-          <MarketOverview />
-          <FearGreedIndex />
+        <MarketCharts />
+
+        <View style={styles.sideBySide}>
+          <View style={styles.mainContent}>
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              filter={filter}
+              onFilterChange={setFilter}
+            />
+            <AssetList
+              searchQuery={searchQuery}
+              filter={filter}
+            />
+          </View>
+          <View style={styles.sidebar}>
+            <FearGreedIndex />
+          </View>
         </View>
-
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          filter={filter}
-          onFilterChange={setFilter}
-        />
-
-        <AssetList
-          searchQuery={searchQuery}
-          filter={filter}
-        />
       </ScrollView>
     </View>
   );
@@ -47,13 +50,19 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 24,
-    maxWidth: 1400,
+    maxWidth: 1600,
     marginHorizontal: "auto",
     width: "100%",
   },
-  topSection: {
+  sideBySide: {
     flexDirection: "row",
     gap: 24,
-    marginBottom: 24,
+  },
+  mainContent: {
+    flex: 1,
+    gap: 16,
+  },
+  sidebar: {
+    width: 320,
   },
 });

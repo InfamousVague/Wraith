@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet } from "react-native";
-import { Text, Skeleton } from "@wraith/ghost/components";
+import { View, StyleSheet, Pressable } from "react-native";
+import { Text, Skeleton, Card, Avatar } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { Colors } from "@wraith/ghost/tokens";
-import { AssetRow } from "./AssetRow";
 import type { Asset } from "../types/asset";
+import { MiniChart } from "./MiniChart";
+import { formatCompactNumber } from "../utils/format";
 
 type AssetListProps = {
   searchQuery: string;
@@ -132,12 +133,120 @@ const MOCK_ASSETS: Asset[] = [
   },
 ];
 
+function formatPrice(price: number): string {
+  if (price >= 1000) {
+    return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (price >= 1) {
+    return price.toFixed(2);
+  }
+  return price.toFixed(4);
+}
+
+function ChangeValue({ value }: { value: number }) {
+  const isPositive = value >= 0;
+  const color = isPositive ? "#22c55e" : "#ef4444";
+  const prefix = isPositive ? "+" : "";
+
+  return (
+    <Text
+      size={Size.Small}
+      style={{ color, fontFamily: "Inter, sans-serif", fontWeight: "500" }}
+    >
+      {prefix}{value.toFixed(2)}%
+    </Text>
+  );
+}
+
+function AssetRow({ asset, isLast }: { asset: Asset; isLast: boolean }) {
+  return (
+    <Pressable
+      style={[
+        styles.row,
+        !isLast && styles.rowBorder,
+      ]}
+    >
+      <View style={styles.assetInfo}>
+        <Avatar
+          initials={asset.symbol.slice(0, 2)}
+          size={Size.Medium}
+        />
+        <View style={styles.assetName}>
+          <Text size={Size.Small} weight="semibold" style={styles.name}>
+            {asset.name}
+          </Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+            {asset.symbol}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.priceCol}>
+        <Text size={Size.Small} weight="medium" style={styles.price}>
+          ${formatPrice(asset.price)}
+        </Text>
+      </View>
+
+      <View style={styles.changeCol}>
+        <ChangeValue value={asset.change24h} />
+      </View>
+
+      <View style={styles.changeCol}>
+        <ChangeValue value={asset.change7d} />
+      </View>
+
+      <View style={styles.marketCapCol}>
+        <Text size={Size.Small} appearance={TextAppearance.Muted}>
+          ${formatCompactNumber(asset.marketCap)}
+        </Text>
+      </View>
+
+      <View style={styles.chartCol}>
+        <MiniChart
+          data={asset.sparkline}
+          isPositive={asset.change7d >= 0}
+          width={100}
+          height={32}
+        />
+      </View>
+    </Pressable>
+  );
+}
+
+function LoadingRow() {
+  return (
+    <View style={[styles.row, styles.rowBorder]}>
+      <View style={styles.assetInfo}>
+        <Skeleton width={40} height={40} borderRadius={20} />
+        <View style={styles.assetName}>
+          <Skeleton width={80} height={14} />
+          <Skeleton width={40} height={12} style={{ marginTop: 4 }} />
+        </View>
+      </View>
+      <View style={styles.priceCol}>
+        <Skeleton width={80} height={14} />
+      </View>
+      <View style={styles.changeCol}>
+        <Skeleton width={50} height={14} />
+      </View>
+      <View style={styles.changeCol}>
+        <Skeleton width={50} height={14} />
+      </View>
+      <View style={styles.marketCapCol}>
+        <Skeleton width={70} height={14} />
+      </View>
+      <View style={styles.chartCol}>
+        <Skeleton width={100} height={32} />
+      </View>
+    </View>
+  );
+}
+
 export function AssetList({ searchQuery, filter }: AssetListProps) {
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<Asset[]>([]);
 
   useEffect(() => {
-    // Simulate API loading
     setLoading(true);
     const timer = setTimeout(() => {
       setAssets(MOCK_ASSETS);
@@ -146,15 +255,12 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
     return () => clearTimeout(timer);
   }, []);
 
-  // Filter assets
   const filteredAssets = assets.filter((asset) => {
-    // Search filter
     const matchesSearch =
       searchQuery === "" ||
       asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       asset.symbol.toLowerCase().includes(searchQuery.toLowerCase());
 
-    // Gainers/Losers filter
     const matchesFilter =
       filter === "all" ||
       (filter === "gainers" && asset.change24h > 0) ||
@@ -164,137 +270,125 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
   });
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <Card style={styles.container}>
       <View style={styles.header}>
-        <View style={[styles.cell, styles.rankCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>#</Text>
+        <Text size={Size.Large} weight="semibold">
+          Cryptocurrency Prices
+        </Text>
+        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+          Live prices updated every minute
+        </Text>
+      </View>
+
+      <View style={styles.tableHeader}>
+        <View style={styles.assetInfo}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Asset</Text>
         </View>
-        <View style={[styles.cell, styles.nameCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Name</Text>
-        </View>
-        <View style={[styles.cell, styles.priceCell]}>
+        <View style={styles.priceCol}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Price</Text>
         </View>
-        <View style={[styles.cell, styles.changeCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>1h %</Text>
+        <View style={styles.changeCol}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>24h</Text>
         </View>
-        <View style={[styles.cell, styles.changeCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>24h %</Text>
+        <View style={styles.changeCol}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>7d</Text>
         </View>
-        <View style={[styles.cell, styles.changeCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>7d %</Text>
-        </View>
-        <View style={[styles.cell, styles.marketCapCell]}>
+        <View style={styles.marketCapCol}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Market Cap</Text>
         </View>
-        <View style={[styles.cell, styles.volumeCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Volume (24h)</Text>
-        </View>
-        <View style={[styles.cell, styles.chartCell]}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Last 7 Days</Text>
+        <View style={styles.chartCol}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Chart</Text>
         </View>
       </View>
 
-      {/* Loading state */}
       {loading && (
-        <View style={styles.list}>
+        <View>
           {[1, 2, 3, 4, 5].map((i) => (
-            <View key={i} style={styles.skeletonRow}>
-              <Skeleton width={30} height={16} />
-              <View style={styles.skeletonName}>
-                <Skeleton width={32} height={32} borderRadius={16} />
-                <View>
-                  <Skeleton width={80} height={14} />
-                  <Skeleton width={40} height={12} style={{ marginTop: 4 }} />
-                </View>
-              </View>
-              <Skeleton width={100} height={16} />
-              <Skeleton width={60} height={16} />
-              <Skeleton width={60} height={16} />
-              <Skeleton width={60} height={16} />
-              <Skeleton width={100} height={16} />
-              <Skeleton width={100} height={16} />
-              <Skeleton width={120} height={40} />
-            </View>
+            <LoadingRow key={i} />
           ))}
         </View>
       )}
 
-      {/* Asset list */}
       {!loading && (
-        <View style={styles.list}>
-          {filteredAssets.map((asset) => (
-            <AssetRow key={asset.id} asset={asset} />
+        <View>
+          {filteredAssets.map((asset, index) => (
+            <AssetRow
+              key={asset.id}
+              asset={asset}
+              isLast={index === filteredAssets.length - 1}
+            />
           ))}
         </View>
       )}
 
-      {/* Empty state */}
       {!loading && filteredAssets.length === 0 && (
         <View style={styles.empty}>
           <Text appearance={TextAppearance.Muted}>No assets found</Text>
         </View>
       )}
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.background.surface,
-    borderRadius: 12,
+    padding: 0,
     overflow: "hidden",
   },
   header: {
+    padding: 20,
+    paddingBottom: 16,
+    gap: 4,
+  },
+  tableHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border.subtle,
-    backgroundColor: Colors.background.raised,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },
-  list: {
-    gap: 0,
-  },
-  cell: {
-    paddingHorizontal: 8,
-  },
-  rankCell: {
-    width: 40,
-  },
-  nameCell: {
-    width: 200,
-  },
-  priceCell: {
-    width: 120,
-  },
-  changeCell: {
-    width: 80,
-  },
-  marketCapCell: {
-    width: 140,
-  },
-  volumeCell: {
-    width: 140,
-  },
-  chartCell: {
-    width: 140,
-  },
-  skeletonRow: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    gap: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border.subtle,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  skeletonName: {
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+  },
+  assetInfo: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    width: 180,
+    flex: 2,
+    minWidth: 180,
+  },
+  assetName: {
+    gap: 2,
+  },
+  name: {
+    fontFamily: "Plus Jakarta Sans, sans-serif",
+  },
+  priceCol: {
+    flex: 1,
+    minWidth: 100,
+  },
+  price: {
+    fontFamily: "Inter, sans-serif",
+  },
+  changeCol: {
+    flex: 1,
+    minWidth: 80,
+  },
+  marketCapCol: {
+    flex: 1,
+    minWidth: 100,
+  },
+  chartCol: {
+    width: 100,
+    alignItems: "flex-end",
   },
   empty: {
     padding: 40,

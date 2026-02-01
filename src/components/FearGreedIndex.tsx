@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Card, Text, ProgressCircle } from "@wraith/ghost/components";
+import { Card, CardBorder, CardGlow, Text, ProgressCircle } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { Colors } from "@wraith/ghost/tokens";
 
@@ -27,7 +27,7 @@ export function FearGreedIndex() {
   const label = getIndexLabel(fearGreedValue);
 
   return (
-    <Card style={styles.container}>
+    <Card style={styles.container} border={CardBorder.Gradient} glow={CardGlow.Green}>
       <Text size={Size.Medium} weight="semibold" style={styles.title}>
         Fear & Greed Index
       </Text>

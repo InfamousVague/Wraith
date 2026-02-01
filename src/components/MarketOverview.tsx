@@ -1,11 +1,9 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Card, Text, Currency, Number, Icon, Badge, ProgressBar } from "@wraith/ghost/components";
+import { Card, CardBorder, CardGlow, Text, Icon, Badge, ProgressBar } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
-import { Colors } from "@wraith/ghost/tokens";
 
 export function MarketOverview() {
-  // Mock data - will be replaced with API data
   const marketData = {
     totalMarketCap: 3.42,
     marketCapChange: 2.34,
@@ -16,67 +14,58 @@ export function MarketOverview() {
   };
 
   return (
-    <Card style={styles.container}>
+    <Card style={styles.container} border={CardBorder.Gradient} glow={CardGlow.Blue}>
       <View style={styles.header}>
-        <Text size={Size.Medium} weight="semibold">
-          Market Overview
-        </Text>
-        <Badge label="Live" variant="success" icon="success" size={Size.Small} />
-      </View>
-
-      <View style={styles.statsGrid}>
-        <View style={styles.stat}>
+        <View style={styles.titleRow}>
+          <Icon name="chart" size={Size.Small} appearance={TextAppearance.Link} />
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
             Total Market Cap
           </Text>
-          <View style={styles.statValue}>
-            <Currency
-              value={marketData.totalMarketCap}
-              size={Size.Large}
-              weight="bold"
-              decimals={2}
-            />
-            <Text size={Size.Small} appearance={TextAppearance.Muted}>T</Text>
-          </View>
-          <View style={styles.change}>
-            <Icon
-              name={marketData.marketCapChange >= 0 ? "arrow-up" : "arrow-down"}
-              size={Size.ExtraSmall}
-              appearance={marketData.marketCapChange >= 0 ? TextAppearance.Success : TextAppearance.Danger}
-            />
-            <Text
-              size={Size.ExtraSmall}
-              appearance={marketData.marketCapChange >= 0 ? TextAppearance.Success : TextAppearance.Danger}
-            >
-              {Math.abs(marketData.marketCapChange).toFixed(2)}%
-            </Text>
-          </View>
         </View>
+        <Badge label="Live" variant="success" size={Size.Small} />
+      </View>
 
-        <View style={styles.stat}>
+      <View style={styles.valueRow}>
+        <Text style={styles.dollarSign}>$</Text>
+        <Text style={styles.mainValue}>
+          {marketData.totalMarketCap.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+        </Text>
+        <Text style={styles.unit}>T</Text>
+      </View>
+
+      <View style={styles.changeRow}>
+        <Icon
+          name={marketData.marketCapChange >= 0 ? "arrow-up" : "arrow-down"}
+          size={Size.TwoXSmall}
+          appearance={marketData.marketCapChange >= 0 ? TextAppearance.Success : TextAppearance.Danger}
+        />
+        <Text
+          size={Size.Small}
+          appearance={marketData.marketCapChange >= 0 ? TextAppearance.Success : TextAppearance.Danger}
+        >
+          {Math.abs(marketData.marketCapChange).toFixed(2)}%
+        </Text>
+        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+          vs last 24h
+        </Text>
+      </View>
+
+      <View style={styles.divider} />
+
+      <View style={styles.statsSection}>
+        <View style={styles.statRow}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
             24h Volume
           </Text>
           <View style={styles.statValue}>
-            <Currency
-              value={marketData.volume24h}
-              size={Size.Large}
-              weight="bold"
-              decimals={1}
-            />
-            <Text size={Size.Small} appearance={TextAppearance.Muted}>B</Text>
-          </View>
-          <View style={styles.change}>
-            <Icon
-              name={marketData.volumeChange >= 0 ? "arrow-up" : "arrow-down"}
-              size={Size.ExtraSmall}
-              appearance={marketData.volumeChange >= 0 ? TextAppearance.Success : TextAppearance.Danger}
-            />
+            <Text size={Size.Small} weight="medium">
+              ${marketData.volume24h}B
+            </Text>
             <Text
-              size={Size.ExtraSmall}
+              size={Size.TwoXSmall}
               appearance={marketData.volumeChange >= 0 ? TextAppearance.Success : TextAppearance.Danger}
             >
-              {Math.abs(marketData.volumeChange).toFixed(2)}%
+              {marketData.volumeChange >= 0 ? "+" : ""}{marketData.volumeChange}%
             </Text>
           </View>
         </View>
@@ -85,10 +74,10 @@ export function MarketOverview() {
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
             Dominance
           </Text>
-          <View style={styles.dominanceBar}>
+          <View style={styles.dominanceItem}>
             <View style={styles.dominanceLabel}>
-              <Text size={Size.ExtraSmall}>BTC</Text>
-              <Text size={Size.ExtraSmall} appearance={TextAppearance.Link}>
+              <Text size={Size.ExtraSmall} weight="medium">BTC</Text>
+              <Text size={Size.ExtraSmall} style={{ color: "#3b82f6" }}>
                 {marketData.btcDominance}%
               </Text>
             </View>
@@ -97,12 +86,13 @@ export function MarketOverview() {
               max={100}
               size={Size.Small}
               appearance={TextAppearance.Link}
+              brightness={Brightness.Soft}
             />
           </View>
-          <View style={styles.dominanceBar}>
+          <View style={styles.dominanceItem}>
             <View style={styles.dominanceLabel}>
-              <Text size={Size.ExtraSmall}>ETH</Text>
-              <Text size={Size.ExtraSmall} appearance={TextAppearance.Info}>
+              <Text size={Size.ExtraSmall} weight="medium">ETH</Text>
+              <Text size={Size.ExtraSmall} style={{ color: "#8b5cf6" }}>
                 {marketData.ethDominance}%
               </Text>
             </View>
@@ -111,6 +101,7 @@ export function MarketOverview() {
               max={100}
               size={Size.Small}
               appearance={TextAppearance.Info}
+              brightness={Brightness.Soft}
             />
           </View>
         </View>
@@ -128,30 +119,65 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 20,
+    marginBottom: 12,
   },
-  statsGrid: {
+  titleRow: {
     flexDirection: "row",
-    gap: 32,
+    alignItems: "center",
+    gap: 8,
   },
-  stat: {
-    gap: 4,
+  valueRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 8,
+  },
+  dollarSign: {
+    fontSize: 24,
+    fontWeight: "500",
+    color: "#3b82f6",
+    fontFamily: "Inter, sans-serif",
+  },
+  mainValue: {
+    fontSize: 42,
+    fontWeight: "700",
+    fontFamily: "Inter, sans-serif",
+    color: "#ffffff",
+    letterSpacing: -1,
+  },
+  unit: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.5)",
+    fontFamily: "Inter, sans-serif",
+    marginLeft: 4,
+  },
+  changeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    marginVertical: 16,
+  },
+  statsSection: {
+    gap: 12,
+  },
+  statRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   statValue: {
     flexDirection: "row",
-    alignItems: "baseline",
-    gap: 4,
-  },
-  change: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-  },
-  dominanceSection: {
-    flex: 1,
     gap: 8,
   },
-  dominanceBar: {
+  dominanceSection: {
+    gap: 8,
+  },
+  dominanceItem: {
     gap: 4,
   },
   dominanceLabel: {
