@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet, Platform } from "react-native";
-import { Text, Currency, Number } from "@wraith/ghost/components";
-import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Text, Currency, PercentChange } from "@wraith/ghost/components";
+import { Size } from "@wraith/ghost/enums";
 import { useCryptoData } from "../hooks/useCryptoData";
 
 function TickerItem({ symbol, price, change }: {
@@ -9,8 +9,6 @@ function TickerItem({ symbol, price, change }: {
   price: number;
   change: number;
 }) {
-  const isPositive = change >= 0;
-
   return (
     <View style={styles.tickerItem}>
       <Text size={Size.Small} weight="semibold" style={styles.symbol}>
@@ -23,11 +21,9 @@ function TickerItem({ symbol, price, change }: {
         size={Size.Small}
         weight="medium"
       />
-      <Number
+      <PercentChange
         value={change}
-        format={{ decimals: 2, suffix: "%", prefix: isPositive ? "+" : "" }}
         size={Size.ExtraSmall}
-        appearance={isPositive ? TextAppearance.Success : TextAppearance.Danger}
         weight="medium"
       />
     </View>
