@@ -6,6 +6,9 @@ import { useAltcoinSeason } from "../hooks/useAltcoinSeason";
 import { FearGreedCard } from "./FearGreedCard";
 import { AltcoinSeasonCard } from "./AltcoinSeasonCard";
 import { PriceFeedCard } from "./PriceFeedCard";
+import { ExchangeLiquidity } from "./ExchangeLiquidity";
+import { TopMoversCard } from "./TopMoversCard";
+import { ApiStatsCard } from "./ApiStatsCard";
 
 export function MetricsCarousel() {
   const themeColors = useThemeColors();
@@ -28,6 +31,7 @@ export function MetricsCarousel() {
         snapToAlignment="start"
       >
         <PriceFeedCard />
+        <TopMoversCard />
         <FearGreedCard
           value={fearGreedData?.value ?? 0}
           loading={showFearGreedLoading}
@@ -37,6 +41,8 @@ export function MetricsCarousel() {
           btcDominance={altcoinData?.btcDominance ?? 0}
           loading={showAltcoinLoading}
         />
+        <ExchangeLiquidity />
+        <ApiStatsCard />
       </ScrollView>
     </View>
   );

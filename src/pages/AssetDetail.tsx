@@ -8,6 +8,8 @@ import { Navbar } from "../components/Navbar";
 import { AssetHeader } from "../components/AssetHeader";
 import { AdvancedChart } from "../components/AdvancedChart";
 import { MetricsGrid } from "../components/MetricsGrid";
+import { AssetSourceBreakdown } from "../components/AssetSourceBreakdown";
+import { ConfidenceCard } from "../components/ConfidenceCard";
 import { hauntClient } from "../services/haunt";
 import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
 import type { Asset } from "../types/asset";
@@ -33,17 +35,26 @@ export function AssetDetail() {
   const [error, setError] = useState<string | null>(null);
 
   // Handle real-time price updates
+  // IMPORTANT: Only update price and tradeDirection from WebSocket.
+  // Do NOT update change24h or volume24h - WebSocket data shows exchange-specific
+  // values, not global market data. The API provides authoritative market-wide statistics.
   const handlePriceUpdate = useCallback((update: PriceUpdate) => {
-    setAsset((prev) =>
-      prev
-        ? {
-            ...prev,
-            price: update.price,
-            change24h: update.change24h,
-            volume24h: update.volume24h,
-          }
-        : null
-    );
+    setAsset((prev) => {
+      if (!prev) return null;
+
+      // Determine trade direction
+      const tradeDirection = update.tradeDirection
+        ?? (update.price > prev.price ? "up" as const
+          : update.price < prev.price ? "down" as const
+          : prev.tradeDirection);
+
+      return {
+        ...prev,
+        price: update.price,
+        tradeDirection,
+        // Keep original API values for change24h and volume24h
+      };
+    });
   }, []);
 
   // Subscribe to price updates for this asset
@@ -104,6 +115,15 @@ export function AssetDetail() {
             <View style={styles.section}>
               <MetricsGrid asset={asset} loading={loading} />
             </View>
+
+            {asset && (
+              <View style={styles.section}>
+                <View style={styles.cardsRow}>
+                  <ConfidenceCard symbol={asset.symbol} loading={loading} />
+                  <AssetSourceBreakdown symbol={asset.symbol} loading={loading} />
+                </View>
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -124,6 +144,10 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 24,
     marginBottom: 24,
+  },
+  cardsRow: {
+    flexDirection: "row",
+    gap: 24,
   },
   errorContainer: {
     padding: 24,
