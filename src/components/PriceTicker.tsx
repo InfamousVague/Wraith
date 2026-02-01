@@ -45,9 +45,9 @@ function TickerItem({ symbol, price, change }: {
 function LoadingTickerItem() {
   return (
     <View style={styles.tickerItem}>
-      <Skeleton width={40} height={14} borderRadius={4} />
-      <Skeleton width={80} height={14} borderRadius={4} />
-      <Skeleton width={50} height={12} borderRadius={4} />
+      <Skeleton width={36} height={16} borderRadius={4} />
+      <Skeleton width={90} height={16} borderRadius={4} />
+      <Skeleton width={56} height={14} borderRadius={4} />
     </View>
   );
 }
@@ -57,8 +57,23 @@ export function PriceTicker() {
   const { isDark } = useTheme();
   const colors = isDark ? themes.dark : themes.light;
 
-  // Show loading skeletons while data loads
+  // Show loading skeletons while data loads (still scrolling)
   if (loading || assets.length === 0) {
+    // Duplicate for seamless loop
+    const loadingItems = Array.from({ length: 20 });
+
+    if (Platform.OS === "web") {
+      return (
+        <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
+          <div className="ticker-track">
+            {loadingItems.map((_, i) => (
+              <LoadingTickerItem key={i} />
+            ))}
+          </div>
+        </View>
+      );
+    }
+
     return (
       <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
         <View style={styles.loadingTrack}>
