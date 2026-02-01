@@ -2,19 +2,37 @@ import React from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Text } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
-import { Colors } from "@wraith/ghost/tokens";
-import { Header } from "../components/Header";
+import { Navbar } from "../components/Navbar";
 import { PriceTicker } from "../components/PriceTicker";
+import { useTheme } from "../context/ThemeContext";
+
+// Theme colors
+const themes = {
+  dark: {
+    background: "#050608",
+    surface: "#0B0E15",
+    border: "rgba(255, 255, 255, 0.06)",
+    tickerBg: "rgba(255, 255, 255, 0.02)",
+  },
+  light: {
+    background: "#f8fafc",
+    surface: "#ffffff",
+    border: "rgba(0, 0, 0, 0.08)",
+    tickerBg: "rgba(0, 0, 0, 0.02)",
+  },
+};
 
 export function Dashboard() {
+  const { isDark } = useTheme();
+  const colors = isDark ? themes.dark : themes.light;
+
   return (
-    <View style={styles.container}>
-      <View style={styles.tickerWrapper}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.tickerWrapper, { borderBottomColor: colors.border }]}>
         <PriceTicker />
       </View>
+      <Navbar />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <Header />
-
         <View style={styles.placeholder}>
           <Text size={Size.Large} appearance={TextAppearance.Muted}>
             Dashboard - Coming Soon
@@ -31,7 +49,6 @@ export function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.canvas,
   },
   tickerWrapper: {
     paddingHorizontal: 24,
