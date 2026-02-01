@@ -10,6 +10,21 @@ type MetricsGridProps = {
   loading?: boolean;
 };
 
+// Static grid style - defined outside component to prevent recreation
+const webGridStyle = {
+  display: "grid" as const,
+  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+  gap: 12,
+};
+
+const nativeGridStyle = {
+  flexDirection: "row" as const,
+  flexWrap: "wrap" as const,
+  gap: 12,
+};
+
+const gridStyle = Platform.OS === "web" ? webGridStyle : nativeGridStyle;
+
 type MetricCardProps = {
   label: string;
   value: React.ReactNode;
@@ -36,16 +51,6 @@ function MetricCard({ label, value, loading }: MetricCardProps) {
 }
 
 export function MetricsGrid({ asset, loading }: MetricsGridProps) {
-  const gridStyle = Platform.OS === "web" ? {
-    display: "grid" as const,
-    gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-    gap: 12,
-  } : {
-    flexDirection: "row" as const,
-    flexWrap: "wrap" as const,
-    gap: 12,
-  };
-
   return (
     <View style={styles.container}>
       <Text size={Size.Medium} weight="semibold" style={styles.title}>

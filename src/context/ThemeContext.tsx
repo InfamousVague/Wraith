@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
 
 type Theme = "dark" | "light";
 
@@ -44,12 +44,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  };
+  }, []);
+
+  // Memoize context value to prevent unnecessary re-renders of all consumers
+  const value = useMemo<ThemeContextType>(
+    () => ({ theme, toggleTheme, isDark }),
+    [theme, toggleTheme, isDark]
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

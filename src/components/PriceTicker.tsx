@@ -1,30 +1,30 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Text, Currency, PercentChange, Skeleton } from "@wraith/ghost/components";
 import { Size, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { useCryptoData } from "../hooks/useCryptoData";
 
-// Edge fade gradient component for web
+// Edge fade gradient component for web - static style, no hooks needed
 function EdgeFade({ side, color }: { side: "left" | "right"; color: string }) {
+  // Platform check must be after hooks, or we use no hooks at all
   if (Platform.OS !== "web") return null;
 
   const gradientDirection = side === "left" ? "to right" : "to left";
 
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 0,
-        bottom: 0,
-        [side]: 0,
-        width: 60,
-        background: `linear-gradient(${gradientDirection}, ${color} 0%, ${color}dd 30%, transparent 100%)`,
-        pointerEvents: "none",
-        zIndex: 10,
-      }}
-    />
-  );
+  // Inline style - no useMemo to avoid hooks order issues
+  const style: React.CSSProperties = {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    [side]: 0,
+    width: 60,
+    background: `linear-gradient(${gradientDirection}, ${color} 0%, ${color}dd 30%, transparent 100%)`,
+    pointerEvents: "none",
+    zIndex: 10,
+  };
+
+  return <div style={style} />;
 }
 
 function TickerItem({ symbol, price, change }: {
@@ -70,11 +70,15 @@ export function PriceTicker() {
   const showLoading = loading || (error !== null && assets.length === 0);
   const themeColors = useThemeColors();
 
+  // IMPORTANT: All hooks must be called before any conditional returns!
+  // Memoize duplicated items for seamless loop effect
+  const tickerItems = useMemo(() => [...assets, ...assets], [assets]);
+
+  // Loading items array (static, no memo needed)
+  const loadingItems = Array.from({ length: 20 });
+
   // Show loading skeletons while data loads or on error (still scrolling)
   if (showLoading) {
-    // Duplicate for seamless loop
-    const loadingItems = Array.from({ length: 20 });
-
     if (Platform.OS === "web") {
       return (
         <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
@@ -82,7 +86,7 @@ export function PriceTicker() {
           <EdgeFade side="right" color={themeColors.background.canvas} />
           <div className="ticker-track">
             {loadingItems.map((_, i) => (
-              <LoadingTickerItem key={i} />
+              <LoadingTickerItem key={`loading-${i}`} />
             ))}
           </div>
         </View>
@@ -92,16 +96,13 @@ export function PriceTicker() {
     return (
       <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
         <View style={styles.loadingTrack}>
-          {Array.from({ length: 10 }).map((_, i) => (
-            <LoadingTickerItem key={i} />
+          {loadingItems.slice(0, 10).map((_, i) => (
+            <LoadingTickerItem key={`loading-${i}`} />
           ))}
         </View>
       </View>
     );
   }
-
-  // Duplicate items for seamless loop effect
-  const tickerItems = [...assets, ...assets];
 
   if (Platform.OS === "web") {
     return (

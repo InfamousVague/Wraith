@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { hauntClient, type ListingsParams } from "../services/haunt";
 import { useHauntSocket, type PriceUpdate } from "./useHauntSocket";
 import { MOCK_ASSETS } from "../data/mockAssets";
@@ -53,32 +53,47 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
   // Get WebSocket context for real-time updates
   const { connected, subscribe, onPriceUpdate } = useHauntSocket();
 
+  // Memoize the symbols list to prevent unnecessary re-subscriptions
+  const symbolsKey = useMemo(
+    () => assets.map((a) => a.symbol.toLowerCase()).join(","),
+    [assets]
+  );
+
   // Subscribe to price updates and update assets in real-time
   useEffect(() => {
-    if (!connected || assets.length === 0) return;
+    if (!connected || !symbolsKey) return;
 
     // Subscribe to all loaded assets
-    const symbols = assets.map((a) => a.symbol.toLowerCase());
+    const symbols = symbolsKey.split(",").filter(Boolean);
+    if (symbols.length === 0) return;
+
     subscribe(symbols);
 
-    // Handle price updates
+    // Handle price updates - also update sparkline with new prices
     const unsubscribe = onPriceUpdate((update: PriceUpdate) => {
       setAssets((prev) =>
-        prev.map((asset) =>
-          asset.symbol.toLowerCase() === update.symbol.toLowerCase()
-            ? {
-                ...asset,
-                price: update.price,
-                change24h: update.change24h,
-                volume24h: update.volume24h,
-              }
-            : asset
-        )
+        prev.map((asset) => {
+          if (asset.symbol.toLowerCase() !== update.symbol.toLowerCase()) {
+            return asset;
+          }
+
+          // Update sparkline: add new price, keep last 60 points (1 hour at 1-min intervals)
+          const newSparkline = [...asset.sparkline, update.price].slice(-60);
+
+          return {
+            ...asset,
+            price: update.price,
+            // Ensure change values are valid numbers (not NaN)
+            change24h: Number.isFinite(update.change24h) ? update.change24h : asset.change24h,
+            volume24h: Number.isFinite(update.volume24h) ? update.volume24h : asset.volume24h,
+            sparkline: newSparkline,
+          };
+        })
       );
     });
 
     return unsubscribe;
-  }, [connected, assets.length, subscribe, onPriceUpdate]);
+  }, [connected, symbolsKey, subscribe, onPriceUpdate]);
 
   const fetchData = useCallback(async (append = false) => {
     // Mock data path

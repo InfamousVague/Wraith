@@ -28,7 +28,7 @@ export function HighlightedText({ text, highlight, style }: HighlightedTextProps
         const isMatch = part.toLowerCase() === highlight.toLowerCase();
         return (
           <RNText
-            key={index}
+            key={`${index}-${part}`}
             style={isMatch ? { color: themeColors.accent.primary } : undefined}
           >
             {part}

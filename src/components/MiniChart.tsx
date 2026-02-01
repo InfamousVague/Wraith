@@ -18,13 +18,17 @@ export function MiniChart({
   height = 40,
   glow = true,
 }: MiniChartProps) {
-  // Convert number[] to ChartDataPoint[] with synthetic timestamps
+  // Convert number[] to ChartDataPoint[] with 1-minute intervals (past hour)
   const chartData = useMemo<ChartDataPoint[]>(() => {
     if (!data || data.length < 2) return [];
 
-    const baseTime = Math.floor(Date.now() / 1000) - data.length * 3600;
+    // Use 1-minute intervals to show more recent data
+    const now = Math.floor(Date.now() / 1000);
+    const interval = 60; // 1 minute
+    const baseTime = now - data.length * interval;
+
     return data.map((value, index) => ({
-      time: baseTime + index * 3600,
+      time: baseTime + index * interval,
       value,
     }));
   }, [data]);
@@ -47,7 +51,7 @@ export function MiniChart({
         isPositive={isPositive}
         glow={glow}
         glowIntensity={0.6}
-        lineWidth={1}
+        lineWidth={1.5}
         showPriceScale={false}
         showTimeScale={false}
         showCrosshair={false}

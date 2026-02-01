@@ -22,12 +22,22 @@ function getWebSocketUrl(): string {
   return "ws://localhost:3001/ws";
 }
 
+export type PriceSourceId =
+  | "binance"
+  | "coinbase"
+  | "coinmarketcap"
+  | "coingecko"
+  | "cryptocompare";
+
 export type PriceUpdate = {
   id: number;
   symbol: string;
   price: number;
-  change24h: number;
-  volume24h: number;
+  previousPrice?: number;
+  change24h?: number;
+  volume24h?: number;
+  source?: PriceSourceId;
+  sources?: PriceSourceId[];
   timestamp: string;
 };
 
@@ -88,8 +98,22 @@ export function HauntSocketProvider({
   const marketCallbacksRef = useRef<Set<(update: MarketUpdate) => void>>(new Set());
 
   const connect = useCallback(() => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    // Don't connect if already open or connecting
+    const state = socketRef.current?.readyState;
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) {
       return;
+    }
+
+    // Clean up any existing socket before creating new one
+    if (socketRef.current) {
+      socketRef.current.onopen = null;
+      socketRef.current.onclose = null;
+      socketRef.current.onerror = null;
+      socketRef.current.onmessage = null;
+      if (state !== WebSocket.CLOSED) {
+        socketRef.current.close();
+      }
+      socketRef.current = null;
     }
 
     try {
@@ -109,9 +133,11 @@ export function HauntSocketProvider({
 
         try {
           const message = JSON.parse(event.data) as WSMessage;
+          console.log("[HauntSocket] Message:", message.type, message.type === "price_update" ? message.data.symbol : "");
 
           switch (message.type) {
             case "price_update":
+              console.log("[HauntSocket] Price callbacks:", priceCallbacksRef.current.size);
               priceCallbacksRef.current.forEach((cb) => cb(message.data));
               break;
 
@@ -169,8 +195,14 @@ export function HauntSocketProvider({
       mountedRef.current = false;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = undefined;
       }
       if (socketRef.current) {
+        // Clear handlers to prevent callbacks after unmount
+        socketRef.current.onopen = null;
+        socketRef.current.onclose = null;
+        socketRef.current.onerror = null;
+        socketRef.current.onmessage = null;
         socketRef.current.close();
         socketRef.current = null;
       }
@@ -203,7 +235,8 @@ export function HauntSocketProvider({
     };
   }, []);
 
-  const value: HauntSocketContextType = {
+  // Memoize context value to prevent unnecessary re-renders of all consumers
+  const value = useMemo<HauntSocketContextType>(() => ({
     connected,
     subscribe,
     unsubscribe,
@@ -211,7 +244,7 @@ export function HauntSocketProvider({
     error,
     onPriceUpdate,
     onMarketUpdate,
-  };
+  }), [connected, subscribe, unsubscribe, subscriptions, error, onPriceUpdate, onMarketUpdate]);
 
   return (
     <HauntSocketContext.Provider value={value}>
@@ -250,32 +283,43 @@ export function useAssetSubscription(
 ) {
   const { connected, subscribe, unsubscribe, onPriceUpdate } = useHauntSocket();
 
+  // Memoize normalized asset list to prevent dependency changes
+  const assetKey = assets.map((a) => a.toLowerCase()).join(",");
+  const normalizedAssets = useMemo(
+    () => assets.map((a) => a.toLowerCase()),
+    [assetKey]
+  );
+
   // Subscribe when connected and assets change
   useEffect(() => {
-    if (connected && assets.length > 0) {
-      subscribe(assets.map((a) => a.toLowerCase()));
+    if (connected && normalizedAssets.length > 0) {
+      subscribe(normalizedAssets);
     }
 
     return () => {
-      if (assets.length > 0) {
-        unsubscribe(assets.map((a) => a.toLowerCase()));
+      if (normalizedAssets.length > 0) {
+        unsubscribe(normalizedAssets);
       }
     };
-  }, [connected, assets.join(","), subscribe, unsubscribe]);
+  }, [connected, normalizedAssets, subscribe, unsubscribe]);
+
+  // Use ref for onUpdate to avoid re-registering on every render
+  const onUpdateRef = useRef(onUpdate);
+  onUpdateRef.current = onUpdate;
 
   // Register callback for price updates
   useEffect(() => {
-    if (!onUpdate) return;
+    if (!onUpdateRef.current) return;
 
-    const assetSet = new Set(assets.map((a) => a.toLowerCase()));
+    const assetSet = new Set(normalizedAssets);
     const handler = (update: PriceUpdate) => {
-      if (assetSet.has(update.symbol.toLowerCase())) {
-        onUpdate(update);
+      if (assetSet.has(update.symbol.toLowerCase()) && onUpdateRef.current) {
+        onUpdateRef.current(update);
       }
     };
 
     return onPriceUpdate(handler);
-  }, [assets.join(","), onUpdate, onPriceUpdate]);
+  }, [normalizedAssets, onPriceUpdate]);
 }
 
 /**

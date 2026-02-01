@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useNavigate } from "react-router-dom";
 import { Card, Text, Avatar, PercentChange, Currency, Skeleton } from "@wraith/ghost/components";
@@ -177,16 +177,19 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
     navigate(`/asset/${asset.id}`);
   }, [navigate]);
 
-  const filteredAssets = searchQuery
-    ? assets.filter(
-        (asset) =>
-          asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          asset.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : assets;
+  // Memoize filtered assets to prevent recalculation on every render
+  const filteredAssets = useMemo(() => {
+    if (!searchQuery) return assets;
+    const query = searchQuery.toLowerCase();
+    return assets.filter(
+      (asset) =>
+        asset.name.toLowerCase().includes(query) ||
+        asset.symbol.toLowerCase().includes(query)
+    );
+  }, [assets, searchQuery]);
 
-  // Dynamic grid style based on card size
-  const gridStyle = Platform.OS === "web" ? {
+  // Memoize grid style to prevent object recreation on every render
+  const gridStyle = useMemo(() => Platform.OS === "web" ? {
     display: "grid" as any,
     gridTemplateColumns: `repeat(auto-fill, minmax(${cardSize}px, 1fr))`,
     gap: 8,
@@ -194,7 +197,7 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
     flexDirection: "row" as const,
     flexWrap: "wrap" as const,
     gap: 8,
-  };
+  }, [cardSize]);
 
   return (
     <View style={styles.container}>
@@ -209,7 +212,7 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
 
       <View style={[styles.grid, gridStyle]}>
         {loading
-          ? Array.from({ length: 20 }).map((_, i) => <LoadingCard key={i} cardSize={cardSize} themeColors={themeColors} />)
+          ? Array.from({ length: 20 }).map((_, i) => <LoadingCard key={`loading-${i}`} cardSize={cardSize} themeColors={themeColors} />)
           : filteredAssets.map((asset) => (
               <ChartCard
                 key={asset.id}

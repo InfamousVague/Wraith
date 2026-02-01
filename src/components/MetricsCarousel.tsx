@@ -5,6 +5,7 @@ import { useFearGreed } from "../hooks/useFearGreed";
 import { useAltcoinSeason } from "../hooks/useAltcoinSeason";
 import { FearGreedCard } from "./FearGreedCard";
 import { AltcoinSeasonCard } from "./AltcoinSeasonCard";
+import { PriceFeedCard } from "./PriceFeedCard";
 
 export function MetricsCarousel() {
   const themeColors = useThemeColors();
@@ -26,6 +27,7 @@ export function MetricsCarousel() {
         decelerationRate="fast"
         snapToAlignment="start"
       >
+        <PriceFeedCard />
         <FearGreedCard
           value={fearGreedData?.value ?? 0}
           loading={showFearGreedLoading}
@@ -49,5 +51,6 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     gap: 16,
     flexDirection: "row",
+    alignItems: "stretch",
   },
 });

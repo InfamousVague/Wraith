@@ -75,6 +75,7 @@ function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRow
           size={Size.Small}
           weight="medium"
           decimals={asset.price < 1 ? 4 : 2}
+          animate
         />
       </View>
 
