@@ -43,17 +43,7 @@ export function PriceTicker() {
   if (Platform.OS === "web") {
     return (
       <View style={styles.container}>
-        <View
-          style={[
-            styles.scrollContent,
-            {
-              animationName: "ticker-scroll",
-              animationDuration: "30s",
-              animationTimingFunction: "linear",
-              animationIterationCount: "infinite",
-            } as any,
-          ]}
-        >
+        <div className="ticker-track">
           {tickerItems.map((asset, index) => (
             <TickerItem
               key={`${asset.id}-${index}`}
@@ -62,7 +52,7 @@ export function PriceTicker() {
               change={asset.change24h}
             />
           ))}
-        </View>
+        </div>
       </View>
     );
   }
@@ -86,18 +76,14 @@ export function PriceTicker() {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "rgba(255, 255, 255, 0.02)",
-    borderRadius: 8,
     paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
     overflow: "hidden",
   },
   scrollContent: {
     flexDirection: "row",
     gap: 32,
     paddingHorizontal: 16,
-    width: "max-content",
-  } as any,
+  },
   tickerItem: {
     flexDirection: "row",
     alignItems: "center",

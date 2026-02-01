@@ -9,9 +9,11 @@ import { PriceTicker } from "../components/PriceTicker";
 export function Dashboard() {
   return (
     <View style={styles.container}>
+      <View style={styles.tickerWrapper}>
+        <PriceTicker />
+      </View>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
         <Header />
-        <PriceTicker />
 
         <View style={styles.placeholder}>
           <Text size={Size.Large} appearance={TextAppearance.Muted}>
@@ -30,6 +32,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.canvas,
+  },
+  tickerWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },
   scrollView: {
     flex: 1,

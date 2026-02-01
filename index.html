@@ -42,6 +42,15 @@
           transform: translateX(-50%);
         }
       }
+      .ticker-track {
+        display: flex;
+        flex-direction: row;
+        gap: 32px;
+        padding: 0 16px;
+        width: max-content;
+        animation: ticker-scroll 40s linear infinite;
+        will-change: transform;
+      }
     </style>
   </head>
   <body>
