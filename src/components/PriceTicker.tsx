@@ -1,11 +1,10 @@
 import React from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet, Platform } from "react-native";
 import { Text } from "@wraith/ghost/components";
-import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Size } from "@wraith/ghost/enums";
 import { useCryptoData } from "../hooks/useCryptoData";
 
-function TickerItem({ name, symbol, price, change }: {
-  name: string;
+function TickerItem({ symbol, price, change }: {
   symbol: string;
   price: number;
   change: number;
@@ -33,23 +32,48 @@ function TickerItem({ name, symbol, price, change }: {
 export function PriceTicker() {
   const { assets } = useCryptoData({ limit: 20, useMock: true });
 
+  // Duplicate items for seamless loop effect
+  const tickerItems = [...assets, ...assets];
+
+  if (Platform.OS === "web") {
+    return (
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.scrollContent,
+            {
+              animationName: "ticker-scroll",
+              animationDuration: "30s",
+              animationTimingFunction: "linear",
+              animationIterationCount: "infinite",
+            } as any,
+          ]}
+        >
+          {tickerItems.map((asset, index) => (
+            <TickerItem
+              key={`${asset.id}-${index}`}
+              symbol={asset.symbol}
+              price={asset.price}
+              change={asset.change24h}
+            />
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <View style={styles.scrollContent}>
         {assets.map((asset) => (
           <TickerItem
             key={asset.id}
-            name={asset.name}
             symbol={asset.symbol}
             price={asset.price}
             change={asset.change24h}
           />
         ))}
-      </ScrollView>
+      </View>
     </View>
   );
 }
