@@ -1,10 +1,13 @@
-import React, { useMemo } from "react";
-import { View, StyleSheet, Pressable } from "react-native";
-import { Text, Skeleton, Card, Avatar } from "@wraith/ghost/components";
+import React, { useMemo, useEffect, useRef, useCallback } from "react";
+import { View, StyleSheet, Pressable, Platform } from "react-native";
+import { useNavigate } from "react-router-dom";
+import { Text, Skeleton, Card, Avatar, PercentChange, Currency } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Typography } from "@wraith/ghost/tokens";
+import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import type { Asset } from "../types/asset";
 import { MiniChart } from "./MiniChart";
-import { formatCompactNumber } from "../utils/format";
+import { HighlightedText } from "./HighlightedText";
 import { useCryptoData } from "../hooks/useCryptoData";
 
 type AssetListProps = {
@@ -12,72 +15,93 @@ type AssetListProps = {
   filter: "all" | "gainers" | "losers";
 };
 
-function formatPrice(price: number): string {
-  if (price >= 1000) {
-    return price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-  if (price >= 1) {
-    return price.toFixed(2);
-  }
-  return price.toFixed(4);
-}
+type AssetRowProps = {
+  asset: Asset;
+  isLast: boolean;
+  borderColor: string;
+  searchQuery: string;
+  onPress: (asset: Asset) => void;
+};
 
-function ChangeValue({ value }: { value: number }) {
-  const isPositive = value >= 0;
-  const color = isPositive ? "#22c55e" : "#ef4444";
-  const prefix = isPositive ? "+" : "";
+function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRowProps) {
+  const themeColors = useThemeColors();
 
-  return (
-    <Text
-      size={Size.Small}
-      style={{ color, fontFamily: "Inter, sans-serif", fontWeight: "500" }}
-    >
-      {prefix}{value.toFixed(2)}%
-    </Text>
-  );
-}
-
-function AssetRow({ asset, isLast }: { asset: Asset; isLast: boolean }) {
   return (
     <Pressable
+      onPress={() => onPress(asset)}
       style={[
         styles.row,
-        !isLast && styles.rowBorder,
+        !isLast && [styles.rowBorder, { borderBottomColor: borderColor }],
       ]}
     >
+      {/* Rank */}
+      <View style={styles.rankCol}>
+        <Text size={Size.Small} appearance={TextAppearance.Muted}>
+          {asset.rank}
+        </Text>
+      </View>
+
       <View style={styles.assetInfo}>
         <Avatar
+          uri={asset.image}
           initials={asset.symbol.slice(0, 2)}
           size={Size.Medium}
         />
         <View style={styles.assetName}>
-          <Text size={Size.Small} weight="semibold" style={styles.name}>
-            {asset.name}
-          </Text>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-            {asset.symbol}
-          </Text>
+          <HighlightedText
+            text={asset.name}
+            highlight={searchQuery}
+            style={{
+              fontSize: 14,
+              fontWeight: Typography.fontWeight.semibold as "600",
+              color: themeColors.text.primary,
+              fontFamily: "Plus Jakarta Sans, sans-serif",
+            }}
+          />
+          <HighlightedText
+            text={asset.symbol}
+            highlight={searchQuery}
+            style={{
+              fontSize: 12,
+              color: themeColors.text.muted,
+            }}
+          />
         </View>
       </View>
 
       <View style={styles.priceCol}>
-        <Text size={Size.Small} weight="medium" style={styles.price}>
-          ${formatPrice(asset.price)}
-        </Text>
+        <Currency
+          value={asset.price}
+          size={Size.Small}
+          weight="medium"
+          decimals={asset.price < 1 ? 4 : 2}
+        />
       </View>
 
       <View style={styles.changeCol}>
-        <ChangeValue value={asset.change24h} />
+        <PercentChange value={asset.change24h} size={Size.Small} />
       </View>
 
       <View style={styles.changeCol}>
-        <ChangeValue value={asset.change7d} />
+        <PercentChange value={asset.change7d} size={Size.Small} />
       </View>
 
       <View style={styles.marketCapCol}>
-        <Text size={Size.Small} appearance={TextAppearance.Muted}>
-          ${formatCompactNumber(asset.marketCap)}
-        </Text>
+        <Currency
+          value={asset.marketCap}
+          size={Size.Small}
+          compact
+          decimals={1}
+        />
+      </View>
+
+      <View style={styles.volumeCol}>
+        <Currency
+          value={asset.volume24h}
+          size={Size.Small}
+          compact
+          decimals={1}
+        />
       </View>
 
       <View style={styles.chartCol}>
@@ -92,9 +116,12 @@ function AssetRow({ asset, isLast }: { asset: Asset; isLast: boolean }) {
   );
 }
 
-function LoadingRow() {
+function LoadingRow({ borderColor }: { borderColor: string }) {
   return (
-    <View style={[styles.row, styles.rowBorder]}>
+    <View style={[styles.row, styles.rowBorder, { borderBottomColor: borderColor }]}>
+      <View style={styles.rankCol}>
+        <Skeleton width={24} height={14} />
+      </View>
       <View style={styles.assetInfo}>
         <Skeleton width={40} height={40} borderRadius={20} />
         <View style={styles.assetName}>
@@ -114,6 +141,9 @@ function LoadingRow() {
       <View style={styles.marketCapCol}>
         <Skeleton width={70} height={14} />
       </View>
+      <View style={styles.volumeCol}>
+        <Skeleton width={70} height={14} />
+      </View>
       <View style={styles.chartCol}>
         <Skeleton width={100} height={32} />
       </View>
@@ -122,10 +152,29 @@ function LoadingRow() {
 }
 
 export function AssetList({ searchQuery, filter }: AssetListProps) {
-  const { assets, loading, error, search } = useCryptoData({
-    limit: 100,
-    useMock: true, // Set to false when API key is configured
+  const themeColors = useThemeColors();
+  const navigate = useNavigate();
+  const { assets, loading, loadingMore, hasMore, loadMore, search, error } = useCryptoData({
+    limit: 20,
+    useMock: false,
   });
+
+  const handleAssetPress = useCallback((asset: Asset) => {
+    navigate(`/asset/${asset.id}`);
+  }, [navigate]);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreCallbackRef = useRef(loadMore);
+  const hasMoreRef = useRef(hasMore);
+  const loadingMoreRef = useRef(loadingMore);
+  const searchQueryRef = useRef(searchQuery);
+
+  // Keep refs in sync
+  useEffect(() => {
+    loadMoreCallbackRef.current = loadMore;
+    hasMoreRef.current = hasMore;
+    loadingMoreRef.current = loadingMore;
+    searchQueryRef.current = searchQuery;
+  }, [loadMore, hasMore, loadingMore, searchQuery]);
 
   const filteredAssets = useMemo(() => {
     // First apply search
@@ -140,6 +189,30 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
     });
   }, [assets, searchQuery, filter, search]);
 
+  // Callback ref for the load more trigger element
+  const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    if (Platform.OS !== "web") return;
+
+    // Disconnect previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    if (node) {
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && hasMoreRef.current && !loadingMoreRef.current && !searchQueryRef.current) {
+            loadMoreCallbackRef.current();
+          }
+        },
+        { threshold: 0.1, rootMargin: "100px" }
+      );
+      observerRef.current.observe(node);
+    }
+  }, []);
+
+  const borderColor = themeColors.border.subtle;
+
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
@@ -147,11 +220,14 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
           Cryptocurrency Prices
         </Text>
         <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-          Live prices updated every minute
+          {assets.length} assets • Live prices
         </Text>
       </View>
 
-      <View style={styles.tableHeader}>
+      <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+        <View style={styles.rankCol}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>#</Text>
+        </View>
         <View style={styles.assetInfo}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Asset</Text>
         </View>
@@ -167,15 +243,18 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
         <View style={styles.marketCapCol}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Market Cap</Text>
         </View>
+        <View style={styles.volumeCol}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Volume 24h</Text>
+        </View>
         <View style={styles.chartCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Chart</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Last 7 Days</Text>
         </View>
       </View>
 
       {loading && (
         <View>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <LoadingRow key={i} />
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+            <LoadingRow key={i} borderColor={borderColor} />
           ))}
         </View>
       )}
@@ -186,13 +265,42 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
             <AssetRow
               key={asset.id}
               asset={asset}
-              isLast={index === filteredAssets.length - 1}
+              isLast={index === filteredAssets.length - 1 && !hasMore}
+              borderColor={borderColor}
+              searchQuery={searchQuery}
+              onPress={handleAssetPress}
             />
           ))}
+
+          {/* Load more trigger element with skeleton rows */}
+          {hasMore && !searchQuery && Platform.OS === "web" && (
+            <div ref={setLoadMoreRef}>
+              {[1, 2, 3].map((i) => (
+                <LoadingRow key={`trigger-${i}`} borderColor={borderColor} />
+              ))}
+            </div>
+          )}
+
+          {/* Loading more indicator */}
+          {loadingMore && !hasMore && (
+            <View>
+              {[1, 2, 3].map((i) => (
+                <LoadingRow key={`loading-${i}`} borderColor={borderColor} />
+              ))}
+            </View>
+          )}
         </View>
       )}
 
-      {!loading && filteredAssets.length === 0 && (
+      {!loading && error && (
+        <View style={styles.empty}>
+          <Text appearance={TextAppearance.Muted}>
+            Unable to connect to server. Please ensure Haunt is running.
+          </Text>
+        </View>
+      )}
+
+      {!loading && !error && filteredAssets.length === 0 && (
         <View style={styles.empty}>
           <Text appearance={TextAppearance.Muted}>No assets found</Text>
         </View>
@@ -217,7 +325,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },
   row: {
     flexDirection: "row",
@@ -227,7 +334,9 @@ const styles = StyleSheet.create({
   },
   rowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+  },
+  rankCol: {
+    width: 40,
   },
   assetInfo: {
     flexDirection: "row",
@@ -255,7 +364,11 @@ const styles = StyleSheet.create({
   },
   marketCapCol: {
     flex: 1,
-    minWidth: 100,
+    minWidth: 110,
+  },
+  volumeCol: {
+    flex: 1,
+    minWidth: 110,
   },
   chartCol: {
     width: 100,

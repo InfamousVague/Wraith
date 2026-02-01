@@ -20,20 +20,18 @@ export default defineConfig({
     exclude: ["react-native-svg"],
   },
   server: {
+    fs: {
+      // Allow serving files from the Ghost design system
+      allow: [
+        path.resolve(__dirname, "."),
+        path.resolve(__dirname, "../Ghost"),
+      ],
+    },
     proxy: {
-      "/api/cmc": {
-        target: "https://pro-api.coinmarketcap.com",
+      // All API requests go through Haunt backend
+      "/api": {
+        target: "http://localhost:3001",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/cmc/, ""),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (proxyReq) => {
-            // API key is added via environment variable
-            const apiKey = process.env.VITE_CMC_API_KEY;
-            if (apiKey) {
-              proxyReq.setHeader("X-CMC_PRO_API_KEY", apiKey);
-            }
-          });
-        },
       },
     },
   },

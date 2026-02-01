@@ -61,10 +61,15 @@
         display: flex;
         flex-direction: row;
         gap: 32px;
-        padding: 0 16px;
         width: max-content;
-        animation: ticker-scroll 40s linear infinite;
+        animation: ticker-scroll 60s linear infinite;
         will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+        transform-style: preserve-3d;
+      }
+      .ticker-track:hover {
+        animation-play-state: paused;
       }
     </style>
   </head>

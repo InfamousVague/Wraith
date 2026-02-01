@@ -1,20 +1,31 @@
 import React from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Text, Currency, PercentChange, Skeleton } from "@wraith/ghost/components";
-import { Size } from "@wraith/ghost/enums";
+import { Size, Brightness } from "@wraith/ghost/enums";
+import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { useCryptoData } from "../hooks/useCryptoData";
-import { useTheme } from "../context/ThemeContext";
 
-const themes = {
-  dark: {
-    background: "rgba(255, 255, 255, 0.02)",
-    border: "rgba(255, 255, 255, 0.06)",
-  },
-  light: {
-    background: "rgba(0, 0, 0, 0.02)",
-    border: "rgba(0, 0, 0, 0.06)",
-  },
-};
+// Edge fade gradient component for web
+function EdgeFade({ side, color }: { side: "left" | "right"; color: string }) {
+  if (Platform.OS !== "web") return null;
+
+  const gradientDirection = side === "left" ? "to right" : "to left";
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        [side]: 0,
+        width: 60,
+        background: `linear-gradient(${gradientDirection}, ${color} 0%, ${color}dd 30%, transparent 100%)`,
+        pointerEvents: "none",
+        zIndex: 10,
+      }}
+    />
+  );
+}
 
 function TickerItem({ symbol, price, change }: {
   symbol: string;
@@ -32,6 +43,7 @@ function TickerItem({ symbol, price, change }: {
         decimals={price >= 1 ? 2 : 4}
         size={Size.Small}
         weight="medium"
+        brightness={Brightness.Soft}
       />
       <PercentChange
         value={change}
@@ -53,18 +65,21 @@ function LoadingTickerItem() {
 }
 
 export function PriceTicker() {
-  const { assets, loading } = useCryptoData({ limit: 20, useMock: true });
-  const { isDark } = useTheme();
-  const colors = isDark ? themes.dark : themes.light;
+  const { assets, loading, error } = useCryptoData({ limit: 20, useMock: false });
+  // Show loading state when there's an error (no data to display)
+  const showLoading = loading || (error !== null && assets.length === 0);
+  const themeColors = useThemeColors();
 
-  // Show loading skeletons while data loads (still scrolling)
-  if (loading || assets.length === 0) {
+  // Show loading skeletons while data loads or on error (still scrolling)
+  if (showLoading) {
     // Duplicate for seamless loop
     const loadingItems = Array.from({ length: 20 });
 
     if (Platform.OS === "web") {
       return (
-        <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
+        <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
+          <EdgeFade side="left" color={themeColors.background.canvas} />
+          <EdgeFade side="right" color={themeColors.background.canvas} />
           <div className="ticker-track">
             {loadingItems.map((_, i) => (
               <LoadingTickerItem key={i} />
@@ -75,7 +90,7 @@ export function PriceTicker() {
     }
 
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
         <View style={styles.loadingTrack}>
           {Array.from({ length: 10 }).map((_, i) => (
             <LoadingTickerItem key={i} />
@@ -90,7 +105,9 @@ export function PriceTicker() {
 
   if (Platform.OS === "web") {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
+      <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
+        <EdgeFade side="left" color={themeColors.background.canvas} />
+        <EdgeFade side="right" color={themeColors.background.canvas} />
         <div className="ticker-track">
           {tickerItems.map((asset, index) => (
             <TickerItem
@@ -106,7 +123,7 @@ export function PriceTicker() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, borderColor: colors.border }]}>
+    <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
       <View style={styles.scrollContent}>
         {assets.map((asset) => (
           <TickerItem
@@ -123,10 +140,10 @@ export function PriceTicker() {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 8,
     paddingVertical: 12,
-    borderWidth: 1,
     overflow: "hidden",
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
   },
   loadingTrack: {
     flexDirection: "row",
@@ -143,6 +160,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     flexShrink: 0,
+    paddingHorizontal: 4,
   },
   symbol: {
     fontFamily: "Plus Jakarta Sans, sans-serif",

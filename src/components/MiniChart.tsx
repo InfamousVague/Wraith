@@ -1,54 +1,58 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet } from "react-native";
-import { Colors } from "@wraith/ghost/tokens";
+import { LightweightChart, type ChartDataPoint } from "@wraith/ghost/components";
 
 type MiniChartProps = {
   data: number[];
   isPositive: boolean;
-  width?: number;
+  width?: number | string;
   height?: number;
+  /** Enable glow effect (default true) */
+  glow?: boolean;
 };
 
 export function MiniChart({
   data,
   isPositive,
-  width = 120,
+  width = "100%",
   height = 40,
+  glow = true,
 }: MiniChartProps) {
-  if (!data || data.length < 2) {
-    return <View style={[styles.container, { width, height }]} />;
+  // Convert number[] to ChartDataPoint[] with synthetic timestamps
+  const chartData = useMemo<ChartDataPoint[]>(() => {
+    if (!data || data.length < 2) return [];
+
+    const baseTime = Math.floor(Date.now() / 1000) - data.length * 3600;
+    return data.map((value, index) => ({
+      time: baseTime + index * 3600,
+      value,
+    }));
+  }, [data]);
+
+  const containerStyle = typeof width === "number"
+    ? { width, height }
+    : { width: "100%" as const, height };
+
+  if (chartData.length < 2) {
+    return <View style={[styles.container, containerStyle]} />;
   }
 
-  const color = isPositive ? Colors.status.success : Colors.status.danger;
-
-  // Normalize data to fit within the chart
-  const minValue = Math.min(...data);
-  const maxValue = Math.max(...data);
-  const range = maxValue - minValue || 1;
-  const padding = 4;
-  const chartWidth = width - padding * 2;
-  const chartHeight = height - padding * 2;
-
-  const points = data
-    .map((value, index) => {
-      const x = padding + (index / (data.length - 1)) * chartWidth;
-      const y = padding + chartHeight - ((value - minValue) / range) * chartHeight;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
   return (
-    <View style={[styles.container, { width, height }]}>
-      <svg width={width} height={height}>
-        <polyline
-          points={points}
-          fill="none"
-          stroke={color}
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+    <View style={[styles.container, containerStyle]}>
+      <LightweightChart
+        data={chartData}
+        type="area"
+        width={width}
+        height={height}
+        isPositive={isPositive}
+        glow={glow}
+        glowIntensity={0.6}
+        lineWidth={1}
+        showPriceScale={false}
+        showTimeScale={false}
+        showCrosshair={false}
+        interactive={false}
+      />
     </View>
   );
 }

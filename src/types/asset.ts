@@ -3,6 +3,7 @@ export type Asset = {
   rank: number;
   name: string;
   symbol: string;
+  image: string;
   price: number;
   change1h: number;
   change24h: number;

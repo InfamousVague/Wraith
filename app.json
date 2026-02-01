@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "Wraith",
+    "slug": "wraith",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/wraith_appicon_large.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/wraith_appicon_large.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050608"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.wraith.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/wraith_appicon_large.png",
+        "backgroundColor": "#050608"
+      },
+      "package": "com.wraith.app"
+    },
+    "web": {
+      "favicon": "./assets/wraith_appicon_large.png",
+      "bundler": "metro"
+    },
+    "scheme": "wraith"
+  }
+}
