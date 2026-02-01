@@ -19,4 +19,22 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["react-native-svg"],
   },
+  server: {
+    proxy: {
+      "/api/cmc": {
+        target: "https://pro-api.coinmarketcap.com",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/cmc/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            // API key is added via environment variable
+            const apiKey = process.env.VITE_CMC_API_KEY;
+            if (apiKey) {
+              proxyReq.setHeader("X-CMC_PRO_API_KEY", apiKey);
+            }
+          });
+        },
+      },
+    },
+  },
 });

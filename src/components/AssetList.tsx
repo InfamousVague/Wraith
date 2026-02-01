@@ -1,137 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text, Skeleton, Card, Avatar } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
-import { Colors } from "@wraith/ghost/tokens";
 import type { Asset } from "../types/asset";
 import { MiniChart } from "./MiniChart";
 import { formatCompactNumber } from "../utils/format";
+import { useCryptoData } from "../hooks/useCryptoData";
 
 type AssetListProps = {
   searchQuery: string;
   filter: "all" | "gainers" | "losers";
 };
-
-// Mock data - will be replaced with CoinMarketCap API
-const MOCK_ASSETS: Asset[] = [
-  {
-    id: 1,
-    rank: 1,
-    name: "Bitcoin",
-    symbol: "BTC",
-    price: 97432.15,
-    change1h: 0.23,
-    change24h: 2.45,
-    change7d: 5.67,
-    marketCap: 1920000000000,
-    volume24h: 45600000000,
-    circulatingSupply: 19700000,
-    maxSupply: 21000000,
-    sparkline: [96000, 96500, 97000, 96800, 97200, 97432],
-  },
-  {
-    id: 2,
-    rank: 2,
-    name: "Ethereum",
-    symbol: "ETH",
-    price: 3456.78,
-    change1h: -0.12,
-    change24h: 1.89,
-    change7d: 8.23,
-    marketCap: 415000000000,
-    volume24h: 18900000000,
-    circulatingSupply: 120000000,
-    sparkline: [3400, 3420, 3450, 3440, 3460, 3456],
-  },
-  {
-    id: 3,
-    rank: 3,
-    name: "Tether",
-    symbol: "USDT",
-    price: 1.0,
-    change1h: 0.01,
-    change24h: 0.02,
-    change7d: -0.01,
-    marketCap: 95000000000,
-    volume24h: 78000000000,
-    circulatingSupply: 95000000000,
-    sparkline: [1, 1, 1, 1, 1, 1],
-  },
-  {
-    id: 4,
-    rank: 4,
-    name: "BNB",
-    symbol: "BNB",
-    price: 623.45,
-    change1h: 0.45,
-    change24h: -1.23,
-    change7d: 3.45,
-    marketCap: 93000000000,
-    volume24h: 1200000000,
-    circulatingSupply: 149000000,
-    maxSupply: 200000000,
-    sparkline: [610, 620, 625, 618, 622, 623],
-  },
-  {
-    id: 5,
-    rank: 5,
-    name: "Solana",
-    symbol: "SOL",
-    price: 198.34,
-    change1h: 1.23,
-    change24h: 5.67,
-    change7d: 12.34,
-    marketCap: 86000000000,
-    volume24h: 4500000000,
-    circulatingSupply: 433000000,
-    sparkline: [180, 185, 190, 195, 197, 198],
-  },
-  {
-    id: 6,
-    rank: 6,
-    name: "XRP",
-    symbol: "XRP",
-    price: 2.34,
-    change1h: -0.34,
-    change24h: -2.56,
-    change7d: -5.12,
-    marketCap: 82000000000,
-    volume24h: 8900000000,
-    circulatingSupply: 35000000000,
-    maxSupply: 100000000000,
-    sparkline: [2.5, 2.45, 2.4, 2.38, 2.35, 2.34],
-  },
-  {
-    id: 7,
-    rank: 7,
-    name: "Cardano",
-    symbol: "ADA",
-    price: 1.12,
-    change1h: 0.78,
-    change24h: 4.23,
-    change7d: 15.67,
-    marketCap: 39000000000,
-    volume24h: 1800000000,
-    circulatingSupply: 35000000000,
-    maxSupply: 45000000000,
-    sparkline: [0.95, 1.0, 1.05, 1.08, 1.1, 1.12],
-  },
-  {
-    id: 8,
-    rank: 8,
-    name: "Avalanche",
-    symbol: "AVAX",
-    price: 42.56,
-    change1h: -0.56,
-    change24h: -3.45,
-    change7d: 2.34,
-    marketCap: 17000000000,
-    volume24h: 890000000,
-    circulatingSupply: 394000000,
-    maxSupply: 720000000,
-    sparkline: [44, 43.5, 43, 42.8, 42.6, 42.56],
-  },
-];
 
 function formatPrice(price: number): string {
   if (price >= 1000) {
@@ -243,31 +122,23 @@ function LoadingRow() {
 }
 
 export function AssetList({ searchQuery, filter }: AssetListProps) {
-  const [loading, setLoading] = useState(true);
-  const [assets, setAssets] = useState<Asset[]>([]);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      setAssets(MOCK_ASSETS);
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const filteredAssets = assets.filter((asset) => {
-    const matchesSearch =
-      searchQuery === "" ||
-      asset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.symbol.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesFilter =
-      filter === "all" ||
-      (filter === "gainers" && asset.change24h > 0) ||
-      (filter === "losers" && asset.change24h < 0);
-
-    return matchesSearch && matchesFilter;
+  const { assets, loading, error, search } = useCryptoData({
+    limit: 100,
+    useMock: true, // Set to false when API key is configured
   });
+
+  const filteredAssets = useMemo(() => {
+    // First apply search
+    const searchResults = searchQuery ? search(searchQuery) : assets;
+
+    // Then apply filter
+    return searchResults.filter((asset) => {
+      if (filter === "all") return true;
+      if (filter === "gainers") return asset.change24h > 0;
+      if (filter === "losers") return asset.change24h < 0;
+      return true;
+    });
+  }, [assets, searchQuery, filter, search]);
 
   return (
     <Card style={styles.container}>
