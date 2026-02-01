@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet, Platform } from "react-native";
-import { Text } from "@wraith/ghost/components";
-import { Size } from "@wraith/ghost/enums";
+import { Text, Currency, Number } from "@wraith/ghost/components";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useCryptoData } from "../hooks/useCryptoData";
 
 function TickerItem({ symbol, price, change }: {
@@ -16,15 +16,20 @@ function TickerItem({ symbol, price, change }: {
       <Text size={Size.Small} weight="semibold" style={styles.symbol}>
         {symbol}
       </Text>
-      <Text size={Size.Small} style={styles.price}>
-        ${price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </Text>
-      <Text
+      <Currency
+        value={price}
+        currency="USD"
+        decimals={price >= 1 ? 2 : 4}
+        size={Size.Small}
+        weight="medium"
+      />
+      <Number
+        value={change}
+        format={{ decimals: 2, suffix: "%", prefix: isPositive ? "+" : "" }}
         size={Size.ExtraSmall}
-        style={{ color: isPositive ? "#22c55e" : "#ef4444" }}
-      >
-        {isPositive ? "+" : ""}{change.toFixed(2)}%
-      </Text>
+        appearance={isPositive ? TextAppearance.Success : TextAppearance.Danger}
+        weight="medium"
+      />
     </View>
   );
 }
@@ -85,21 +90,21 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.06)",
+    overflow: "hidden",
   },
   scrollContent: {
     flexDirection: "row",
-    gap: 24,
+    gap: 32,
     paddingHorizontal: 16,
-  },
+    width: "max-content",
+  } as any,
   tickerItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    flexShrink: 0,
   },
   symbol: {
     fontFamily: "Plus Jakarta Sans, sans-serif",
-  },
-  price: {
-    fontFamily: "Inter, sans-serif",
   },
 });
