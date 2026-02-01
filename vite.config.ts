@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@wraith/ghost": path.resolve(__dirname, "../Ghost/src"),
+      "@wraith/ghost": path.resolve(__dirname, "../ghost/src"),
       "react-native": path.resolve(__dirname, "node_modules/react-native-web"),
       "react-native-svg": path.resolve(__dirname, "./src/shims/react-native-svg.tsx"),
     },
@@ -24,7 +24,7 @@ export default defineConfig({
       // Allow serving files from the Ghost design system
       allow: [
         path.resolve(__dirname, "."),
-        path.resolve(__dirname, "../Ghost"),
+        path.resolve(__dirname, "../ghost"),
       ],
     },
     proxy: {
