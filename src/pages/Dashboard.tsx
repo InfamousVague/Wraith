@@ -34,6 +34,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.canvas,
   },
   tickerWrapper: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },

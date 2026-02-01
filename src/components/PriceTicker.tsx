@@ -76,7 +76,10 @@ export function PriceTicker() {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "rgba(255, 255, 255, 0.02)",
+    borderRadius: 8,
     paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
     overflow: "hidden",
   },
   scrollContent: {
