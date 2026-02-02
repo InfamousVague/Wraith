@@ -7,8 +7,10 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Text } from "@wraith/ghost/components";
 import { Size } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 
 type CountdownTimerProps = {
   /** Target timestamp in milliseconds when the prediction will be validated */
@@ -40,9 +42,10 @@ function formatRemaining(ms: number): string {
 export function CountdownTimer({
   targetTime,
   label,
-  activeColor = "#3B82F6",
+  activeColor = Colors.data.blue,
   onComplete,
 }: CountdownTimerProps) {
+  const { t } = useTranslation("components");
   const [remaining, setRemaining] = useState(() => targetTime - Date.now());
 
   const handleComplete = useCallback(() => {
@@ -73,15 +76,15 @@ export function CountdownTimer({
       <Text
         size={Size.TwoXSmall}
         weight="semibold"
-        style={{ color: isComplete ? "#22C55E" : activeColor }}
+        style={{ color: isComplete ? Colors.status.success : activeColor }}
       >
         {label}
       </Text>
       <Text
         size={Size.TwoXSmall}
-        style={{ color: isComplete ? "#22C55E" : activeColor }}
+        style={{ color: isComplete ? Colors.status.success : activeColor }}
       >
-        {isComplete ? "Ready" : formatRemaining(remaining)}
+        {isComplete ? t("countdown.ready") : formatRemaining(remaining)}
       </Text>
     </View>
   );

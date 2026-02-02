@@ -23,7 +23,7 @@ export const MiniChart = React.memo(function MiniChart({
   isPositive,
   width = "100%",
   height = 40,
-  glow = true,
+  glow = false,
   loading = false,
 }: MiniChartProps) {
   const themeColors = useThemeColors();

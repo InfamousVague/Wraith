@@ -18,7 +18,8 @@ import {
   type LineWidth,
   type Time,
 } from "lightweight-charts";
-import { Card, Skeleton, Text, Icon, SegmentedControl, FilterChip, Currency } from "@wraith/ghost/components";
+import { Card, Skeleton, Text, Icon, SegmentedControl, FilterChip, Currency, PercentChange } from "@wraith/ghost/components";
+import { Colors } from "@wraith/ghost/tokens";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import type { Asset } from "../types/asset";
@@ -34,7 +35,7 @@ export type Indicator = "sma" | "ema" | "bollinger" | "volume";
 type AdvancedChartProps = {
   asset: Asset | null;
   loading?: boolean;
-  height?: number;
+  height?: number; // Optional - if not provided, flex to fill container
 };
 
 type ChartDataPoint = {
@@ -72,10 +73,10 @@ const TIME_RANGE_OPTIONS = [
 
 // Indicator definitions
 const INDICATORS = [
-  { id: "sma" as const, label: "SMA", color: "#3B82F6" },
-  { id: "ema" as const, label: "EMA", color: "#8B5CF6" },
-  { id: "bollinger" as const, label: "BB", color: "#F59E0B" },
-  { id: "volume" as const, label: "Vol", color: "#6B7280" },
+  { id: "sma" as const, label: "SMA", color: Colors.data.blue },
+  { id: "ema" as const, label: "EMA", color: Colors.data.violet },
+  { id: "bollinger" as const, label: "BB", color: Colors.data.amber },
+  { id: "volume" as const, label: "Vol", color: Colors.text.muted },
 ];
 
 // Generate OHLC data from sparkline
@@ -254,8 +255,6 @@ function ChartLegend({
   low?: number;
   volume?: number;
 }) {
-  const isPositive = (change ?? 0) >= 0;
-
   return (
     <View style={styles.legend}>
       <View style={styles.legendItem}>
@@ -268,13 +267,11 @@ function ChartLegend({
       </View>
       <View style={styles.legendItem}>
         <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Change</Text>
-        <Text
-          size={Size.Medium}
-          weight="semibold"
-          style={{ color: isPositive ? "#22C55E" : "#EF4444" }}
-        >
-          {change !== undefined && Number.isFinite(change) ? `${isPositive ? "+" : ""}${change.toFixed(2)}%` : "—"}
-        </Text>
+        {change !== undefined && Number.isFinite(change) ? (
+          <PercentChange value={change} size={Size.Medium} weight="semibold" />
+        ) : (
+          <Text size={Size.Medium} weight="semibold">—</Text>
+        )}
       </View>
       <View style={styles.legendItem}>
         <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>High</Text>
@@ -302,7 +299,7 @@ function ChartLegend({
   );
 }
 
-export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartProps) {
+export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   const themeColors = useThemeColors();
   const [timeRange, setTimeRange] = useState<TimeRange>("1W");
   const [chartType, setChartType] = useState<ChartType>("area");
@@ -327,10 +324,11 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
   const mainSeriesRef = useRef<ISeriesApi<"Area" | "Line" | "Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const indicatorSeriesRef = useRef<Map<string, ISeriesApi<"Line">>>(new Map());
+  const [containerHeight, setContainerHeight] = useState(height ?? 400);
 
   const isPositive = asset ? asset.change7d >= 0 : true;
-  const positiveColor = "#22C55E";
-  const negativeColor = "#EF4444";
+  const positiveColor = Colors.status.success;
+  const negativeColor = Colors.status.danger;
   const lineColor = isPositive ? positiveColor : negativeColor;
 
   // Handle real-time price updates from WebSocket
@@ -554,8 +552,13 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
     volumeSeriesRef.current = null;
     indicatorSeriesRef.current.clear();
 
-    const chartHeight = activeIndicators.has("volume") ? height - 80 : height;
-    const volumeHeight = 60;
+    // Measure the container's actual height (important for flex layouts)
+    const measuredContainerHeight = container.clientHeight || container.offsetHeight || 400;
+
+    // Use prop height if provided, otherwise use measured height
+    // Note: Volume histogram is rendered inside the chart via scaleMargins, so no height reduction needed
+    const effectiveHeight = height ?? measuredContainerHeight;
+    const chartHeight = Math.max(200, effectiveHeight);
 
     // Reset error state
     setChartError(null);
@@ -632,8 +635,8 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       // Area chart
       const series = chart.addSeries(AreaSeries, {
         lineColor,
-        topColor: isPositive ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)",
-        bottomColor: isPositive ? "rgba(34, 197, 94, 0.02)" : "rgba(239, 68, 68, 0.02)",
+        topColor: isPositive ? "rgba(47, 213, 117, 0.4)" : "rgba(255, 92, 122, 0.4)",
+        bottomColor: isPositive ? "rgba(47, 213, 117, 0.02)" : "rgba(255, 92, 122, 0.02)",
         lineWidth: 2 as LineWidth,
         priceLineVisible: false,
         lastValueVisible: true,
@@ -660,7 +663,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       const volumeData: HistogramData<Time>[] = ohlcData.map((d) => ({
         time: d.time as Time,
         value: d.volume ?? 0,
-        color: d.close >= d.open ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)",
+        color: d.close >= d.open ? "rgba(47, 213, 117, 0.4)" : "rgba(255, 92, 122, 0.4)",
       }));
 
       volumeSeries.setData(volumeData);
@@ -672,7 +675,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       const smaData = calculateSMA(lineData, 20);
       if (smaData.length > 0) {
         const smaSeries = chart.addSeries(LineSeries, {
-          color: "#3B82F6",
+          color: Colors.data.blue,
           lineWidth: 1 as LineWidth,
           priceLineVisible: false,
           lastValueVisible: false,
@@ -687,7 +690,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       const emaData = calculateEMA(lineData, 20);
       if (emaData.length > 0) {
         const emaSeries = chart.addSeries(LineSeries, {
-          color: "#8B5CF6",
+          color: Colors.data.violet,
           lineWidth: 1 as LineWidth,
           priceLineVisible: false,
           lastValueVisible: false,
@@ -702,7 +705,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       const bb = calculateBollingerBands(lineData, 20, 2);
       if (bb.upper.length > 0) {
         const upperSeries = chart.addSeries(LineSeries, {
-          color: "rgba(245, 158, 11, 0.6)",
+          color: Colors.data.amber + "99", // 60% opacity
           lineWidth: 1 as LineWidth,
           lineStyle: 2,
           priceLineVisible: false,
@@ -712,7 +715,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
         indicatorSeriesRef.current.set("bb-upper", upperSeries);
 
         const middleSeries = chart.addSeries(LineSeries, {
-          color: "#F59E0B",
+          color: Colors.data.amber,
           lineWidth: 1 as LineWidth,
           priceLineVisible: false,
           lastValueVisible: false,
@@ -721,7 +724,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
         indicatorSeriesRef.current.set("bb-middle", middleSeries);
 
         const lowerSeries = chart.addSeries(LineSeries, {
-          color: "rgba(245, 158, 11, 0.6)",
+          color: Colors.data.amber + "99", // 60% opacity
           lineWidth: 1 as LineWidth,
           lineStyle: 2,
           priceLineVisible: false,
@@ -769,11 +772,17 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
     const observer = new MutationObserver(() => removeWatermark(container));
     observer.observe(container, { subtree: true, childList: true });
 
-    // Resize handler
-    const resizeObserver = new ResizeObserver(() => {
-      const width = container.clientWidth;
-      if (width > 0) {
-        chart.resize(width, chartHeight);
+    // Resize handler - updates chart size when container changes
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      const width = entry.contentRect.width;
+      const measuredHeight = entry.contentRect.height;
+
+      if (width > 0 && measuredHeight > 0) {
+        // Calculate new chart height (volume is rendered inside via scaleMargins)
+        const newChartHeight = Math.max(200, height ?? measuredHeight);
+
+        chart.resize(width, newChartHeight);
         chart.timeScale().fitContent();
       }
     });
@@ -792,7 +801,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       observer.disconnect();
       resizeObserver.disconnect();
     };
-  }, [lineData, ohlcData, chartType, activeIndicators, height, themeColors, isPositive, lineColor, stats]);
+  }, [lineData, ohlcData, chartType, activeIndicators, height, containerHeight, themeColors, isPositive, lineColor, stats]);
 
   // Set initial crosshair data
   useEffect(() => {
@@ -806,7 +815,9 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
           <Skeleton width={400} height={36} borderRadius={8} />
           <Skeleton width={200} height={36} borderRadius={8} />
         </View>
-        <Skeleton width="100%" height={height} style={{ marginTop: 16 }} borderRadius={8} />
+        <View style={[styles.chartContainer, height ? { height } : undefined]}>
+          <Skeleton width="100%" height="100%" borderRadius={8} />
+        </View>
       </Card>
     );
   }
@@ -814,8 +825,8 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
   if (chartError) {
     return (
       <Card style={styles.card}>
-        <View style={[styles.placeholder, { height }]}>
-          <Icon name="skull" size={Size.TwoXLarge} color="#EF4444" />
+        <View style={[styles.placeholder, height ? { height } : undefined]}>
+          <Icon name="skull" size={Size.TwoXLarge} color={Colors.status.danger} />
           <Text appearance={TextAppearance.Danger} style={{ marginTop: 12 }}>
             Chart Error
           </Text>
@@ -832,23 +843,24 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
     const showInitialLoading = !initialFetchComplete;
     const showBuildingState = initialFetchComplete && isActivelyBuilding;
 
+    const placeholderHeight = height ?? 400;
     return (
       <Card style={styles.card}>
         {showInitialLoading ? (
           <HeartbeatChart
-            height={height}
+            height={placeholderHeight}
             color={themeColors.accent.primary}
             bannerText="Loading chart..."
           />
         ) : showBuildingState ? (
           <HeartbeatChart
-            height={height}
+            height={placeholderHeight}
             color={themeColors.accent.primary}
             bannerText={`Building chart data for ${asset?.symbol || "this asset"}...`}
           />
         ) : seedingStatus === "failed" ? (
-          <View style={[styles.placeholder, { height }]}>
-            <Icon name="warning" size={Size.TwoXLarge} color="#F59E0B" />
+          <View style={[styles.placeholder, { height: placeholderHeight }]}>
+            <Icon name="warning" size={Size.TwoXLarge} color={Colors.status.warning} />
             <Text appearance={TextAppearance.Warning} style={{ marginTop: 12 }}>
               Unable to load chart data
             </Text>
@@ -857,7 +869,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
             </Text>
           </View>
         ) : (
-          <View style={[styles.placeholder, { height }]}>
+          <View style={[styles.placeholder, { height: placeholderHeight }]}>
             <Icon name="grid" size={Size.TwoXLarge} appearance={TextAppearance.Muted} />
             <Text appearance={TextAppearance.Muted} style={{ marginTop: 12 }}>
               No chart data available
@@ -876,11 +888,11 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
           <HeartbeatChart
             height={20}
             width={40}
-            color="#3B82F6"
+            color={Colors.data.blue}
             animationDuration={1500}
             style={styles.seedingHeartbeat}
           />
-          <Text size={Size.TwoXSmall} style={{ color: "#3B82F6" }}>
+          <Text size={Size.TwoXSmall} style={{ color: Colors.data.blue }}>
             Updating chart data in background...
           </Text>
         </View>
@@ -927,7 +939,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
       </View>
 
       {/* Chart */}
-      <View style={[styles.chartContainer, { height }]}>
+      <View style={[styles.chartContainer, height ? { height } : undefined]}>
         {Platform.OS === "web" ? (
           <div
             ref={containerRef}
@@ -949,19 +961,19 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
         <View style={styles.indicatorLegend}>
           {activeIndicators.has("sma") && (
             <View style={styles.legendTag}>
-              <View style={[styles.legendDot, { backgroundColor: "#3B82F6" }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.data.blue }]} />
               <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>SMA(20)</Text>
             </View>
           )}
           {activeIndicators.has("ema") && (
             <View style={styles.legendTag}>
-              <View style={[styles.legendDot, { backgroundColor: "#8B5CF6" }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.data.violet }]} />
               <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>EMA(20)</Text>
             </View>
           )}
           {activeIndicators.has("bollinger") && (
             <View style={styles.legendTag}>
-              <View style={[styles.legendDot, { backgroundColor: "#F59E0B" }]} />
+              <View style={[styles.legendDot, { backgroundColor: Colors.data.amber }]} />
               <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>BB(20,2)</Text>
             </View>
           )}
@@ -975,6 +987,9 @@ const styles = StyleSheet.create({
   card: {
     padding: 20,
     gap: 16,
+    flex: 1, // Fill available space
+    display: "flex",
+    flexDirection: "column",
   },
   legend: {
     flexDirection: "row",
@@ -1016,7 +1031,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.1)",
   },
   chartContainer: {
+    flex: 1, // Fill remaining space in card
     width: "100%",
+    minHeight: 200, // Minimum chart height
     borderRadius: 8,
     overflow: "hidden",
   },

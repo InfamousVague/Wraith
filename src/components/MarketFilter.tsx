@@ -1,5 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Text, Icon, type IconName } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
@@ -13,16 +14,17 @@ type MarketFilterProps = {
 type MarketOption = {
   value: AssetType;
   icon: IconName;
-  label: string;
+  labelKey: string;
 };
 
 const MARKET_OPTIONS: MarketOption[] = [
-  { value: "all", icon: "layers", label: "All" },
-  { value: "crypto", icon: "coins", label: "Crypto" },
-  { value: "stock", icon: "building-2", label: "Stocks" },
+  { value: "all", icon: "layers", labelKey: "all" },
+  { value: "crypto", icon: "coins", labelKey: "crypto" },
+  { value: "stock", icon: "building-2", labelKey: "stocks" },
 ];
 
 export function MarketFilter({ value, onChange }: MarketFilterProps) {
+  const { t } = useTranslation("navigation");
   const themeColors = useThemeColors();
 
   return (
@@ -56,7 +58,7 @@ export function MarketFilter({ value, onChange }: MarketFilterProps) {
               appearance={isActive ? TextAppearance.Primary : TextAppearance.Muted}
               weight={isActive ? "medium" : "regular"}
             >
-              {option.label}
+              {t(`marketFilterOptions.${option.labelKey}`)}
             </Text>
           </Pressable>
         );

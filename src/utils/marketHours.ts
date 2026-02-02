@@ -107,3 +107,77 @@ export function getNextMarketOpen(): Date | null {
 
   return nextOpen;
 }
+
+/**
+ * Get next market close time for US markets.
+ */
+export function getNextMarketClose(): Date | null {
+  if (!isUSMarketOpen()) {
+    return null; // Market is currently closed
+  }
+
+  const now = new Date();
+  const etTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+
+  // Today at 4:00 PM ET
+  const nextClose = new Date(etTime);
+  nextClose.setHours(16, 0, 0, 0);
+
+  return nextClose;
+}
+
+/**
+ * Get time until next market event (open or close).
+ * Returns { event: 'open' | 'close', time: Date, msUntil: number }
+ */
+export function getTimeUntilMarketEvent(): { event: "open" | "close"; time: Date; msUntil: number } | null {
+  const now = new Date();
+
+  if (isUSMarketOpen()) {
+    const closeTime = getNextMarketClose();
+    if (closeTime) {
+      return {
+        event: "close",
+        time: closeTime,
+        msUntil: closeTime.getTime() - now.getTime(),
+      };
+    }
+  } else {
+    const openTime = getNextMarketOpen();
+    if (openTime) {
+      return {
+        event: "open",
+        time: openTime,
+        msUntil: openTime.getTime() - now.getTime(),
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Format milliseconds to a human-readable duration string.
+ */
+export function formatDuration(ms: number): string {
+  if (ms <= 0) return "Now";
+
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) {
+    const remainingHours = hours % 24;
+    return `${days}d ${remainingHours}h`;
+  }
+  if (hours > 0) {
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+  if (minutes > 0) {
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+  return `${seconds}s`;
+}

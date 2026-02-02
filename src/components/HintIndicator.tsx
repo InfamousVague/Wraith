@@ -10,8 +10,10 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import { View, StyleSheet, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Text, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { useHints } from "../context/HintContext";
 
 // ============================================================================
@@ -112,8 +114,10 @@ type HintIndicatorProps = {
   id: string;
   /** Tooltip title */
   title: string;
-  /** Tooltip content */
-  content: string;
+  /** Tooltip content (plain text) */
+  content?: string;
+  /** Rich content (React elements) - takes precedence over content string */
+  children?: React.ReactNode;
   /** Priority in the hint queue (lower = shown first) */
   priority?: number;
   /** Hotspot icon */
@@ -122,19 +126,25 @@ type HintIndicatorProps = {
   color?: string;
   /** If true, renders inline instead of absolute positioned (for placing next to headings) */
   inline?: boolean;
+  /** Width of the popup in pixels (default: 320) */
+  width?: number;
 };
 
-const POPUP_WIDTH = 320;
+const DEFAULT_popupWidth = 320;
 
 export function HintIndicator({
   id,
   title,
   content,
+  children,
   priority = 100,
   icon = "i",
-  color = "#A78BFA",
+  color = Colors.accent.primary,
   inline = false,
+  width = DEFAULT_popupWidth,
 }: HintIndicatorProps) {
+  const popupWidth = width;
+  const { t } = useTranslation("common");
   const { registerHint, unregisterHint, dismissHint, isActive, isViewed } = useHints();
   const [isOpen, setIsOpen] = useState(false);
   const [popupPosition, setPopupPosition] = useState<{ top: number; left: number } | null>(null);
@@ -166,8 +176,8 @@ export function HintIndicator({
     let top = clickY + 12;
 
     // If popup would go off right edge, show on left of click
-    if (left + POPUP_WIDTH > windowWidth - 20) {
-      left = clickX - POPUP_WIDTH - 12;
+    if (left + popupWidth > windowWidth - 20) {
+      left = clickX - popupWidth - 12;
     }
 
     // If popup would go off bottom, show above click
@@ -176,7 +186,7 @@ export function HintIndicator({
     }
 
     // Clamp to viewport
-    left = Math.max(16, Math.min(left, windowWidth - POPUP_WIDTH - 16));
+    left = Math.max(16, Math.min(left, windowWidth - popupWidth - 16));
     top = Math.max(16, top);
 
     setPopupPosition({ top, left });
@@ -253,8 +263,8 @@ export function HintIndicator({
               position: "fixed",
               top: popupPosition.top,
               left: popupPosition.left,
-              width: POPUP_WIDTH,
-              backgroundColor: "#0A0C10",
+              width: popupWidth,
+              backgroundColor: Colors.background.subtle,
               borderRadius: 12,
               border: "1px solid rgba(255, 255, 255, 0.06)",
               padding: 0,
@@ -273,7 +283,7 @@ export function HintIndicator({
               }}
             >
               <View pointerEvents="none">
-                <Text size={Size.Medium} weight="semibold" style={{ color: "#F4F6FF" }}>
+                <Text size={Size.Medium} weight="semibold" style={{ color: Colors.text.primary }}>
                   {title}
                 </Text>
               </View>
@@ -292,17 +302,21 @@ export function HintIndicator({
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
               >
                 <View pointerEvents="none">
-                  <Icon name="x" size={Size.Small} color="#6B7280" />
+                  <Icon name="x" size={Size.Small} color={Colors.text.muted} />
                 </View>
               </div>
             </div>
             {/* Content */}
             <div style={{ padding: "0 20px 16px 20px" }}>
-              <View pointerEvents="none">
-                <Text size={Size.Small} style={{ color: "#9CA3AF", lineHeight: 22 }}>
-                  {content}
-                </Text>
-              </View>
+              {children ? (
+                children
+              ) : (
+                <View pointerEvents="none">
+                  <Text size={Size.Small} style={{ color: Colors.text.secondary, lineHeight: 22 }}>
+                    {content}
+                  </Text>
+                </View>
+              )}
             </div>
             {/* Footer */}
             <div
@@ -332,8 +346,8 @@ export function HintIndicator({
                 }}
               >
                 <View pointerEvents="none">
-                  <Text size={Size.Small} weight="semibold" style={{ color: "#A78BFA" }}>
-                    Got it
+                  <Text size={Size.Small} weight="semibold" style={{ color: Colors.accent.primary }}>
+                    {t("buttons.gotIt")}
                   </Text>
                 </View>
               </div>
@@ -353,7 +367,7 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 6,
-    color: "#F4F6FF",
+    color: Colors.text.primary,
   },
   description: {
     lineHeight: 18,

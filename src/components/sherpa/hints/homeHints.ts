@@ -4,6 +4,7 @@
  * Hint definitions for the Dashboard/Home page.
  */
 
+import { Colors } from "@wraith/ghost/tokens";
 import type { SherpaHint, SherpaHintGroup } from "../types";
 
 export const HOME_HINTS_ID = "home-hints";
@@ -39,7 +40,7 @@ export const homeHints: SherpaHint[] = [
     target: '[data-sherpa="asset-search"]',
     indicatorStyle: "hotspot",
     hotspotIcon: "!",
-    color: "#22C55E",
+    color: Colors.status.success,
     category: "home",
   },
 ];

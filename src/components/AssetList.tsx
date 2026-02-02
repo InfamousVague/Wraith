@@ -1,6 +1,7 @@
 import React, { useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Text, Skeleton, Card, Avatar, PercentChange, Currency, Tag, Input } from "@wraith/ghost/components";
 import { Size, TextAppearance, Shape } from "@wraith/ghost/enums";
 import { Typography, Colors } from "@wraith/ghost/tokens";
@@ -9,11 +10,14 @@ import type { Asset } from "../types/asset";
 import { MiniChart } from "./MiniChart";
 import { HighlightedText } from "./HighlightedText";
 import { useCryptoData } from "../hooks/useCryptoData";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { FilterState } from "./Toolbar";
 import { getMarketStatus } from "../utils/marketHours";
 
 type AssetListProps = {
   filters: FilterState;
+  /** Edge-to-edge cards on mobile */
+  fullBleed?: boolean;
 };
 
 type AssetRowProps = {
@@ -194,8 +198,101 @@ function LoadingRow({ borderColor }: { borderColor: string }) {
   );
 }
 
-export function AssetList({ filters }: AssetListProps) {
+function MobileLoadingRow({ borderColor }: { borderColor: string }) {
+  return (
+    <View style={[styles.mobileRow, { borderBottomColor: borderColor, borderBottomWidth: 1 }]}>
+      <View style={styles.mobileRowLeft}>
+        <Skeleton width={36} height={36} borderRadius={18} />
+        <View style={{ gap: 4 }}>
+          <Skeleton width={50} height={14} />
+          <Skeleton width={35} height={12} />
+        </View>
+      </View>
+      <View style={styles.mobileRowRight}>
+        <Skeleton width={56} height={36} />
+        <View style={styles.mobileRowPriceStack}>
+          <Skeleton width={60} height={14} />
+          <Skeleton width={45} height={14} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+type MobileAssetRowProps = {
+  asset: Asset;
+  isLast: boolean;
+  borderColor: string;
+};
+
+const MobileAssetRow = React.memo(function MobileAssetRow({ asset, isLast, borderColor }: MobileAssetRowProps) {
+  return (
+    <Link
+      to={`/asset/${asset.id}`}
+      style={{
+        textDecoration: "none",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: 12,
+        paddingLeft: 16,
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomStyle: "solid",
+        borderBottomColor: isLast ? "transparent" : borderColor,
+        minHeight: 56,
+        gap: 8,
+      }}
+    >
+      <View style={styles.mobileRowLeft}>
+        <Avatar
+          uri={asset.image}
+          initials={asset.symbol.slice(0, 2)}
+          size={Size.Small}
+        />
+        <View style={styles.mobileRowText}>
+          <Text size={Size.Small} weight="semibold">{asset.symbol}</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted} numberOfLines={1}>
+            {asset.name}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.mobileRowRight}>
+        <MiniChart
+          data={asset.sparkline}
+          isPositive={asset.change7d >= 0}
+          width={56}
+          height={36}
+        />
+        <View style={styles.mobileRowPriceStack}>
+          <Currency
+            value={asset.price}
+            size={Size.Small}
+            weight="medium"
+            decimals={asset.price < 1 ? 4 : 2}
+            mono
+          />
+          <PercentChange value={asset.change24h} size={Size.ExtraSmall} />
+        </View>
+      </View>
+    </Link>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.asset.id === nextProps.asset.id &&
+    prevProps.asset.price === nextProps.asset.price &&
+    prevProps.asset.change24h === nextProps.asset.change24h &&
+    prevProps.asset.change7d === nextProps.asset.change7d &&
+    prevProps.asset.sparkline === nextProps.asset.sparkline &&
+    prevProps.isLast === nextProps.isLast &&
+    prevProps.borderColor === nextProps.borderColor
+  );
+});
+
+export function AssetList({ filters, fullBleed = false }: AssetListProps) {
+  const { t } = useTranslation(["dashboard", "common"]);
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
   const [searchQuery, setSearchQuery] = useState("");
   const { assets, loading, loadingMore, hasMore, loadMore, search, error } = useCryptoData({
     limit: 20,
@@ -260,22 +357,90 @@ export function AssetList({ filters }: AssetListProps) {
 
   const borderColor = themeColors.border.subtle;
 
+  // Mobile view - simplified card rows
+  if (isMobile) {
+    return (
+      <Card style={styles.container} fullBleed={fullBleed}>
+        <View style={[styles.header, styles.headerMobile]}>
+          <Text size={Size.Large} weight="semibold">
+            {t("dashboard:assetList.title")}
+          </Text>
+          <div data-sherpa="asset-search">
+            <Input
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t("dashboard:assetList.searchPlaceholder")}
+              leadingIcon="search"
+              size={Size.Small}
+              shape={Shape.Rounded}
+              style={styles.searchInputMobile}
+            />
+          </div>
+        </View>
+
+        {loading && (
+          <View>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <MobileLoadingRow key={i} borderColor={borderColor} />
+            ))}
+          </View>
+        )}
+
+        {!loading && (
+          <View>
+            {filteredAssets.map((asset, index) => (
+              <MobileAssetRow
+                key={asset.id}
+                asset={asset}
+                isLast={index === filteredAssets.length - 1 && !hasMore}
+                borderColor={borderColor}
+              />
+            ))}
+
+            {hasMore && !searchQuery && Platform.OS === "web" && (
+              <div ref={setLoadMoreRef}>
+                {[1, 2, 3].map((i) => (
+                  <MobileLoadingRow key={`trigger-${i}`} borderColor={borderColor} />
+                ))}
+              </div>
+            )}
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={styles.empty}>
+            <Text appearance={TextAppearance.Muted}>
+              {t("common:errors.unableToConnect")}
+            </Text>
+          </View>
+        )}
+
+        {!loading && !error && filteredAssets.length === 0 && (
+          <View style={styles.empty}>
+            <Text appearance={TextAppearance.Muted}>{t("common:empty.noAssets")}</Text>
+          </View>
+        )}
+      </Card>
+    );
+  }
+
+  // Desktop view - full table
   return (
-    <Card style={styles.container}>
+    <Card style={styles.container} fullBleed={fullBleed}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text size={Size.Large} weight="semibold">
-            Asset Prices
+            {t("dashboard:assetList.title")}
           </Text>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-            {assets.length} assets • Live prices
+            {t("dashboard:assetList.subtitle", { count: assets.length })}
           </Text>
         </View>
         <div data-sherpa="asset-search">
           <Input
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search assets..."
+            placeholder={t("dashboard:assetList.searchPlaceholder")}
             leadingIcon="search"
             size={Size.Small}
             shape={Shape.Rounded}
@@ -284,33 +449,33 @@ export function AssetList({ filters }: AssetListProps) {
         </div>
       </View>
 
-      <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
+      <View style={[styles.tableHeader, { borderBottomColor: borderColor }]} data-testid="asset-table-header">
         <View style={styles.rankCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>#</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.rank")}</Text>
         </View>
         <View style={styles.assetInfo}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Asset</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.asset")}</Text>
         </View>
         <View style={styles.priceCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Price</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.price")}</Text>
         </View>
         <View style={styles.tradeCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Trade</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.trade")}</Text>
         </View>
         <View style={styles.changeCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>24h</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.change24h")}</Text>
         </View>
         <View style={styles.changeCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>7d</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.change7d")}</Text>
         </View>
         <View style={styles.marketCapCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Market Cap</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.marketCap")}</Text>
         </View>
         <View style={styles.volumeCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Volume 24h</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.volume24h")}</Text>
         </View>
         <View style={styles.chartCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Pulse</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>{t("dashboard:assetList.columns.pulse")}</Text>
         </View>
       </View>
 
@@ -357,14 +522,14 @@ export function AssetList({ filters }: AssetListProps) {
       {!loading && error && (
         <View style={styles.empty}>
           <Text appearance={TextAppearance.Muted}>
-            Unable to connect to server. Please ensure Haunt is running.
+            {t("common:errors.unableToConnect")}
           </Text>
         </View>
       )}
 
       {!loading && !error && filteredAssets.length === 0 && (
         <View style={styles.empty}>
-          <Text appearance={TextAppearance.Muted}>No assets found</Text>
+          <Text appearance={TextAppearance.Muted}>{t("common:empty.noAssets")}</Text>
         </View>
       )}
     </Card>
@@ -383,11 +548,51 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 16,
   },
+  headerMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
+    padding: 16,
+  },
   headerLeft: {
     gap: 4,
   },
   searchInput: {
     minWidth: 240,
+  },
+  searchInputMobile: {
+    width: "100%",
+  },
+  mobileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    minHeight: 64,
+  },
+  mobileRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+  },
+  mobileRowText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
+  },
+  mobileRowRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flexShrink: 0,
+  },
+  mobileRowPriceStack: {
+    alignItems: "flex-end",
+    gap: 2,
+    minWidth: 70,
   },
   tableHeader: {
     flexDirection: "row",

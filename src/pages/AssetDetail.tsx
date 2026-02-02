@@ -7,15 +7,18 @@ import { useTheme } from "../context/ThemeContext";
 import { Navbar } from "../components/Navbar";
 import { AssetHeader } from "../components/AssetHeader";
 import { AdvancedChart } from "../components/AdvancedChart";
+import { AggregatedOrderBook } from "../components/AggregatedOrderBook";
 import { MetricsGrid } from "../components/MetricsGrid";
 import { AssetSourceBreakdown } from "../components/AssetSourceBreakdown";
 import { SignalSummaryCard } from "../components/SignalSummaryCard";
 import { SignalIndicatorsPanel } from "../components/SignalIndicatorsPanel";
 import { PredictionAccuracyCard } from "../components/PredictionAccuracyCard";
 import { TimeframeSelector } from "../components/TimeframeSelector";
+import { CollapsibleSection } from "../components/CollapsibleSection";
 import { hauntClient } from "../services/haunt";
 import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
 import { useSignals } from "../hooks/useSignals";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { Asset } from "../types/asset";
 import type { TradingTimeframe } from "../types/signals";
 
@@ -34,11 +37,17 @@ export function AssetDetail() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const colors = isDark ? themes.dark : themes.light;
+  const { isMobile, isNarrow } = useBreakpoint();
 
   const [asset, setAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tradingTimeframe, setTradingTimeframe] = useState<TradingTimeframe>("day_trading");
+
+  // Responsive layout values
+  const sectionPadding = isMobile ? 12 : isNarrow ? 16 : 24;
+  const showOrderBook = !isMobile;
+  const orderBookWidth = isNarrow ? 280 : 340;
 
   // Fetch trading signals with timeframe
   const {
@@ -127,16 +136,35 @@ export function AssetDetail() {
         ) : (
           <>
             {/* Key Details - above chart */}
-            <View style={styles.section}>
+            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
               <MetricsGrid asset={asset} loading={loading} />
             </View>
 
-            <View style={styles.section}>
-              <AdvancedChart asset={asset} loading={loading} height={400} />
+            {/* Chart with Order Book */}
+            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+              <View style={[styles.chartRow, isMobile && styles.chartRowStacked]}>
+                {showOrderBook && (
+                  <View style={[styles.orderBookColumn, { width: orderBookWidth }]} data-testid="order-book">
+                    <AggregatedOrderBook symbol={asset?.symbol} loading={loading} />
+                  </View>
+                )}
+                <View style={styles.chartColumn} data-testid="advanced-chart">
+                  <AdvancedChart asset={asset} loading={loading} />
+                </View>
+              </View>
+
+              {/* Mobile: Collapsible order book */}
+              {isMobile && (
+                <View style={styles.collapsibleOrderBook} data-testid="collapsible-order-book">
+                  <CollapsibleSection title="Order Book" defaultOpen={false}>
+                    <AggregatedOrderBook symbol={asset?.symbol} loading={loading} />
+                  </CollapsibleSection>
+                </View>
+              )}
             </View>
 
             {/* Trading Timeframe Selector */}
-            <View style={styles.section}>
+            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
               <TimeframeSelector
                 value={tradingTimeframe}
                 onChange={setTradingTimeframe}
@@ -144,8 +172,8 @@ export function AssetDetail() {
             </View>
 
             {/* Trading Signals, Data Quality & Prediction Accuracy */}
-            <View style={styles.section}>
-              <View style={styles.signalsRow}>
+            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+              <View style={[styles.signalsRow, isNarrow && styles.signalsRowStacked]}>
                 {/* Left column: Trading Signals + Data Quality stacked */}
                 <View style={styles.leftColumn}>
                   <SignalSummaryCard
@@ -175,7 +203,7 @@ export function AssetDetail() {
             </View>
 
             {/* Technical Indicators Panel */}
-            <View style={styles.section}>
+            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
               <SignalIndicatorsPanel
                 signals={signals?.signals ?? []}
                 loading={loading || signalsLoading}
@@ -199,16 +227,39 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   section: {
-    paddingHorizontal: 24,
     marginBottom: 24,
   },
   signalsRow: {
     flexDirection: "row",
     gap: 24,
   },
+  signalsRowStacked: {
+    flexDirection: "column",
+    gap: 16,
+  },
   leftColumn: {
     flex: 1,
     gap: 24,
+  },
+  chartRow: {
+    flexDirection: "row",
+    gap: 24,
+    alignItems: "stretch",
+  },
+  chartRowStacked: {
+    flexDirection: "column",
+    gap: 16,
+  },
+  orderBookColumn: {
+    flexShrink: 0,
+  },
+  chartColumn: {
+    flex: 1,
+    display: "flex",
+    minHeight: 500, // Ensure chart has reasonable minimum height
+  },
+  collapsibleOrderBook: {
+    marginTop: 16,
   },
   errorContainer: {
     padding: 24,

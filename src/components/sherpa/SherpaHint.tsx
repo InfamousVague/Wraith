@@ -10,6 +10,7 @@ import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { Text, Button, Icon } from "@wraith/ghost/components";
 import { PulseIndicator, HotspotIndicator, BeaconIndicator } from "@wraith/ghost/components";
 import { Size, TextAppearance, Appearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { useSherpa } from "./SherpaContext";
 import type { SherpaHint as SherpaHintType } from "./types";
 
@@ -125,7 +126,7 @@ export function SherpaHint({ hint }: SherpaHintProps) {
   };
 
   const indicatorStyle = hint.indicatorStyle || "hotspot";
-  const color = hint.color || "#A78BFA";
+  const color = hint.color || Colors.accent.primary;
 
   return (
     <>
@@ -182,9 +183,9 @@ export function SherpaHint({ hint }: SherpaHintProps) {
             top: position.popupTop,
             left: position.popupLeft,
             width: POPUP_WIDTH,
-            backgroundColor: "#1B2233",
+            backgroundColor: Colors.background.overlay,
             borderRadius: 10,
-            border: "1px solid #2A3142",
+            border: `1px solid ${Colors.border.strong}`,
             padding: 14,
             zIndex: 10000,
             boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
@@ -192,7 +193,7 @@ export function SherpaHint({ hint }: SherpaHintProps) {
         >
           {/* Close button */}
           <Pressable onPress={handleDismiss} style={styles.closeButton}>
-            <Icon name="x" size={Size.Small} color="#9096AB" />
+            <Icon name="x" size={Size.Small} color={Colors.text.muted} />
           </Pressable>
 
           {/* Content */}
@@ -234,7 +235,7 @@ const styles = StyleSheet.create({
   },
   title: {
     marginBottom: 6,
-    color: "#F4F6FF",
+    color: Colors.text.primary,
   },
   description: {
     lineHeight: 18,

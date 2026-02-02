@@ -8,7 +8,19 @@ import { defineConfig, devices } from '@playwright/test';
  * - npm run test:e2e:ui      - Open interactive UI
  * - npm run test:e2e:headed  - Run with browser visible
  * - npm run test:e2e:api     - Run API tests only
+ * - npx playwright test --project=mobile  - Run mobile tests only
+ * - npx playwright test --project=tablet  - Run tablet tests only
+ * - npx playwright test --project=desktop - Run desktop tests only
  */
+
+export const VIEWPORTS = {
+  iphoneSE: { width: 375, height: 667 },
+  iphone12: { width: 390, height: 844 },
+  ipadMini: { width: 768, height: 1024 },
+  desktop: { width: 1280, height: 800 },
+  widescreen: { width: 1920, height: 1080 },
+};
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -30,7 +42,7 @@ export default defineConfig({
 
   use: {
     // Base URL for page.goto()
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5174',
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -42,21 +54,31 @@ export default defineConfig({
     video: 'on-first-retry',
   },
 
-  // Configure projects for different browsers
+  // Configure projects for different browsers and devices
   projects: [
+    // Desktop (default)
+    {
+      name: 'desktop',
+      use: { ...devices['Desktop Chrome'] },
+    },
+
+    // Mobile (iPhone 12)
+    {
+      name: 'mobile',
+      use: { ...devices['iPhone 12'] },
+    },
+
+    // Tablet (iPad Mini)
+    {
+      name: 'tablet',
+      use: { ...devices['iPad Mini'] },
+    },
+
+    // Legacy chromium project for backwards compatibility
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    // Uncomment to test in other browsers
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
   ],
 
   // Web server configuration

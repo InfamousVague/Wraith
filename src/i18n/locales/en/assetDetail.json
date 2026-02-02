@@ -1,0 +1,51 @@
+{
+  "chart": {
+    "loadingChart": "Loading chart...",
+    "buildingChart": "Building chart data for {{symbol}}...",
+    "updatingChart": "Updating chart data in background...",
+    "chartError": "Chart Error",
+    "noChartData": "No chart data available",
+    "unableToLoad": "Unable to load chart data",
+    "historicalNotAvailable": "Historical data is not available for this asset",
+    "webOnly": "Charts only available on web",
+    "legend": {
+      "price": "Price",
+      "change": "Change",
+      "high": "High",
+      "low": "Low",
+      "volume": "Volume"
+    },
+    "types": {
+      "area": "Area",
+      "line": "Line",
+      "candle": "Candle"
+    },
+    "indicators": {
+      "sma": "SMA",
+      "ema": "EMA",
+      "bb": "BB",
+      "vol": "Vol"
+    },
+    "timeRanges": {
+      "1h": "1H",
+      "4h": "4H",
+      "1d": "1D",
+      "1w": "1W",
+      "1m": "1M",
+      "3m": "3M",
+      "1y": "1Y",
+      "all": "All"
+    }
+  },
+  "metrics": {
+    "title": "Key Metrics",
+    "marketCap": "Market Cap",
+    "volume24h": "24h Volume",
+    "change1h": "1h Change",
+    "change24h": "24h Change",
+    "change7d": "7d Change",
+    "circulatingSupply": "Circulating Supply",
+    "maxSupply": "Max Supply",
+    "supplyPercent": "Supply %"
+  }
+}

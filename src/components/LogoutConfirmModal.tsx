@@ -6,9 +6,11 @@
 
 import React from "react";
 import { View, StyleSheet, Modal, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, Button, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance, Shape, Appearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 
 type Props = {
   visible: boolean;
@@ -25,6 +27,7 @@ export function LogoutConfirmModal({
   onCancel,
   onBackupKey,
 }: Props) {
+  const { t } = useTranslation(["auth", "common"]);
   const themeColors = useThemeColors();
 
   return (
@@ -39,13 +42,13 @@ export function LogoutConfirmModal({
           <Card style={styles.modal}>
             <View style={styles.content}>
               {/* Warning icon */}
-              <View style={[styles.iconContainer, { backgroundColor: "rgba(239, 68, 68, 0.1)" }]}>
-                <Icon name="alert-triangle" size={Size.Large} color="#EF4444" />
+              <View style={[styles.iconContainer, { backgroundColor: Colors.status.dangerSurface }]}>
+                <Icon name="alert-triangle" size={Size.Large} color={Colors.status.danger} />
               </View>
 
               {/* Title */}
               <Text size={Size.Large} weight="bold" style={styles.title}>
-                Log Out?
+                {t("auth:logout.title")}
               </Text>
 
               {/* Warning message */}
@@ -54,34 +57,33 @@ export function LogoutConfirmModal({
                 appearance={TextAppearance.Muted}
                 style={styles.message}
               >
-                Are you sure you want to log out? You will need your private key to
-                access this account again.
+                {t("auth:logout.message")}
               </Text>
 
               {/* Key backup warning */}
               <View
                 style={[
                   styles.warningBox,
-                  { backgroundColor: hasBackedUpKey ? "rgba(34, 197, 94, 0.1)" : "rgba(239, 68, 68, 0.1)" },
+                  { backgroundColor: hasBackedUpKey ? Colors.status.successSurface : Colors.status.dangerSurface },
                 ]}
               >
                 <Icon
                   name={hasBackedUpKey ? "check-circle" : "alert-circle"}
                   size={Size.Small}
-                  color={hasBackedUpKey ? "#22C55E" : "#EF4444"}
+                  color={hasBackedUpKey ? Colors.status.success : Colors.status.danger}
                 />
                 <View style={styles.warningText}>
                   {hasBackedUpKey ? (
-                    <Text size={Size.Small} style={{ color: "#22C55E" }}>
-                      Key backup confirmed
+                    <Text size={Size.Small} style={{ color: Colors.status.success }}>
+                      {t("auth:logout.keyBackupConfirmed")}
                     </Text>
                   ) : (
                     <>
-                      <Text size={Size.Small} weight="semibold" style={{ color: "#EF4444" }}>
-                        Back up your private key!
+                      <Text size={Size.Small} weight="semibold" style={{ color: Colors.status.danger }}>
+                        {t("auth:logout.backUpWarning")}
                       </Text>
                       <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-                        Without it, you will permanently lose access to this account.
+                        {t("auth:logout.loseAccessWarning")}
                       </Text>
                     </>
                   )}
@@ -92,7 +94,7 @@ export function LogoutConfirmModal({
               <View style={styles.actions}>
                 {!hasBackedUpKey && (
                   <Button
-                    label="Back Up Key"
+                    label={t("common:buttons.backUpKey")}
                     onPress={onBackupKey}
                     size={Size.Small}
                     shape={Shape.Rounded}
@@ -104,18 +106,18 @@ export function LogoutConfirmModal({
 
                 <View style={styles.confirmActions}>
                   <Button
-                    label="Cancel"
+                    label={t("common:buttons.cancel")}
                     onPress={onCancel}
                     size={Size.Small}
                     shape={Shape.Rounded}
                     appearance={Appearance.Secondary}
                   />
                   <Button
-                    label="Log Out"
+                    label={t("common:buttons.logOut")}
                     onPress={onConfirm}
                     size={Size.Small}
                     shape={Shape.Rounded}
-                    style={[styles.logoutButton, { backgroundColor: "#EF4444" }]}
+                    style={[styles.logoutButton, { backgroundColor: Colors.status.danger }]}
                   />
                 </View>
               </View>

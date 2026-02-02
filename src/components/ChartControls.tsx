@@ -42,13 +42,13 @@ export function ChartControls({
         options={TIME_RANGE_OPTIONS}
         value={timeRange}
         onChange={onTimeRangeChange}
-        size={Size.Small}
+        size={Size.Medium}
       />
       <SegmentedControl
         options={CHART_TYPE_OPTIONS}
         value={chartType}
         onChange={onChartTypeChange}
-        size={Size.Small}
+        size={Size.Medium}
       />
     </View>
   );

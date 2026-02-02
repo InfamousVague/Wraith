@@ -1,7 +1,9 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, ProgressBar, Number } from "@wraith/ghost/components";
-import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { HintIndicator } from "./HintIndicator";
 
 type AltcoinSeasonCardProps = {
@@ -12,46 +14,25 @@ type AltcoinSeasonCardProps = {
 };
 
 /**
- * Get the status label and appearance based on the altcoin season value.
+ * Get the status translation key and appearance based on the altcoin season value.
  */
 function getSeasonStatus(value: number): {
-  label: string;
-  description: string;
+  statusKey: string;
   appearance: TextAppearance;
 } {
   if (value <= 20) {
-    return {
-      label: "Bitcoin Season",
-      description: "BTC strongly outperforming altcoins",
-      appearance: TextAppearance.Warning,
-    };
+    return { statusKey: "bitcoinSeason", appearance: TextAppearance.Warning };
   }
   if (value <= 40) {
-    return {
-      label: "BTC Leaning",
-      description: "Bitcoin showing relative strength",
-      appearance: TextAppearance.Warning,
-    };
+    return { statusKey: "btcLeaning", appearance: TextAppearance.Warning };
   }
   if (value <= 60) {
-    return {
-      label: "Neutral",
-      description: "Balanced market conditions",
-      appearance: TextAppearance.Muted,
-    };
+    return { statusKey: "neutral", appearance: TextAppearance.Muted };
   }
   if (value <= 80) {
-    return {
-      label: "Alt Leaning",
-      description: "Altcoins gaining momentum",
-      appearance: TextAppearance.Info,
-    };
+    return { statusKey: "altLeaning", appearance: TextAppearance.Info };
   }
-  return {
-    label: "Altcoin Season",
-    description: "Altcoins strongly outperforming BTC",
-    appearance: TextAppearance.Info,
-  };
+  return { statusKey: "altcoinSeason", appearance: TextAppearance.Info };
 }
 
 export function AltcoinSeasonCard({
@@ -59,6 +40,7 @@ export function AltcoinSeasonCard({
   btcDominance = 52.4,
   loading = false,
 }: AltcoinSeasonCardProps) {
+  const { t } = useTranslation("components");
   const status = getSeasonStatus(value);
 
   return (
@@ -67,20 +49,20 @@ export function AltcoinSeasonCard({
         {/* Hint indicator in top-right corner */}
         <HintIndicator
           id="altcoin-season-hint"
-          title="Altcoin Season Index"
-          content="When 75% of the top 50 altcoins outperform Bitcoin over 90 days, it's 'Altcoin Season'. Low values favor holding BTC, high values favor altcoins."
+          title={t("altcoinSeason.hint.title")}
+          content={t("altcoinSeason.hint.content")}
           icon="i"
-          color="#A78BFA"
+          color={Colors.accent.primary}
           priority={2}
         />
 
         {/* Header - stays at top */}
         <View style={styles.header}>
           <Text size={Size.Small} weight="semibold">
-            Altcoin Season Index
+            {t("altcoinSeason.title")}
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-            BTC Dominance: {(btcDominance ?? 0).toFixed(1)}%
+            {t("altcoinSeason.btcDominance", { value: (btcDominance ?? 0).toFixed(1) })}
           </Text>
         </View>
 
@@ -91,10 +73,10 @@ export function AltcoinSeasonCard({
         <View style={styles.meterContainer}>
           <View style={styles.meterLabels}>
             <Text size={Size.TwoXSmall} weight="semibold" appearance={TextAppearance.Warning}>
-              BTC
+              {t("altcoinSeason.labels.btc")}
             </Text>
             <Text size={Size.TwoXSmall} weight="semibold" appearance={TextAppearance.Info}>
-              ALT
+              {t("altcoinSeason.labels.alt")}
             </Text>
           </View>
 
@@ -103,7 +85,6 @@ export function AltcoinSeasonCard({
             max={100}
             size={Size.Medium}
             appearance={status.appearance}
-            brightness={Brightness.Bright}
           />
 
           <View style={styles.valueRow}>
@@ -113,7 +94,6 @@ export function AltcoinSeasonCard({
               size={Size.Large}
               weight="bold"
               appearance={status.appearance}
-              brightness={Brightness.Bright}
             />
             <Text size={Size.Small} appearance={TextAppearance.Muted}>
               / 100
@@ -130,12 +110,11 @@ export function AltcoinSeasonCard({
             size={Size.Medium}
             weight="bold"
             appearance={status.appearance}
-            brightness={Brightness.Bright}
           >
-            {status.label}
+            {t(`altcoinSeason.status.${status.statusKey}`)}
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.description}>
-            {status.description}
+            {t(`altcoinSeason.descriptions.${status.statusKey}`)}
           </Text>
         </View>
       </View>

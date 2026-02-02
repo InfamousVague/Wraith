@@ -1,0 +1,13 @@
+{
+  "title": "Settings",
+  "language": {
+    "section": "LANGUAGE",
+    "displayLanguage": "Display Language",
+    "chooseLanguage": "Choose your preferred language"
+  },
+  "appSettings": {
+    "section": "APP SETTINGS",
+    "comingSoon": "Coming Soon",
+    "comingSoonDesc": "Application settings including notification preferences, display options, signal customization, and more will be available here."
+  }
+}

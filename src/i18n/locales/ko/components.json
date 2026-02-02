@@ -1,0 +1,197 @@
+{
+  "fearGreed": {
+    "title": "공포 & 탐욕 지수",
+    "updated": "1시간 전 업데이트",
+    "description": "변동성, 모멘텀, 소셜 신호 기반 시장 심리",
+    "levels": {
+      "extremeFear": "극도의 공포",
+      "fear": "공포",
+      "neutral": "중립",
+      "greed": "탐욕",
+      "extremeGreed": "극도의 탐욕"
+    },
+    "labels": {
+      "panic": "패닉",
+      "fearful": "두려움",
+      "anxious": "불안",
+      "cautious": "신중",
+      "balanced": "균형",
+      "optimistic": "낙관",
+      "greedy": "탐욕",
+      "euphoric": "희열",
+      "manic": "열광"
+    },
+    "hint": {
+      "title": "시장 심리",
+      "content": "25 이하의 값은 극도의 공포(잠재적 매수 기회)를 나타냅니다. 75 이상의 값은 극도의 탐욕(잠재적 조정 가능성)을 나타냅니다."
+    }
+  },
+  "altcoinSeason": {
+    "title": "알트코인 시즌 지수",
+    "btcDominance": "BTC 지배력: {{value}}%",
+    "labels": {
+      "btc": "BTC",
+      "alt": "ALT"
+    },
+    "status": {
+      "bitcoinSeason": "비트코인 시즌",
+      "btcLeaning": "BTC 우세",
+      "neutral": "중립",
+      "altLeaning": "알트코인 우세",
+      "altcoinSeason": "알트코인 시즌"
+    },
+    "descriptions": {
+      "bitcoinSeason": "BTC가 알트코인을 강하게 앞서고 있음",
+      "btcLeaning": "비트코인이 상대적 강세를 보임",
+      "neutral": "균형 잡힌 시장 상황",
+      "altLeaning": "알트코인이 모멘텀을 얻고 있음",
+      "altcoinSeason": "알트코인이 BTC를 강하게 앞서고 있음"
+    },
+    "hint": {
+      "title": "알트코인 시즌 지수",
+      "content": "상위 50개 알트코인의 75%가 90일 동안 비트코인을 능가하면 '알트코인 시즌'입니다. 낮은 값은 BTC 보유에 유리하고, 높은 값은 알트코인에 유리합니다."
+    }
+  },
+  "apiStats": {
+    "title": "API 통계",
+    "online": "{{online}}/{{total}} 온라인",
+    "apiOffline": "API 오프라인",
+    "throughput": "처리량",
+    "tps": "TPS",
+    "latency": "지연시간",
+    "ms": "ms",
+    "trackedAssets": "추적 자산",
+    "totalUpdates": "총 업데이트",
+    "uptime": "가동시간",
+    "systemHealth": "시스템 상태"
+  },
+  "topMovers": {
+    "title": "주요 변동",
+    "gainers": "상승",
+    "losers": "하락",
+    "unableToLoad": "변동 데이터를 로드할 수 없음",
+    "noGainers": "이 기간에 상승 종목 없음",
+    "noLosers": "이 기간에 하락 종목 없음",
+    "tryDifferent": "다른 기간을 선택해 보세요"
+  },
+  "dataQuality": {
+    "title": "데이터 품질",
+    "subtitle": "{{symbol}} 신뢰도 & 소스",
+    "unableToLoad": "데이터를 로드할 수 없음",
+    "sources": "소스",
+    "updates": "업데이트",
+    "dataPoints": "데이터 포인트",
+    "activeSources": "활성 소스",
+    "noSources": "아직 데이터 소스가 없습니다",
+    "levels": {
+      "excellent": "우수",
+      "good": "양호",
+      "fair": "보통",
+      "low": "낮음",
+      "veryLow": "매우 낮음"
+    },
+    "hint": {
+      "title": "데이터 품질",
+      "content": "소스 다양성, 업데이트 빈도, 데이터 최신성, 소스 간 가격 일관성을 기반으로 가격 데이터의 신뢰성을 측정합니다. 점수가 높을수록 분석에 더 신뢰할 수 있는 데이터입니다."
+    }
+  },
+  "signals": {
+    "title": "거래 신호",
+    "subtitle": "{{count}}개 기술 지표 종합 분석",
+    "compositeScore": "종합 점수",
+    "categoryBreakdown": "카테고리 분석",
+    "categories": {
+      "trend": "추세",
+      "momentum": "모멘텀",
+      "volatility": "변동성",
+      "volume": "거래량"
+    },
+    "interpretation": {
+      "strongBuy": "강한 매수 조건 - 여러 지표가 상승 모멘텀을 시사함",
+      "moderateBuy": "보통 매수 신호 - 포지션 진입 고려",
+      "neutral": "중립 - 명확한 방향 없음, 더 강한 신호를 기다림",
+      "moderateSell": "보통 매도 신호 - 노출 감소 고려",
+      "strongSell": "강한 매도 조건 - 지표가 하락 압력을 시사함"
+    },
+    "conditions": {
+      "fallingKnife": "급락 중",
+      "oversold": "과매도",
+      "overbought": "과매수",
+      "uptrend": "상승 추세",
+      "downtrend": "하락 추세",
+      "consolidating": "횡보",
+      "highVol": "높은 변동성",
+      "volSurge": "거래량 급증",
+      "bullDiv": "상승 다이버전스",
+      "bearDiv": "하락 다이버전스"
+    },
+    "hint": {
+      "title": "거래 신호",
+      "content": "종합 점수는 여러 기술 지표를 -100에서 +100 사이의 단일 값으로 결합합니다. 양수는 강세 조건을, 음수는 약세를 나타냅니다. 카테고리 분석은 어떤 요인이 신호를 주도하는지 보여줍니다."
+    }
+  },
+  "indicators": {
+    "title": "기술 지표",
+    "subtitle": "개별 지표 분석 및 과거 정확도",
+    "columns": {
+      "indicator": "지표",
+      "value": "값",
+      "score": "점수",
+      "signal": "신호",
+      "accuracy": "정확도"
+    },
+    "noIndicators": "{{category}} 지표가 없습니다",
+    "legend": "정확도는 이 지표가 과거에 가격 방향을 얼마나 정확하게 예측했는지 보여줍니다",
+    "categoryDescriptions": {
+      "trend": "전체 가격 방향을 보여줍니다 - 이동 평균 및 추세 강도 지표",
+      "momentum": "가격 변화 속도를 측정합니다 - 과매수/과매도 상태 식별",
+      "volatility": "가격 변동을 추적합니다 - 높은 값은 더 큰 잠재적 움직임을 시사",
+      "volume": "거래 활동을 분석합니다 - 가격 움직임 확인 및 관심도 파악"
+    },
+    "hint": {
+      "title": "기술 지표",
+      "content": "개별 지표 값과 매수/매도/보유 신호입니다. 각 지표는 -100에서 +100 사이로 점수가 매겨집니다. 정확도는 각 지표가 과거 데이터를 기반으로 가격 방향을 얼마나 자주 정확하게 예측했는지 보여줍니다."
+    }
+  },
+  "prediction": {
+    "title": "시장 예측",
+    "confidence": "신뢰도",
+    "accuracy": "정확도",
+    "winRate": "승률",
+    "basedOn": "{{count}}개 예측 기반",
+    "history": {
+      "title": "예측 기록",
+      "legend": "녹색 = 정확, 빨간색 = 부정확"
+    },
+    "pending": {
+      "title": "대기 중인 예측",
+      "awaitingValidation": "검증 대기 중"
+    },
+    "empty": {
+      "title": "아직 예측이 없습니다",
+      "description": "이 자산의 신호 정확도 추적을 시작하려면 예측을 생성하세요"
+    },
+    "generating": "예측 생성 중...",
+    "analyzingMarket": "이 자산의 시장 지표를 분석하고 예측을 생성하는 중입니다",
+    "awaiting": "{{timeframe}} 대기 중...",
+    "hint": {
+      "title": "시장 예측",
+      "content": "가중 지표 신호를 기반으로 한 매수/매도/보유 권장 사항입니다. 신뢰도는 신호 강도를, 정확도는 과거 정확성을, 승률은 전체 예측 성공률을 보여줍니다."
+    },
+    "historyHint": {
+      "title": "예측 기록",
+      "content": "각 지표의 마지막 3개 예측과 5분, 1시간, 4시간 기간의 결과를 보여줍니다. 녹색은 예측이 정확했음을, 빨간색은 부정확했음을 의미합니다. 백분율은 각 지표의 전체 정확도를 보여줍니다."
+    }
+  },
+  "countdown": {
+    "ready": "준비"
+  },
+  "timeframe": {
+    "title": "거래 스타일",
+    "subtitle": "신호 가중치를 최적화하려면 거래 기간을 선택하세요",
+    "hint": {
+      "title": "거래 스타일",
+      "content": "신호 가중치 최적화를 위해 거래 기간을 선택하세요. 스캘퍼는 빠른 신호가 필요하고, 투자자는 장기 추세에 집중합니다. 이것은 종합 점수 계산 방식에 영향을 줍니다."
+    }
+  }
+}

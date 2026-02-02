@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Animated } from "react-native";
 import { Card, Text, Currency, PercentChange, AnimatedNumber } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { useHauntSocket, type PriceUpdate, type PriceSourceId } from "../hooks/useHauntSocket";
 
 // Pool of reusable Animated.Value objects to prevent memory leaks
@@ -257,7 +258,7 @@ export function PriceFeedCard({
               <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
                 UPDATES TRACKED
               </Text>
-              <View style={[styles.connectionDot, { backgroundColor: connected ? "#22c55e" : "#ef4444" }]} />
+              <View style={[styles.connectionDot, { backgroundColor: connected ? Colors.status.success : Colors.status.danger }]} />
             </View>
             <AnimatedNumber
               value={updateCount}

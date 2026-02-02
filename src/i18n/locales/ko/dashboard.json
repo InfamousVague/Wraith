@@ -1,0 +1,51 @@
+{
+  "assetList": {
+    "title": "자산 가격",
+    "subtitle": "{{count}}개 자산 • 실시간 가격",
+    "searchPlaceholder": "자산 검색...",
+    "columns": {
+      "rank": "#",
+      "asset": "자산",
+      "price": "가격",
+      "trade": "거래",
+      "change24h": "24시간",
+      "change7d": "7일",
+      "marketCap": "시가총액",
+      "volume24h": "24시간 거래량",
+      "pulse": "펄스"
+    }
+  },
+  "toolbar": {
+    "sortBy": "정렬 기준",
+    "assetTypePlaceholder": "자산 유형",
+    "viewOptions": {
+      "list": "목록",
+      "charts": "차트"
+    },
+    "sortOptions": {
+      "marketCap": "시가총액",
+      "price": "가격",
+      "volume24h": "24시간 거래량",
+      "change1h": "1시간 변동",
+      "change24h": "24시간 변동",
+      "change7d": "7일 변동",
+      "name": "이름"
+    },
+    "filterOptions": {
+      "all": "전체",
+      "gainers": "상승",
+      "losers": "하락",
+      "volatile": "변동성",
+      "topVolume": "거래량 상위"
+    },
+    "assetType": {
+      "all": "모든 자산",
+      "crypto": "암호화폐",
+      "stocks": "주식"
+    }
+  },
+  "chartGrid": {
+    "vol": "거래량",
+    "noAssets": "자산 없음"
+  }
+}

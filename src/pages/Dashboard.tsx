@@ -8,13 +8,19 @@ import { Toolbar, type ViewMode, type FilterState } from "../components/Toolbar"
 import { useTheme } from "../context/ThemeContext";
 import { useCryptoData } from "../hooks/useCryptoData";
 import { usePersistedState } from "../hooks/usePersistedState";
-import { getMarketStatus } from "../utils/marketHours";
+import { useBreakpoint } from "../hooks/useBreakpoint";
+import { getMarketStatus, isUSMarketOpen } from "../utils/marketHours";
+
+// Default to crypto when US market is closed, otherwise show all
+const getDefaultAssetType = (): "all" | "crypto" => {
+  return isUSMarketOpen() ? "all" : "crypto";
+};
 
 const DEFAULT_FILTERS: FilterState = {
   sort: "market_cap",
   sortDir: "desc",
   filter: "all",
-  assetType: "all",
+  assetType: getDefaultAssetType(),
   showOfflineMarkets: false,
 };
 
@@ -31,9 +37,21 @@ const themes = {
 export function Dashboard() {
   const { isDark } = useTheme();
   const colors = isDark ? themes.dark : themes.light;
+  const { isMobile, isNarrow } = useBreakpoint();
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("wraith:viewMode", "list");
   const [cardSize, setCardSize] = usePersistedState("wraith:cardSize", 220);
   const [filters, setFilters] = usePersistedState<FilterState>("wraith:filters", DEFAULT_FILTERS);
+
+  // Auto-switch to crypto when market is closed and user had stock/all selected
+  React.useEffect(() => {
+    const marketOpen = isUSMarketOpen();
+    if (!marketOpen && (filters.assetType === "all" || filters.assetType === "stock")) {
+      setFilters({ ...filters, assetType: "crypto" });
+    }
+  }, []); // Only run on mount
+
+  // Responsive content padding
+  const contentPadding = isMobile ? 0 : isNarrow ? 12 : 24;
 
   // Get assets for ChartGrid with filter params
   const { assets, loading, error } = useCryptoData({
@@ -79,10 +97,11 @@ export function Dashboard() {
           onCardSizeChange={setCardSize}
           filters={filters}
           onFiltersChange={setFilters}
+          compact={isMobile}
         />
-        <View style={styles.contentContainer}>
+        <View style={[styles.contentContainer, { paddingHorizontal: contentPadding }]}>
           {viewMode === "list" ? (
-            <AssetList filters={filters} />
+            <AssetList filters={filters} fullBleed={isMobile} />
           ) : (
             <ChartGrid assets={filteredAssets} loading={showChartGridLoading} cardSize={cardSize} />
           )}
@@ -100,7 +119,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 24,
     paddingBottom: 24,
   },
 });

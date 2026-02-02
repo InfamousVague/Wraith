@@ -1,0 +1,54 @@
+{
+  "buttons": {
+    "login": "Login",
+    "logout": "Logout",
+    "logOut": "Log Out",
+    "cancel": "Cancel",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "download": "Download",
+    "disconnect": "Disconnect",
+    "gotIt": "Got it",
+    "backUp": "Back Up",
+    "backUpKey": "Back Up Key",
+    "generatePredictions": "Generate Predictions"
+  },
+  "status": {
+    "loading": "Loading...",
+    "ready": "Ready",
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "offline": "Offline",
+    "online": "Online",
+    "pending": "Pending",
+    "new": "New"
+  },
+  "trade": {
+    "buy": "BUY",
+    "sell": "SELL",
+    "hold": "HOLD",
+    "strongBuy": "STRONG BUY",
+    "strongSell": "STRONG SELL"
+  },
+  "time": {
+    "now": "now",
+    "justNow": "just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "seconds": "{{count}}s",
+    "minutes": "{{count}}m",
+    "hours": "{{count}}h {{mins}}m",
+    "days": "{{count}}d {{hours}}h"
+  },
+  "errors": {
+    "unknown": "Unknown error",
+    "failedToLoad": "Failed to load",
+    "unableToConnect": "Unable to connect to server. Please ensure Haunt is running."
+  },
+  "empty": {
+    "noResults": "No results found",
+    "noAssets": "No assets found",
+    "noData": "No data available"
+  }
+}

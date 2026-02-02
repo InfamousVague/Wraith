@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, AnimatedNumber, Icon, ProgressBar } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { hauntClient, type ApiStats } from "../services/haunt";
 
 // Format uptime as human-readable string
@@ -50,6 +52,7 @@ export function ApiStatsCard({
   loading = false,
   pollInterval = 2000,
 }: ApiStatsCardProps) {
+  const { t } = useTranslation("components");
   const [stats, setStats] = useState<ApiStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,9 +89,9 @@ export function ApiStatsCard({
 
   // Get health color based on score
   const getHealthColor = (score: number) => {
-    if (score >= 80) return "#22C55E"; // Green
-    if (score >= 50) return "#EAB308"; // Yellow
-    return "#EF4444"; // Red
+    if (score >= 80) return Colors.status.success;
+    if (score >= 50) return Colors.status.warning;
+    return Colors.status.danger;
   };
 
   const healthColor = getHealthColor(healthScore);
@@ -98,12 +101,12 @@ export function ApiStatsCard({
       <View style={styles.content}>
         <View style={styles.header}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-            API STATISTICS
+            {t("apiStats.title")}
           </Text>
           <View style={[styles.badge, { backgroundColor: `${healthColor}20` }]}>
             <View style={[styles.statusDot, { backgroundColor: healthColor }]} />
             <Text size={Size.TwoXSmall} style={{ color: healthColor }}>
-              {stats?.onlineSources || 0}/{stats?.totalSources || 0} Online
+              {t("apiStats.online", { online: stats?.onlineSources || 0, total: stats?.totalSources || 0 })}
             </Text>
           </View>
         </View>
@@ -112,9 +115,9 @@ export function ApiStatsCard({
 
         {error ? (
           <View style={styles.errorState}>
-            <Icon name="skull" size={Size.ExtraLarge} color="#FF5C7A" />
+            <Icon name="skull" size={Size.ExtraLarge} color={Colors.status.danger} />
             <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted} style={styles.errorText}>
-              API Offline
+              {t("apiStats.apiOffline")}
             </Text>
           </View>
         ) : (
@@ -122,7 +125,7 @@ export function ApiStatsCard({
             {/* TPS (Transactions Per Second) */}
             <StatRow
               icon="zap"
-              label="Throughput"
+              label={t("apiStats.throughput")}
               value={
                 <View style={styles.tpsValue}>
                   <AnimatedNumber
@@ -134,17 +137,17 @@ export function ApiStatsCard({
                     animationDuration={200}
                   />
                   <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                    {" "}TPS
+                    {" "}{t("apiStats.tps")}
                   </Text>
                 </View>
               }
-              color="#F59E0B"
+              color={Colors.data.amber}
             />
 
             {/* Latency */}
             <StatRow
               icon="activity"
-              label="Latency"
+              label={t("apiStats.latency")}
               value={
                 <View style={styles.latencyValue}>
                   <AnimatedNumber
@@ -156,17 +159,17 @@ export function ApiStatsCard({
                     animationDuration={200}
                   />
                   <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                    {" "}ms
+                    {" "}{t("apiStats.ms")}
                   </Text>
                 </View>
               }
-              color={latency < 100 ? "#22C55E" : latency < 300 ? "#EAB308" : "#EF4444"}
+              color={latency < 100 ? Colors.status.success : latency < 300 ? Colors.status.warning : Colors.status.danger}
             />
 
             {/* Active Symbols */}
             <StatRow
               icon="layers"
-              label="Tracked Assets"
+              label={t("apiStats.trackedAssets")}
               value={
                 <AnimatedNumber
                   value={stats?.activeSymbols || 0}
@@ -178,13 +181,13 @@ export function ApiStatsCard({
                   animationDuration={200}
                 />
               }
-              color="#8B5CF6"
+              color={Colors.data.violet}
             />
 
             {/* Total Updates */}
             <StatRow
               icon="database"
-              label="Total Updates"
+              label={t("apiStats.totalUpdates")}
               value={
                 <AnimatedNumber
                   value={stats?.totalUpdates || 0}
@@ -198,26 +201,26 @@ export function ApiStatsCard({
                   animationDuration={200}
                 />
               }
-              color="#06B6D4"
+              color={Colors.data.cyan}
             />
 
             {/* Uptime */}
             <StatRow
               icon="clock"
-              label="Uptime"
+              label={t("apiStats.uptime")}
               value={
                 <Text size={Size.Small} weight="semibold">
                   {formatUptime(stats?.uptimeSecs || 0)}
                 </Text>
               }
-              color="#10B981"
+              color={Colors.data.emerald}
             />
 
             {/* Health Score Progress */}
             <View style={styles.healthSection}>
               <View style={styles.healthHeader}>
                 <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  System Health
+                  {t("apiStats.systemHealth")}
                 </Text>
                 <Text size={Size.TwoXSmall} style={{ color: healthColor }}>
                   {healthScore}%

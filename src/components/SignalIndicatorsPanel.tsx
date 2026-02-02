@@ -7,10 +7,13 @@
 
 import React, { useState, useMemo } from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, ProgressBar, SegmentedControl } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { AccuracyTag } from "./AccuracyTag";
+import { IndicatorTooltip } from "./IndicatorTooltip";
 import {
   getScoreColor,
   getCategoryName,
@@ -26,20 +29,16 @@ type SignalIndicatorsPanelProps = {
   loading?: boolean;
 };
 
-// Category options for segmented control
-const CATEGORY_OPTIONS = [
-  { value: "trend" as const, label: "Trend" },
-  { value: "momentum" as const, label: "Momentum" },
-  { value: "volatility" as const, label: "Volatility" },
-  { value: "volume" as const, label: "Volume" },
-];
 
 type IndicatorRowProps = {
   signal: SignalOutput;
+  /** Index for hint priority ordering */
+  index: number;
 };
 
 const IndicatorRow = React.memo(function IndicatorRow({
   signal,
+  index,
 }: IndicatorRowProps) {
   const themeColors = useThemeColors();
   const scoreColor = getScoreColor(signal.score);
@@ -67,11 +66,17 @@ const IndicatorRow = React.memo(function IndicatorRow({
 
   return (
     <View style={styles.indicatorRow}>
-      {/* Name */}
+      {/* Name with help tooltip */}
       <View style={styles.indicatorName}>
-        <Text size={Size.Small} weight="medium">
-          {signal.name}
-        </Text>
+        <View style={styles.indicatorNameRow}>
+          <Text size={Size.Small} weight="medium">
+            {signal.name}
+          </Text>
+          <IndicatorTooltip
+            indicatorName={signal.name}
+            priority={30 + index}
+          />
+        </View>
       </View>
 
       {/* Value */}
@@ -130,8 +135,17 @@ export function SignalIndicatorsPanel({
   signals,
   loading = false,
 }: SignalIndicatorsPanelProps) {
+  const { t } = useTranslation("components");
   const themeColors = useThemeColors();
   const [activeCategory, setActiveCategory] = useState<SignalCategory>("trend");
+
+  // Category options for segmented control - must be inside component for i18n
+  const categoryOptions = [
+    { value: "trend" as const, label: t("signals.categories.trend") },
+    { value: "momentum" as const, label: t("signals.categories.momentum") },
+    { value: "volatility" as const, label: t("signals.categories.volatility") },
+    { value: "volume" as const, label: t("signals.categories.volume") },
+  ];
 
   // Group signals by category
   const signalsByCategory = useMemo(() => {
@@ -153,14 +167,6 @@ export function SignalIndicatorsPanel({
 
   const currentSignals = signalsByCategory[activeCategory];
 
-  // Category explanations
-  const categoryExplanations: Record<SignalCategory, string> = {
-    trend: "Shows overall price direction - moving averages and trend strength indicators",
-    momentum: "Measures speed of price changes - identifies overbought/oversold conditions",
-    volatility: "Tracks price fluctuations - higher values suggest bigger potential moves",
-    volume: "Analyzes trading activity - confirms price movements and identifies interest",
-  };
-
   return (
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
@@ -171,27 +177,27 @@ export function SignalIndicatorsPanel({
               appearance={TextAppearance.Muted}
               style={styles.headerLabel}
             >
-              TECHNICAL INDICATORS
+              {t("indicators.title")}
             </Text>
             <HintIndicator
               id="technical-indicators-hint"
-              title="Technical Indicators"
-              content="Individual indicator values and their Buy/Sell/Hold signals. Each indicator is scored from -100 to +100. Accuracy shows how often each indicator correctly predicted price direction based on historical data."
+              title={t("indicators.hint.title")}
+              content={t("indicators.hint.content")}
               icon="?"
-              color="#A78BFA"
+              color={Colors.accent.primary}
               priority={14}
               inline
             />
           </View>
           <Text size={Size.Small} appearance={TextAppearance.Muted}>
-            Individual indicator breakdown with historical accuracy
+            {t("indicators.subtitle")}
           </Text>
         </View>
 
         {/* Category Selector */}
         <View style={styles.segmentContainer}>
           <SegmentedControl
-            options={CATEGORY_OPTIONS}
+            options={categoryOptions}
             value={activeCategory}
             onChange={setActiveCategory}
             size={Size.Medium}
@@ -204,7 +210,7 @@ export function SignalIndicatorsPanel({
           appearance={TextAppearance.Muted}
           style={styles.categoryExplanation}
         >
-          {categoryExplanations[activeCategory]}
+          {t(`indicators.categoryDescriptions.${activeCategory}`)}
         </Text>
 
         {/* Indicator list */}
@@ -213,40 +219,40 @@ export function SignalIndicatorsPanel({
           <View style={styles.indicatorHeader}>
             <View style={styles.indicatorName}>
               <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Indicator
+                {t("indicators.columns.indicator")}
               </Text>
             </View>
             <View style={styles.indicatorValue}>
               <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Value
+                {t("indicators.columns.value")}
               </Text>
             </View>
             <View style={styles.indicatorBar}>
               <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Score
+                {t("indicators.columns.score")}
               </Text>
             </View>
             <View style={styles.indicatorDirection}>
               <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Signal
+                {t("indicators.columns.signal")}
               </Text>
             </View>
             <View style={styles.indicatorAccuracy}>
               <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Accuracy
+                {t("indicators.columns.accuracy")}
               </Text>
             </View>
           </View>
 
           {/* Indicator rows */}
           {currentSignals.length > 0 ? (
-            currentSignals.map((signal) => (
-              <IndicatorRow key={signal.name} signal={signal} />
+            currentSignals.map((signal, index) => (
+              <IndicatorRow key={signal.name} signal={signal} index={index} />
             ))
           ) : (
             <View style={styles.emptyState}>
               <Text size={Size.Medium} appearance={TextAppearance.Muted}>
-                No {getCategoryName(activeCategory).toLowerCase()} indicators available
+                {t("indicators.noIndicators", { category: getCategoryName(activeCategory).toLowerCase() })}
               </Text>
             </View>
           )}
@@ -255,7 +261,7 @@ export function SignalIndicatorsPanel({
         {/* Legend */}
         <View style={styles.legend}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-            Accuracy shows how often this indicator correctly predicted price direction historically
+            {t("indicators.legend")}
           </Text>
         </View>
       </View>
@@ -305,6 +311,11 @@ const styles = StyleSheet.create({
   indicatorName: {
     flex: 2,
     minWidth: 100,
+  },
+  indicatorNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   indicatorValue: {
     flex: 1,

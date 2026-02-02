@@ -1,0 +1,51 @@
+{
+  "chart": {
+    "loadingChart": "차트 로딩 중...",
+    "buildingChart": "{{symbol}} 차트 데이터 생성 중...",
+    "updatingChart": "백그라운드에서 차트 데이터 업데이트 중...",
+    "chartError": "차트 오류",
+    "noChartData": "차트 데이터 없음",
+    "unableToLoad": "차트 데이터를 로드할 수 없음",
+    "historicalNotAvailable": "이 자산의 과거 데이터가 없습니다",
+    "webOnly": "차트는 웹에서만 사용 가능합니다",
+    "legend": {
+      "price": "가격",
+      "change": "변동",
+      "high": "고가",
+      "low": "저가",
+      "volume": "거래량"
+    },
+    "types": {
+      "area": "영역",
+      "line": "선",
+      "candle": "캔들"
+    },
+    "indicators": {
+      "sma": "SMA",
+      "ema": "EMA",
+      "bb": "BB",
+      "vol": "거래량"
+    },
+    "timeRanges": {
+      "1h": "1시간",
+      "4h": "4시간",
+      "1d": "1일",
+      "1w": "1주",
+      "1m": "1개월",
+      "3m": "3개월",
+      "1y": "1년",
+      "all": "전체"
+    }
+  },
+  "metrics": {
+    "title": "주요 지표",
+    "marketCap": "시가총액",
+    "volume24h": "24시간 거래량",
+    "change1h": "1시간 변동",
+    "change24h": "24시간 변동",
+    "change7d": "7일 변동",
+    "circulatingSupply": "유통 공급량",
+    "maxSupply": "최대 공급량",
+    "supplyPercent": "공급량 %"
+  }
+}

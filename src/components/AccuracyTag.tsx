@@ -7,8 +7,10 @@
 
 import React from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Text } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 
 type AccuracyTagProps = {
   /** Accuracy percentage (0-100) */
@@ -26,9 +28,9 @@ type AccuracyTagProps = {
  * < 55%: Muted (poor)
  */
 function getAccuracyColor(accuracy: number): string {
-  if (accuracy >= 70) return "#22C55E"; // Green
-  if (accuracy >= 55) return "#EAB308"; // Yellow
-  return "#6B7280"; // Muted gray
+  if (accuracy >= 70) return Colors.status.success;
+  if (accuracy >= 55) return Colors.status.warning;
+  return Colors.text.muted;
 }
 
 export function AccuracyTag({
@@ -36,12 +38,14 @@ export function AccuracyTag({
   sampleSize,
   minSamples = 10,
 }: AccuracyTagProps) {
+  const { t } = useTranslation("common");
+
   // Show "New" if not enough samples
   if (sampleSize < minSamples) {
     return (
       <View style={styles.container}>
         <Text size={Size.Small} appearance={TextAppearance.Muted}>
-          New
+          {t("status.new")}
         </Text>
       </View>
     );

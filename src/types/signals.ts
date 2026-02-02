@@ -5,6 +5,8 @@
  * and prediction accuracy tracking.
  */
 
+import { Colors } from "@wraith/ghost/tokens";
+
 /** Trading timeframe/style for signal calculations */
 export type TradingTimeframe =
   | "scalping"
@@ -204,27 +206,27 @@ export function getDirectionLabel(direction: SignalDirection): string {
 export function getDirectionColor(direction: SignalDirection): string {
   switch (direction) {
     case "strong_buy":
-      return "#22C55E"; // Green
+      return Colors.status.success;
     case "buy":
-      return "#84CC16"; // Lime
+      return Colors.status.successDim;
     case "neutral":
-      return "#6B7280"; // Gray
+      return Colors.text.muted;
     case "sell":
-      return "#F97316"; // Orange
+      return Colors.status.dangerDim;
     case "strong_sell":
-      return "#EF4444"; // Red
+      return Colors.status.danger;
     default:
-      return "#6B7280";
+      return Colors.text.muted;
   }
 }
 
 /** Helper to get color for score */
 export function getScoreColor(score: number): string {
-  if (score >= 60) return "#22C55E"; // Strong buy - green
-  if (score >= 20) return "#84CC16"; // Buy - lime
-  if (score > -20) return "#6B7280"; // Neutral - gray
-  if (score > -60) return "#F97316"; // Sell - orange
-  return "#EF4444"; // Strong sell - red
+  if (score >= 60) return Colors.status.success;
+  if (score >= 20) return Colors.status.successDim;
+  if (score > -20) return Colors.text.muted;
+  if (score > -60) return Colors.status.dangerDim;
+  return Colors.status.danger;
 }
 
 /** Helper to get category display name */
@@ -272,12 +274,12 @@ export type Recommendation = {
 export function getRecommendationColor(action: RecommendationAction): string {
   switch (action) {
     case "buy":
-      return "#22C55E"; // Green
+      return Colors.status.success;
     case "sell":
-      return "#EF4444"; // Red
+      return Colors.status.danger;
     case "hold":
-      return "#6B7280"; // Gray
+      return Colors.text.muted;
     default:
-      return "#6B7280";
+      return Colors.text.muted;
   }
 }

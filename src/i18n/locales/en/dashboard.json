@@ -1,0 +1,51 @@
+{
+  "assetList": {
+    "title": "Asset Prices",
+    "subtitle": "{{count}} assets • Live prices",
+    "searchPlaceholder": "Search assets...",
+    "columns": {
+      "rank": "#",
+      "asset": "Asset",
+      "price": "Price",
+      "trade": "Trade",
+      "change24h": "24h",
+      "change7d": "7d",
+      "marketCap": "Market Cap",
+      "volume24h": "Volume 24h",
+      "pulse": "Pulse"
+    }
+  },
+  "toolbar": {
+    "sortBy": "Sort by",
+    "assetTypePlaceholder": "Asset Type",
+    "viewOptions": {
+      "list": "List",
+      "charts": "Charts"
+    },
+    "sortOptions": {
+      "marketCap": "Market Cap",
+      "price": "Price",
+      "volume24h": "Volume 24h",
+      "change1h": "Change 1h",
+      "change24h": "Change 24h",
+      "change7d": "Change 7d",
+      "name": "Name"
+    },
+    "filterOptions": {
+      "all": "All",
+      "gainers": "Gainers",
+      "losers": "Losers",
+      "volatile": "Volatile",
+      "topVolume": "Top Volume"
+    },
+    "assetType": {
+      "all": "All Assets",
+      "crypto": "Crypto",
+      "stocks": "Stocks"
+    }
+  },
+  "chartGrid": {
+    "vol": "Vol",
+    "noAssets": "No assets found"
+  }
+}

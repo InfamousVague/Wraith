@@ -7,9 +7,11 @@
 
 import React, { useMemo } from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, ProgressBar, AnimatedNumber } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import {
   getDirectionLabel,
   getDirectionColor,
@@ -25,7 +27,7 @@ type CategoryScore = {
 };
 
 type ConditionTag = {
-  label: string;
+  labelKey: string;
   color: string;
 };
 
@@ -65,45 +67,45 @@ function generateConditionTags(
 
   // Falling Knife detection
   if (momentumScore < -50 && priceChange24h !== undefined && priceChange24h < -5) {
-    tags.push({ label: "Falling Knife", color: "#DC2626" });
+    tags.push({ labelKey: "fallingKnife", color: Colors.status.danger });
   }
 
   // Oversold/Overbought
   if (momentumScore < -60 && trendScore > -20) {
-    tags.push({ label: "Oversold", color: "#06B6D4" });
+    tags.push({ labelKey: "oversold", color: Colors.status.info });
   }
   if (momentumScore > 60 && trendScore < 20) {
-    tags.push({ label: "Overbought", color: "#F59E0B" });
+    tags.push({ labelKey: "overbought", color: Colors.status.warning });
   }
 
   // Trend tags
   if (trendScore > 60) {
-    tags.push({ label: "Uptrend", color: "#10B981" });
+    tags.push({ labelKey: "uptrend", color: Colors.status.success });
   } else if (trendScore < -60) {
-    tags.push({ label: "Downtrend", color: "#EF4444" });
+    tags.push({ labelKey: "downtrend", color: Colors.status.danger });
   }
 
   // Consolidation
   if (Math.abs(trendScore) < 15 && Math.abs(momentumScore) < 15 && volatilityScore < 0) {
-    tags.push({ label: "Consolidating", color: "#6B7280" });
+    tags.push({ labelKey: "consolidating", color: Colors.text.muted });
   }
 
   // Volatility
   if (volatilityScore > 50) {
-    tags.push({ label: "High Vol", color: "#F97316" });
+    tags.push({ labelKey: "highVol", color: Colors.status.warning });
   }
 
   // Volume
   if (volumeScore > 50) {
-    tags.push({ label: "Vol Surge", color: "#8B5CF6" });
+    tags.push({ labelKey: "volSurge", color: Colors.accent.primary });
   }
 
   // Divergences
   if (momentumScore > 30 && trendScore < -10) {
-    tags.push({ label: "Bull Div", color: "#22C55E" });
+    tags.push({ labelKey: "bullDiv", color: Colors.status.success });
   }
   if (momentumScore < -30 && trendScore > 10) {
-    tags.push({ label: "Bear Div", color: "#EF4444" });
+    tags.push({ labelKey: "bearDiv", color: Colors.status.danger });
   }
 
   return tags.slice(0, 4); // Limit to 4 compact tags
@@ -161,15 +163,16 @@ export function SignalSummaryCard({
   priceChange24h,
   loading = false,
 }: SignalSummaryCardProps) {
+  const { t } = useTranslation("components");
   const themeColors = useThemeColors();
   const directionColor = getDirectionColor(direction);
   const directionLabel = getDirectionLabel(direction);
 
   const categories: CategoryScore[] = [
-    { label: "Trend", score: trendScore, color: "#8B5CF6" }, // Purple
-    { label: "Momentum", score: momentumScore, color: "#06B6D4" }, // Cyan
-    { label: "Volatility", score: volatilityScore, color: "#F59E0B" }, // Amber
-    { label: "Volume", score: volumeScore, color: "#10B981" }, // Emerald
+    { label: t("signals.categories.trend"), score: trendScore, color: Colors.data.violet },
+    { label: t("signals.categories.momentum"), score: momentumScore, color: Colors.data.cyan },
+    { label: t("signals.categories.volatility"), score: volatilityScore, color: Colors.data.amber },
+    { label: t("signals.categories.volume"), score: volumeScore, color: Colors.data.emerald },
   ];
 
   // Generate compact condition tags
@@ -178,16 +181,17 @@ export function SignalSummaryCard({
     [direction, trendScore, momentumScore, volatilityScore, volumeScore, priceChange24h]
   );
 
-  // Generate helpful interpretation text
-  const interpretationText = compositeScore >= 40
-    ? "Strong buy conditions - multiple indicators suggest upward momentum"
+  // Generate helpful interpretation text key
+  const interpretationKey = compositeScore >= 40
+    ? "strongBuy"
     : compositeScore >= 10
-    ? "Moderate buy signal - consider entering positions"
+    ? "moderateBuy"
     : compositeScore > -10
-    ? "Neutral - no clear direction, wait for stronger signals"
+    ? "neutral"
     : compositeScore > -40
-    ? "Moderate sell signal - consider reducing exposure"
-    : "Strong sell conditions - indicators suggest downward pressure";
+    ? "moderateSell"
+    : "strongSell";
+  const interpretationText = t(`signals.interpretation.${interpretationKey}`);
 
   return (
     <Card style={styles.card} loading={loading}>
@@ -199,20 +203,20 @@ export function SignalSummaryCard({
               appearance={TextAppearance.Muted}
               style={styles.headerLabel}
             >
-              TRADING SIGNALS
+              {t("signals.title")}
             </Text>
             <HintIndicator
               id="trading-signals-hint"
-              title="Trading Signals"
-              content="The composite score combines multiple technical indicators into a single -100 to +100 value. Positive scores suggest bullish conditions, negative scores suggest bearish. Category breakdowns show which factors are driving the signal."
+              title={t("signals.hint.title")}
+              content={t("signals.hint.content")}
               icon="?"
-              color="#A78BFA"
+              color={Colors.accent.primary}
               priority={11}
               inline
             />
           </View>
           <Text size={Size.Small} appearance={TextAppearance.Muted}>
-            Combined analysis of {indicatorCount} technical indicators
+            {t("signals.subtitle", { count: indicatorCount })}
           </Text>
         </View>
 
@@ -224,7 +228,7 @@ export function SignalSummaryCard({
         <View style={styles.mainScore}>
           <View style={styles.scoreRow}>
             <Text size={Size.Small} appearance={TextAppearance.Muted}>
-              Composite Score
+              {t("signals.compositeScore")}
             </Text>
             <View style={styles.directionBadge}>
               <View
@@ -286,7 +290,7 @@ export function SignalSummaryCard({
                   style={[styles.conditionTag, { backgroundColor: `${tag.color}20` }]}
                 >
                   <Text size={Size.ExtraSmall} weight="medium" style={{ color: tag.color }}>
-                    {tag.label}
+                    {t(`signals.conditions.${tag.labelKey}`)}
                   </Text>
                 </View>
               ))}
@@ -298,7 +302,7 @@ export function SignalSummaryCard({
             appearance={TextAppearance.Muted}
             style={styles.categoriesTitle}
           >
-            CATEGORY BREAKDOWN
+            {t("signals.categoryBreakdown")}
           </Text>
           <View style={styles.categoriesList}>
             {categories.map((category) => (

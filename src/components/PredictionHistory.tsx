@@ -10,6 +10,7 @@ import { View, StyleSheet, Pressable } from "react-native";
 import { Card, Text } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { PredictionRow } from "./PredictionRow";
 import type { SignalPrediction, SignalAccuracy } from "../types/signals";
 
@@ -150,7 +151,7 @@ export function PredictionHistory({ predictions, accuracies, loading }: Props) {
               size={Size.Small}
               weight="semibold"
               style={{
-                color: overallAccuracy.percentage >= 50 ? "#22C55E" : "#EF4444",
+                color: overallAccuracy.percentage >= 50 ? Colors.status.success : Colors.status.danger,
               }}
             >
               {overallAccuracy.percentage.toFixed(1)}%

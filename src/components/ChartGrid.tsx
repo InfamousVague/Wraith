@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useRef, useEffect, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { FixedSizeGrid as Grid } from "react-window";
 import { Card, Text, Avatar, PercentChange, Currency, Skeleton } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
@@ -34,9 +35,10 @@ type ChartCardProps = {
   cardSize: number;
   themeColors: ThemeColors;
   searchQuery: string;
+  volLabel: string;
 };
 
-const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, searchQuery }: ChartCardProps) {
+const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, searchQuery, volLabel }: ChartCardProps) {
   const isPositive = asset.change24h >= 0;
   const chartHeight = getChartHeight(cardSize);
   const compact = isCompactSize(cardSize);
@@ -106,7 +108,7 @@ const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, 
               <View style={[styles.cardFooter, { borderTopColor: themeColors.border.subtle }]}>
                 <View style={styles.stat}>
                   <Text size={Size.Medium} appearance={TextAppearance.Muted}>
-                    Vol
+                    {volLabel}
                   </Text>
                   <Currency
                     value={asset.volume24h}
@@ -183,6 +185,7 @@ function LoadingCard({ cardSize, themeColors }: { cardSize: number; themeColors:
 const VIRTUALIZATION_THRESHOLD = 50;
 
 export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize = 220 }: ChartGridProps) {
+  const { t } = useTranslation("dashboard");
   const themeColors = useThemeColors();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -249,6 +252,8 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
     filteredAssets.length > VIRTUALIZATION_THRESHOLD &&
     containerSize.width > 0;
 
+  const volLabel = t("chartGrid.vol");
+
   // Cell renderer for virtualized grid
   const Cell = useCallback(({ columnIndex, rowIndex, style }: { columnIndex: number; rowIndex: number; style: React.CSSProperties }) => {
     const index = rowIndex * columnCount + columnIndex;
@@ -262,10 +267,11 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
           cardSize={cardSize}
           themeColors={themeColors}
           searchQuery={searchQuery}
+          volLabel={volLabel}
         />
       </div>
     );
-  }, [filteredAssets, columnCount, cardSize, themeColors, searchQuery]);
+  }, [filteredAssets, columnCount, cardSize, themeColors, searchQuery, volLabel]);
 
   return (
     <View style={styles.container}>
@@ -307,6 +313,7 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
                   cardSize={cardSize}
                   themeColors={themeColors}
                   searchQuery={searchQuery}
+                  volLabel={volLabel}
                 />
               ))}
             </View>
@@ -323,6 +330,7 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
                   cardSize={cardSize}
                   themeColors={themeColors}
                   searchQuery={searchQuery}
+                  volLabel={volLabel}
                 />
               ))}
         </View>
@@ -330,7 +338,7 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
 
       {!loading && filteredAssets.length === 0 && (
         <View style={styles.empty}>
-          <Text appearance={TextAppearance.Muted}>No assets found</Text>
+          <Text appearance={TextAppearance.Muted}>{t("chartGrid.noAssets")}</Text>
         </View>
       )}
     </View>

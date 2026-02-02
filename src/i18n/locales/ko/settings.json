@@ -1,0 +1,13 @@
+{
+  "title": "설정",
+  "language": {
+    "section": "언어",
+    "displayLanguage": "표시 언어",
+    "chooseLanguage": "원하는 언어를 선택하세요"
+  },
+  "appSettings": {
+    "section": "앱 설정",
+    "comingSoon": "곧 출시 예정",
+    "comingSoonDesc": "알림 설정, 표시 옵션, 신호 커스터마이징 등 애플리케이션 설정이 여기에 제공될 예정입니다."
+  }
+}

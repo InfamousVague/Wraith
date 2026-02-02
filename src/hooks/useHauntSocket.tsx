@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext, type ReactNode } from "react";
 import { logger } from "../utils/logger";
+import { usePerformance } from "../context/PerformanceContext";
 
 // Derive WebSocket URL from current location (works with Vite proxy)
 function getWebSocketUrl(): string {
@@ -74,12 +75,14 @@ export type WSMessage =
   | { type: "market_update"; data: MarketUpdate }
   | { type: "subscribed"; assets: string[] }
   | { type: "unsubscribed"; assets: string[] }
+  | { type: "throttle_set"; throttle_ms: number }
   | { type: "error"; error: string };
 
 type HauntSocketContextType = {
   connected: boolean;
   subscribe: (assets: string[]) => void;
   unsubscribe: (assets?: string[]) => void;
+  setThrottle: (throttleMs: number) => void;
   subscriptions: string[];
   error: string | null;
   onPriceUpdate: (callback: (update: PriceUpdate) => void) => () => void;
@@ -109,11 +112,15 @@ export function HauntSocketProvider({
   const [error, setError] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
 
+  // Get performance/throttle settings
+  const { throttleMs } = usePerformance();
+
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mountedRef = useRef(true);
   const updateCountRef = useRef(0);
   const initialCountLoadedRef = useRef(false);
+  const currentThrottleMsRef = useRef(throttleMs);
 
   // Compute WebSocket URL once
   const wsUrl = useMemo(() => getWebSocketUrl(), []);
@@ -164,6 +171,12 @@ export function HauntSocketProvider({
         logger.data("Haunt WS", { action: "connected" });
         setConnected(true);
         setError(null);
+
+        // Send current throttle setting to server
+        const currentThrottle = currentThrottleMsRef.current;
+        if (currentThrottle > 0) {
+          ws.send(JSON.stringify({ type: "set_throttle", throttle_ms: currentThrottle }));
+        }
       };
 
       ws.onmessage = (event) => {
@@ -174,11 +187,11 @@ export function HauntSocketProvider({
 
           switch (message.type) {
             case "price_update":
-              priceCallbacksRef.current.forEach((cb) => cb(message.data));
-              // Increment update count locally for real-time display
-              // Backend tracks the authoritative count
+              // Increment update count and dispatch to callbacks
+              // Server handles throttling, so we just pass through
               updateCountRef.current += 1;
               setUpdateCount(updateCountRef.current);
+              priceCallbacksRef.current.forEach((cb) => cb(message.data));
               break;
 
             case "market_update":
@@ -191,6 +204,10 @@ export function HauntSocketProvider({
 
             case "unsubscribed":
               setSubscriptions((prev) => prev.filter((a) => !message.assets.includes(a)));
+              break;
+
+            case "throttle_set":
+              logger.data("Haunt WS", { action: "throttle_set", throttle_ms: message.throttle_ms });
               break;
 
             case "error":
@@ -261,6 +278,20 @@ export function HauntSocketProvider({
     }
   }, []);
 
+  const setThrottle = useCallback((newThrottleMs: number) => {
+    currentThrottleMsRef.current = newThrottleMs;
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "set_throttle", throttle_ms: newThrottleMs }));
+    }
+  }, []);
+
+  // Send throttle update to server when throttleMs changes
+  useEffect(() => {
+    if (connected && throttleMs !== currentThrottleMsRef.current) {
+      setThrottle(throttleMs);
+    }
+  }, [connected, throttleMs, setThrottle]);
+
   const onPriceUpdate = useCallback((callback: (update: PriceUpdate) => void) => {
     priceCallbacksRef.current.add(callback);
     return () => {
@@ -280,12 +311,13 @@ export function HauntSocketProvider({
     connected,
     subscribe,
     unsubscribe,
+    setThrottle,
     subscriptions,
     error,
     onPriceUpdate,
     onMarketUpdate,
     updateCount,
-  }), [connected, subscribe, unsubscribe, subscriptions, error, onPriceUpdate, onMarketUpdate, updateCount]);
+  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, updateCount]);
 
   return (
     <HauntSocketContext.Provider value={value}>
@@ -299,6 +331,7 @@ const noopContext: HauntSocketContextType = {
   connected: false,
   subscribe: () => {},
   unsubscribe: () => {},
+  setThrottle: () => {},
   subscriptions: [],
   error: null,
   onPriceUpdate: () => () => {},

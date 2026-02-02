@@ -16,6 +16,7 @@ import { View, StyleSheet } from "react-native";
 import { Text, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import type { SignalPrediction, PredictionOutcome } from "../types/signals";
 
 type Props = {
@@ -129,15 +130,15 @@ function getBestOutcome(prediction: SignalPrediction, preferredTimeframe?: strin
 function getDirectionDisplay(direction: string): { label: string; color: string } {
   switch (direction) {
     case "strong_buy":
-      return { label: "BUY", color: "#22C55E" };
+      return { label: "BUY", color: Colors.status.success };
     case "buy":
-      return { label: "BUY", color: "#84CC16" };
+      return { label: "BUY", color: Colors.status.successDim };
     case "sell":
-      return { label: "SELL", color: "#F97316" };
+      return { label: "SELL", color: Colors.status.dangerDim };
     case "strong_sell":
-      return { label: "SELL", color: "#EF4444" };
+      return { label: "SELL", color: Colors.status.danger };
     default:
-      return { label: "HOLD", color: "#6B7280" };
+      return { label: "HOLD", color: Colors.text.muted };
   }
 }
 
@@ -163,11 +164,11 @@ export function PredictionRow({ prediction, timeframe }: Props) {
     }
     switch (outcome) {
       case "correct":
-        return { icon: "check" as const, color: "#22C55E", label: "correct" };
+        return { icon: "check" as const, color: Colors.status.success, label: "correct" };
       case "incorrect":
-        return { icon: "x" as const, color: "#EF4444", label: "incorrect" };
+        return { icon: "x" as const, color: Colors.status.danger, label: "incorrect" };
       case "neutral":
-        return { icon: "minus" as const, color: "#6B7280", label: "neutral" };
+        return { icon: "minus" as const, color: Colors.text.muted, label: "neutral" };
       default:
         return { icon: "clock" as const, color: themeColors.text.muted, label: "pending" };
     }
@@ -216,13 +217,13 @@ export function PredictionRow({ prediction, timeframe }: Props) {
           </Text>
           <Text
             size={Size.ExtraSmall}
-            style={[styles.priceAfter, { color: priceChange && priceChange >= 0 ? "#22C55E" : "#EF4444" }]}
+            style={[styles.priceAfter, { color: priceChange && priceChange >= 0 ? Colors.status.success : Colors.status.danger }]}
           >
             {formatPrice(priceAfter)}
           </Text>
           <Text
             size={Size.ExtraSmall}
-            style={[styles.change, { color: priceChange && priceChange >= 0 ? "#22C55E" : "#EF4444" }]}
+            style={[styles.change, { color: priceChange && priceChange >= 0 ? Colors.status.success : Colors.status.danger }]}
           >
             ({formatChange(priceChange ?? 0)})
           </Text>

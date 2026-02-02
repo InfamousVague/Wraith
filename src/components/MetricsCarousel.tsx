@@ -9,6 +9,7 @@ import { PriceFeedCard } from "./PriceFeedCard";
 import { ExchangeLiquidity } from "./ExchangeLiquidity";
 import { TopMoversCard } from "./TopMoversCard";
 import { ApiStatsCard } from "./ApiStatsCard";
+import { MarketStatusCard } from "./MarketStatusCard";
 import type { AssetType } from "../services/haunt";
 
 type MetricsCarouselProps = {
@@ -36,6 +37,7 @@ export function MetricsCarousel({ assetType = "all" }: MetricsCarouselProps) {
         snapToAlignment="start"
       >
         <TopMoversCard assetType={assetType} />
+        <MarketStatusCard />
         <FearGreedCard
           value={fearGreedData?.value ?? 0}
           loading={showFearGreedLoading}

@@ -7,6 +7,7 @@
 
 import React, { useMemo } from "react";
 import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { useTranslation } from "react-i18next";
 import {
   Card,
   Text,
@@ -14,12 +15,14 @@ import {
 } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import Svg, { Path } from "react-native-svg";
 import type { SignalAccuracy, SignalPrediction, Recommendation, PredictionOutcome } from "../types/signals";
 import { getRecommendationColor } from "../types/signals";
 import { CountdownTimer } from "./CountdownTimer";
 import { HeartbeatChart } from "./HeartbeatChart";
 import { HintIndicator } from "./HintIndicator";
+import { IndicatorTooltip } from "./IndicatorTooltip";
 
 type PredictionAccuracyCardProps = {
   accuracies: SignalAccuracy[];
@@ -35,18 +38,18 @@ type PredictionAccuracyCardProps = {
  * Get color based on accuracy percentage.
  */
 function getAccuracyColor(accuracy: number): string {
-  if (accuracy >= 70) return "#22C55E"; // Green
-  if (accuracy >= 55) return "#EAB308"; // Yellow
-  return "#EF4444"; // Red
+  if (accuracy >= 70) return Colors.status.success;
+  if (accuracy >= 55) return Colors.status.warning;
+  return Colors.status.danger;
 }
 
 /** Get color for outcome */
 function getOutcomeColor(outcome: PredictionOutcome | undefined | null): string | null {
   if (!outcome) return null;
   switch (outcome) {
-    case "correct": return "#22C55E";
-    case "incorrect": return "#EF4444";
-    case "neutral": return "#6B7280";
+    case "correct": return Colors.status.success;
+    case "incorrect": return Colors.status.danger;
+    case "neutral": return Colors.text.muted;
     default: return null;
   }
 }
@@ -54,11 +57,11 @@ function getOutcomeColor(outcome: PredictionOutcome | undefined | null): string 
 /** Get direction color */
 function getDirectionColor(direction: string): string {
   switch (direction) {
-    case "strong_buy": return "#22C55E";
-    case "buy": return "#84CC16";
-    case "sell": return "#F97316";
-    case "strong_sell": return "#EF4444";
-    default: return "#6B7280";
+    case "strong_buy": return Colors.status.success;
+    case "buy": return Colors.status.successDim;
+    case "sell": return Colors.status.dangerDim;
+    case "strong_sell": return Colors.status.danger;
+    default: return Colors.text.muted;
   }
 }
 
@@ -237,25 +240,33 @@ function IndicatorGroup({
   indicator,
   predictions,
   accuracy,
+  index,
 }: {
   indicator: string;
   predictions: SignalPrediction[];
   accuracy: number | null;
+  index: number;
 }) {
   const themeColors = useThemeColors();
 
   return (
     <View style={[styles.indicatorGroup, { borderColor: themeColors.border.subtle }]}>
-      {/* Indicator header */}
+      {/* Indicator header with help tooltip */}
       <View style={styles.indicatorHeader}>
-        <Text size={Size.Small} weight="semibold">
-          {indicator}
-        </Text>
+        <View style={styles.indicatorNameRow}>
+          <Text size={Size.Small} weight="semibold">
+            {indicator}
+          </Text>
+          <IndicatorTooltip
+            indicatorName={indicator}
+            priority={20 + index}
+          />
+        </View>
         {accuracy !== null && (
           <Text
             size={Size.TwoXSmall}
             weight="medium"
-            style={{ color: accuracy >= 50 ? "#22C55E" : "#EF4444" }}
+            style={{ color: accuracy >= 50 ? Colors.status.success : Colors.status.danger }}
           >
             {accuracy.toFixed(0)}%
           </Text>
@@ -335,6 +346,7 @@ export function PredictionAccuracyCard({
   generating = false,
   onGeneratePredictions,
 }: PredictionAccuracyCardProps) {
+  const { t } = useTranslation(["components", "common"]);
   const themeColors = useThemeColors();
 
   // Calculate overall accuracy
@@ -424,14 +436,14 @@ export function PredictionAccuracyCard({
         {/* Section Header */}
         <View style={styles.sectionHeaderRow}>
           <Text size={Size.Medium} appearance={TextAppearance.Muted}>
-            MARKET PREDICTION
+            {t("components:prediction.title")}
           </Text>
           <HintIndicator
             id="market-prediction-hint"
-            title="Market Prediction"
-            content="BUY/SELL/HOLD recommendation based on weighted indicator signals. Confidence shows signal strength, Accuracy tracks historical correctness, Win Rate shows overall prediction success rate."
+            title={t("components:prediction.hint.title")}
+            content={t("components:prediction.hint.content")}
             icon="?"
-            color="#A78BFA"
+            color={Colors.accent.primary}
             priority={12}
             inline
           />
@@ -455,21 +467,21 @@ export function PredictionAccuracyCard({
             value={confidence}
             max={100}
             color={actionColor}
-            label="Confidence"
+            label={t("components:prediction.confidence")}
             valueLabel={`${Math.round(confidence)}%`}
           />
           <HalfCircleGauge
             value={overallAccuracy}
             max={100}
             color={getAccuracyColor(overallAccuracy)}
-            label="Accuracy"
+            label={t("components:prediction.accuracy")}
             valueLabel={`${overallAccuracy.toFixed(1)}%`}
           />
           <HalfCircleGauge
             value={winRate}
             max={100}
             color={getAccuracyColor(winRate)}
-            label="Win Rate"
+            label={t("components:prediction.winRate")}
             valueLabel={`${winRate.toFixed(1)}%`}
           />
         </View>
@@ -480,7 +492,7 @@ export function PredictionAccuracyCard({
           appearance={TextAppearance.Muted}
           style={styles.predictionCount}
         >
-          Based on {totalPredictions.toLocaleString()} predictions
+          {t("components:prediction.basedOn", { count: totalPredictions.toLocaleString() })}
         </Text>
 
         {indicators.length > 0 && (
@@ -499,31 +511,32 @@ export function PredictionAccuracyCard({
                     size={Size.Medium}
                     appearance={TextAppearance.Muted}
                   >
-                    PREDICTION HISTORY
+                    {t("components:prediction.history.title")}
                   </Text>
                   <HintIndicator
                     id="prediction-history-hint"
-                    title="Prediction History"
-                    content="Shows the last 3 predictions for each indicator with their outcomes at 5min, 1hr, and 4hr timeframes. Green means the prediction was correct, red means incorrect. The percentage shows lifetime accuracy for each indicator."
+                    title={t("components:prediction.historyHint.title")}
+                    content={t("components:prediction.historyHint.content")}
                     icon="?"
-                    color="#A78BFA"
+                    color={Colors.accent.primary}
                     priority={13}
                     inline
                   />
                 </View>
                 <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  Green = correct, Red = incorrect
+                  {t("components:prediction.history.legend")}
                 </Text>
               </View>
 
               {/* Grid of indicator groups */}
               <View style={styles.indicatorGrid}>
-                {indicators.map((indicator) => (
+                {indicators.map((indicator, index) => (
                   <IndicatorGroup
                     key={indicator}
                     indicator={indicator}
                     predictions={groupedPredictions[indicator]}
                     accuracy={indicatorAccuracies[indicator] ?? null}
+                    index={index}
                   />
                 ))}
               </View>
@@ -544,10 +557,10 @@ export function PredictionAccuracyCard({
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text size={Size.Medium} appearance={TextAppearance.Muted}>
-                  PENDING PREDICTIONS
+                  {t("components:prediction.pending.title")}
                 </Text>
                 <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  Awaiting validation
+                  {t("components:prediction.pending.awaitingValidation")}
                 </Text>
               </View>
 
@@ -570,19 +583,19 @@ export function PredictionAccuracyCard({
               <HeartbeatChart
                 height={20}
                 width={40}
-                color="#3B82F6"
+                color={Colors.data.blue}
                 animationDuration={1500}
                 style={styles.generatingHeartbeat}
               />
-              <Text size={Size.Small} style={{ color: "#3B82F6" }}>
-                Generating predictions...
+              <Text size={Size.Small} style={{ color: Colors.data.blue }}>
+                {t("components:prediction.generating")}
               </Text>
             </View>
             <View style={styles.emptyState}>
               <HeartbeatChart
                 height={80}
                 width={120}
-                color="#3B82F6"
+                color={Colors.data.blue}
                 animationDuration={1500}
               />
               <Text
@@ -590,7 +603,7 @@ export function PredictionAccuracyCard({
                 appearance={TextAppearance.Muted}
                 style={[styles.emptySubtext, { marginTop: 16 }]}
               >
-                Analyzing market indicators and generating predictions for this asset
+                {t("components:prediction.analyzingMarket")}
               </Text>
             </View>
           </>
@@ -605,22 +618,22 @@ export function PredictionAccuracyCard({
               appearance={TextAppearance.Muted}
               style={styles.emptyText}
             >
-              No Predictions Yet
+              {t("components:prediction.empty.title")}
             </Text>
             <Text
               size={Size.Medium}
               appearance={TextAppearance.Muted}
               style={styles.emptySubtext}
             >
-              Generate predictions to start tracking signal accuracy for this asset
+              {t("components:prediction.empty.description")}
             </Text>
             {onGeneratePredictions && (
               <TouchableOpacity
                 onPress={onGeneratePredictions}
                 style={styles.generateButton}
               >
-                <Text weight="semibold" style={{ color: "#3B82F6" }}>
-                  Generate Predictions
+                <Text weight="semibold" style={{ color: Colors.data.blue }}>
+                  {t("common:buttons.generatePredictions")}
                 </Text>
               </TouchableOpacity>
             )}
@@ -707,6 +720,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
   },
+  indicatorNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   predictionsStack: {
     gap: 4,
   },
@@ -747,7 +765,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    backgroundColor: "Colors.data.blueSurface",
   },
   generateButtonDisabled: {
     backgroundColor: "rgba(107, 114, 128, 0.1)",
@@ -756,7 +774,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    backgroundColor: "Colors.data.blueSurface",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,

@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { View, StyleSheet, ScrollView, Platform } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, ProgressBar, AnimatedNumber, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { hauntClient, type SymbolSourceStat, type ConfidenceResponse } from "../services/haunt";
 import { HintIndicator } from "./HintIndicator";
 
@@ -21,29 +23,31 @@ const EXCHANGE_CONFIG: Record<string, { name: string; color: string }> = {
 
 // Get color based on confidence score
 function getScoreColor(score: number): string {
-  if (score >= 80) return "#22C55E"; // Green
-  if (score >= 60) return "#84CC16"; // Lime
-  if (score >= 40) return "#EAB308"; // Yellow
-  if (score >= 20) return "#F97316"; // Orange
-  return "#EF4444"; // Red
+  if (score >= 80) return Colors.status.success;
+  if (score >= 60) return Colors.status.successDim;
+  if (score >= 40) return Colors.status.warning;
+  if (score >= 20) return Colors.status.dangerDim;
+  return Colors.status.danger;
 }
 
-// Get label based on score
-function getScoreLabel(score: number): string {
-  if (score >= 80) return "Excellent";
-  if (score >= 60) return "Good";
-  if (score >= 40) return "Fair";
-  if (score >= 20) return "Low";
-  return "Very Low";
+// Get translation key based on score
+function getScoreLabelKey(score: number): string {
+  if (score >= 80) return "excellent";
+  if (score >= 60) return "good";
+  if (score >= 40) return "fair";
+  if (score >= 20) return "low";
+  return "veryLow";
 }
 
 type HalfCircleGaugeProps = {
   score: number;
   color: string;
   label: string;
+  mutedColor: string;
+  trackColor: string;
 };
 
-function HalfCircleGauge({ score, color, label }: HalfCircleGaugeProps) {
+function HalfCircleGauge({ score, color, label, mutedColor, trackColor }: HalfCircleGaugeProps) {
   // SVG half-circle gauge
   const size = 140;
   const strokeWidth = 10;
@@ -59,7 +63,7 @@ function HalfCircleGauge({ score, color, label }: HalfCircleGaugeProps) {
           <path
             d={`M ${strokeWidth / 2} ${size / 2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth / 2} ${size / 2}`}
             fill="none"
-            stroke="rgba(255, 255, 255, 0.1)"
+            stroke={trackColor}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
           />
@@ -90,7 +94,7 @@ function HalfCircleGauge({ score, color, label }: HalfCircleGaugeProps) {
             x={size / 2}
             y={size / 2 + 14}
             textAnchor="middle"
-            fill="#9CA3AF"
+            fill={mutedColor}
             fontSize="12"
             fontFamily="system-ui, -apple-system, sans-serif"
           >
@@ -156,7 +160,7 @@ const SourceRow = React.memo(function SourceRow({ source, maxCount }: SourceRowP
           </Text>
           {!source.online && (
             <View style={styles.offlineBadge}>
-              <Icon name="skull" size={Size.TwoXSmall} color="#FF5C7A" />
+              <Icon name="skull" size={Size.TwoXSmall} color={Colors.status.danger} />
             </View>
           )}
         </View>
@@ -197,6 +201,7 @@ export function AssetSourceBreakdown({
   loading = false,
   pollInterval = 5000, // Poll every 5 seconds
 }: AssetSourceBreakdownProps) {
+  const { t } = useTranslation("components");
   const [sources, setSources] = useState<SymbolSourceStat[]>([]);
   const [totalUpdates, setTotalUpdates] = useState(0);
   const [confidence, setConfidence] = useState<ConfidenceResponse | null>(null);
@@ -243,7 +248,8 @@ export function AssetSourceBreakdown({
   const showLoading = loading || isLoading;
   const score = confidence?.confidence.score ?? 0;
   const scoreColor = getScoreColor(score);
-  const scoreLabel = getScoreLabel(score);
+  const scoreLabelKey = getScoreLabelKey(score);
+  const scoreLabel = t(`dataQuality.levels.${scoreLabelKey}`);
 
   return (
     <Card style={styles.card} loading={showLoading}>
@@ -252,20 +258,20 @@ export function AssetSourceBreakdown({
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted} style={styles.headerLabel}>
-              DATA QUALITY
+              {t("dataQuality.title")}
             </Text>
             <HintIndicator
               id="data-quality-hint"
-              title="Data Quality"
-              content="Measures how reliable the price data is based on source diversity, update frequency, data recency, and price consistency across sources. Higher scores mean more trustworthy data for analysis."
+              title={t("dataQuality.hint.title")}
+              content={t("dataQuality.hint.content")}
               icon="?"
-              color="#A78BFA"
+              color={Colors.accent.primary}
               priority={15}
               inline
             />
           </View>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-            {symbol?.toUpperCase() ?? "—"} confidence & sources
+            {t("dataQuality.subtitle", { symbol: symbol?.toUpperCase() ?? "—" })}
           </Text>
         </View>
 
@@ -273,26 +279,32 @@ export function AssetSourceBreakdown({
 
         {error ? (
           <View style={styles.errorState}>
-            <Icon name="skull" size={Size.ExtraLarge} color="#FF5C7A" />
+            <Icon name="skull" size={Size.ExtraLarge} color={Colors.status.danger} />
             <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted} style={styles.errorText}>
-              Unable to load data
+              {t("dataQuality.unableToLoad")}
             </Text>
           </View>
         ) : (
           <>
             {/* Confidence Half-Circle Gauge */}
             <View style={styles.gaugeSection}>
-              <HalfCircleGauge score={score} color={scoreColor} label={scoreLabel} />
+              <HalfCircleGauge
+                score={score}
+                color={scoreColor}
+                label={scoreLabel}
+                mutedColor={themeColors.text.muted}
+                trackColor={themeColors.border.subtle}
+              />
             </View>
 
             {/* Stats row */}
-            <View style={styles.statsRow}>
+            <View style={[styles.statsRow, { backgroundColor: themeColors.background.secondary }]}>
               <View style={styles.statItem}>
                 <Text size={Size.Small} weight="semibold">
                   {sources.length}
                 </Text>
                 <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  Sources
+                  {t("dataQuality.sources")}
                 </Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: themeColors.border.subtle }]} />
@@ -307,7 +319,7 @@ export function AssetSourceBreakdown({
                   animationDuration={200}
                 />
                 <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  Updates
+                  {t("dataQuality.updates")}
                 </Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: themeColors.border.subtle }]} />
@@ -322,7 +334,7 @@ export function AssetSourceBreakdown({
                   animationDuration={200}
                 />
                 <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  Data Points
+                  {t("dataQuality.dataPoints")}
                 </Text>
               </View>
             </View>
@@ -331,14 +343,14 @@ export function AssetSourceBreakdown({
 
             {/* Source list */}
             <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.sourcesTitle}>
-              ACTIVE SOURCES
+              {t("dataQuality.activeSources")}
             </Text>
 
             {sources.length === 0 && !isLoading ? (
               <View style={styles.emptyState}>
                 <Icon name="wifi-off" size={Size.Large} appearance={TextAppearance.Muted} />
                 <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted} style={styles.emptyText}>
-                  No data sources yet
+                  {t("dataQuality.noSources")}
                 </Text>
               </View>
             ) : (
@@ -398,7 +410,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     paddingVertical: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderRadius: 12,
     marginBottom: 16,
   },

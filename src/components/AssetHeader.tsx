@@ -40,7 +40,7 @@ export function AssetHeader({ asset, loading, onBack }: AssetHeaderProps) {
             iconLeft="chevron-left"
             appearance={Appearance.Ghost}
             onPress={onBack}
-            size={Size.Medium}
+            size={Size.Large}
           />
         )}
         <Avatar

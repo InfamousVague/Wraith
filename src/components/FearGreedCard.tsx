@@ -1,7 +1,9 @@
 import React from "react";
 import { View, StyleSheet } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, ProgressCircle } from "@wraith/ghost/components";
-import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { HintIndicator } from "./HintIndicator";
 
 type FearGreedCardProps = {
@@ -11,37 +13,38 @@ type FearGreedCardProps = {
 };
 
 /**
- * Get the label and appearance for a fear/greed value.
+ * Get the translation keys and appearance for a fear/greed value.
  */
-function getFearGreedStatus(value: number): { label: string; circleLabel: string; appearance: TextAppearance } {
+function getFearGreedStatus(value: number): { labelKey: string; circleLabelKey: string; appearance: TextAppearance } {
   if (value <= 12) {
-    return { label: "Extreme Fear", circleLabel: "Panic", appearance: TextAppearance.Danger };
+    return { labelKey: "extremeFear", circleLabelKey: "panic", appearance: TextAppearance.Danger };
   }
   if (value <= 25) {
-    return { label: "Extreme Fear", circleLabel: "Fearful", appearance: TextAppearance.Danger };
+    return { labelKey: "extremeFear", circleLabelKey: "fearful", appearance: TextAppearance.Danger };
   }
   if (value <= 37) {
-    return { label: "Fear", circleLabel: "Anxious", appearance: TextAppearance.Warning };
+    return { labelKey: "fear", circleLabelKey: "anxious", appearance: TextAppearance.Warning };
   }
   if (value <= 45) {
-    return { label: "Fear", circleLabel: "Cautious", appearance: TextAppearance.Warning };
+    return { labelKey: "fear", circleLabelKey: "cautious", appearance: TextAppearance.Warning };
   }
   if (value <= 55) {
-    return { label: "Neutral", circleLabel: "Balanced", appearance: TextAppearance.Muted };
+    return { labelKey: "neutral", circleLabelKey: "balanced", appearance: TextAppearance.Muted };
   }
   if (value <= 65) {
-    return { label: "Greed", circleLabel: "Optimistic", appearance: TextAppearance.Success };
+    return { labelKey: "greed", circleLabelKey: "optimistic", appearance: TextAppearance.Success };
   }
   if (value <= 75) {
-    return { label: "Greed", circleLabel: "Greedy", appearance: TextAppearance.Success };
+    return { labelKey: "greed", circleLabelKey: "greedy", appearance: TextAppearance.Success };
   }
   if (value <= 87) {
-    return { label: "Extreme Greed", circleLabel: "Euphoric", appearance: TextAppearance.Success };
+    return { labelKey: "extremeGreed", circleLabelKey: "euphoric", appearance: TextAppearance.Success };
   }
-  return { label: "Extreme Greed", circleLabel: "Manic", appearance: TextAppearance.Success };
+  return { labelKey: "extremeGreed", circleLabelKey: "manic", appearance: TextAppearance.Success };
 }
 
 export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProps) {
+  const { t } = useTranslation("components");
   const status = getFearGreedStatus(value);
 
   return (
@@ -50,20 +53,20 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
         {/* Hint indicator in top-right corner */}
         <HintIndicator
           id="fear-greed-hint"
-          title="Market Sentiment"
-          content="Values below 25 indicate extreme fear (potential buying opportunity). Values above 75 suggest extreme greed (potential correction ahead)."
+          title={t("fearGreed.hint.title")}
+          content={t("fearGreed.hint.content")}
           icon="i"
-          color="#A78BFA"
+          color={Colors.accent.primary}
           priority={1}
         />
 
         {/* Header - stays at top */}
         <View style={styles.header}>
           <Text size={Size.Small} weight="semibold">
-            Fear & Greed Index
+            {t("fearGreed.title")}
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-            Updated 1h ago
+            {t("fearGreed.updated")}
           </Text>
         </View>
 
@@ -77,9 +80,8 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
             max={100}
             size={Size.ExtraLarge}
             appearance={status.appearance}
-            brightness={Brightness.Bright}
             showValue
-            label={status.circleLabel}
+            label={t(`fearGreed.labels.${status.circleLabelKey}`)}
           />
         </View>
 
@@ -92,12 +94,11 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
             size={Size.Medium}
             weight="bold"
             appearance={status.appearance}
-            brightness={Brightness.Bright}
           >
-            {status.label}
+            {t(`fearGreed.levels.${status.labelKey}`)}
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.description}>
-            Market sentiment based on volatility, momentum, and social signals
+            {t("fearGreed.description")}
           </Text>
         </View>
       </View>

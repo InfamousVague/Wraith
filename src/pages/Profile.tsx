@@ -7,14 +7,17 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Card, Text, Button, Input, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance, Shape, Appearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { Navbar } from "../components/Navbar";
 import { LoginProgress } from "../components/LoginProgress";
 import { LogoutConfirmModal } from "../components/LogoutConfirmModal";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 // Theme colors
 const themes = {
@@ -28,9 +31,13 @@ const themes = {
 
 export function Profile() {
   const navigate = useNavigate();
+  const { t } = useTranslation(["auth", "common"]);
   const { isDark } = useTheme();
   const themeColors = useThemeColors();
   const colors = isDark ? themes.dark : themes.light;
+  const { isMobile, isNarrow } = useBreakpoint();
+
+  const contentPadding = isMobile ? 12 : isNarrow ? 16 : 24;
   const {
     user,
     isAuthenticated,
@@ -143,14 +150,14 @@ export function Profile() {
       />
 
       <Navbar />
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={[styles.content, { paddingHorizontal: contentPadding }]}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => navigate(-1)} style={styles.backButton}>
-            <Icon name="chevron-left" size={Size.Medium} color={themeColors.text.muted} />
+            <Icon name="chevron-left" size={Size.Large} color={themeColors.text.secondary} />
           </Pressable>
           <Text size={Size.ExtraLarge} weight="bold">
-            Profile
+            {t("auth:profile.title")}
           </Text>
         </View>
 
@@ -161,19 +168,19 @@ export function Profile() {
             appearance={TextAppearance.Muted}
             style={styles.sectionTitle}
           >
-            ACCOUNT
+            {t("auth:profile.account")}
           </Text>
 
-          <Card style={styles.card}>
-            <View style={styles.cardContent}>
+          <Card style={styles.card} fullBleed={isMobile}>
+            <View style={[styles.cardContent, isMobile && styles.cardContentMobile]}>
               {isAuthenticated && user ? (
                 <>
                   {/* Logged in state - header with logout */}
-                  <View style={styles.accountHeader}>
+                  <View style={[styles.accountHeader, isMobile && styles.accountHeaderMobile]}>
                     <View style={styles.accountInfo}>
                       <View style={styles.accountRow}>
                         <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                          Public Key (Wallet Address)
+                          {t("auth:profile.publicKeyLabel")}
                         </Text>
                         <Text size={Size.Medium} weight="medium" style={styles.keyText}>
                           {user.publicKey.slice(0, 16)}...{user.publicKey.slice(-16)}
@@ -182,7 +189,7 @@ export function Profile() {
 
                       <View style={styles.accountRow}>
                         <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                          Account Created
+                          {t("auth:profile.accountCreated")}
                         </Text>
                         <Text size={Size.Medium}>
                           {new Date(user.createdAt).toLocaleDateString()}
@@ -191,9 +198,9 @@ export function Profile() {
                     </View>
 
                     <Pressable onPress={handleLogoutClick} style={styles.logoutButton}>
-                      <Icon name="power" size={Size.Medium} color="#EF4444" />
-                      <Text size={Size.Small} style={{ color: "#EF4444" }}>
-                        Logout
+                      <Icon name="power" size={Size.Medium} color={Colors.status.danger} />
+                      <Text size={Size.Small} style={{ color: Colors.status.danger }}>
+                        {t("common:buttons.logout")}
                       </Text>
                     </Pressable>
                   </View>
@@ -208,15 +215,14 @@ export function Profile() {
                   {/* Private Key Management */}
                   <View style={styles.keySection}>
                     <Text size={Size.Medium} weight="semibold" style={styles.keyTitle}>
-                      Private Key
+                      {t("auth:profile.privateKey")}
                     </Text>
                     <Text
                       size={Size.Small}
                       appearance={TextAppearance.Muted}
                       style={styles.keyWarning}
                     >
-                      Never share your private key. Anyone with this key can access your
-                      account.
+                      {t("auth:profile.privateKeyWarning")}
                     </Text>
 
                     {showPrivateKey && revealedKey ? (
@@ -240,7 +246,7 @@ export function Profile() {
                       </View>
                     ) : (
                       <Button
-                        label="Reveal Private Key"
+                        label={t("auth:profile.revealPrivateKey")}
                         onPress={handleRevealKey}
                         size={Size.Small}
                         shape={Shape.Rounded}
@@ -251,7 +257,7 @@ export function Profile() {
 
                     <View style={styles.keyActions}>
                       <Button
-                        label={copied ? "Copied!" : "Copy"}
+                        label={copied ? t("common:buttons.copied") : t("common:buttons.copy")}
                         onPress={handleCopyPrivateKey}
                         size={Size.Small}
                         shape={Shape.Rounded}
@@ -259,7 +265,7 @@ export function Profile() {
                         leadingIcon="copy"
                       />
                       <Button
-                        label="Download"
+                        label={t("common:buttons.download")}
                         onPress={handleDownloadKey}
                         size={Size.Small}
                         shape={Shape.Rounded}
@@ -279,20 +285,19 @@ export function Profile() {
                       color={themeColors.text.muted}
                     />
                     <Text size={Size.Large} weight="semibold" style={styles.noAccountTitle}>
-                      No Account Connected
+                      {t("auth:profile.noAccountTitle")}
                     </Text>
                     <Text
                       size={Size.Medium}
                       appearance={TextAppearance.Muted}
                       style={styles.noAccountDesc}
                     >
-                      Create a new wallet or import an existing private key to save your
-                      preferences and settings.
+                      {t("auth:profile.noAccountDesc")}
                     </Text>
                   </View>
 
                   <Button
-                    label="Create New Account"
+                    label={t("auth:profile.createNewAccount")}
                     onPress={handleCreateAccount}
                     size={Size.Small}
                     shape={Shape.Rounded}
@@ -311,13 +316,13 @@ export function Profile() {
                     appearance={TextAppearance.Muted}
                     style={styles.importLabel}
                   >
-                    Or import existing private key
+                    {t("auth:profile.importLabel")}
                   </Text>
 
                   <Input
                     value={importKey}
                     onChangeText={setImportKey}
-                    placeholder="Enter 64-character hex private key..."
+                    placeholder={t("auth:profile.importPlaceholder")}
                     size={Size.Small}
                     shape={Shape.Rounded}
                     style={styles.importInput}
@@ -334,7 +339,7 @@ export function Profile() {
                   )}
 
                   <Button
-                    label="Import Private Key"
+                    label={t("auth:profile.importPrivateKey")}
                     onPress={handleImportKey}
                     size={Size.Small}
                     shape={Shape.Rounded}
@@ -356,23 +361,23 @@ export function Profile() {
               appearance={TextAppearance.Muted}
               style={styles.sectionTitle}
             >
-              SERVER CONNECTION
+              {t("auth:profile.serverConnection")}
             </Text>
 
-            <Card style={styles.card}>
-              <View style={styles.cardContent}>
+            <Card style={styles.card} fullBleed={isMobile}>
+              <View style={[styles.cardContent, isMobile && styles.cardContentMobile]}>
                 {isConnectedToServer ? (
                   <>
                     {/* Connected state */}
                     <View style={styles.connectedHeader}>
                       <View style={styles.statusIndicator}>
-                        <View style={[styles.statusDot, styles.statusOnline]} />
+                        <View style={[styles.statusDot, { backgroundColor: Colors.status.success }]} />
                         <Text size={Size.Medium} weight="medium">
-                          Connected to Server
+                          {t("auth:server.connectedToServer")}
                         </Text>
                       </View>
                       <Button
-                        label="Disconnect"
+                        label={t("common:buttons.disconnect")}
                         onPress={disconnectFromServer}
                         size={Size.Small}
                         shape={Shape.Rounded}
@@ -384,7 +389,7 @@ export function Profile() {
                       <View style={styles.serverInfo}>
                         <View style={styles.serverInfoRow}>
                           <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                            Server Profile ID
+                            {t("auth:server.serverProfileId")}
                           </Text>
                           <Text size={Size.Small} style={styles.keyText}>
                             {serverProfile.id.slice(0, 8)}...
@@ -392,7 +397,7 @@ export function Profile() {
                         </View>
                         <View style={styles.serverInfoRow}>
                           <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                            Last Seen
+                            {t("auth:server.lastSeen")}
                           </Text>
                           <Text size={Size.Small}>
                             {new Date(serverProfile.lastSeen).toLocaleString()}
@@ -406,9 +411,9 @@ export function Profile() {
                     {/* Not connected state */}
                     <View style={styles.notConnected}>
                       <View style={styles.statusIndicator}>
-                        <View style={[styles.statusDot, styles.statusOffline]} />
+                        <View style={[styles.statusDot, { backgroundColor: Colors.text.muted }]} />
                         <Text size={Size.Medium} weight="medium">
-                          Not Connected
+                          {t("auth:server.notConnected")}
                         </Text>
                       </View>
                       <Text
@@ -416,12 +421,11 @@ export function Profile() {
                         appearance={TextAppearance.Muted}
                         style={styles.notConnectedDesc}
                       >
-                        Connect to the Haunt server to sync your profile and settings
-                        across devices.
+                        {t("auth:server.syncDescription")}
                       </Text>
 
                       <Button
-                        label="Connect to Server"
+                        label={t("auth:server.connectToServer")}
                         onPress={loginToBackend}
                         size={Size.Small}
                         shape={Shape.Rounded}
@@ -453,7 +457,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingBottom: 40,
-    paddingHorizontal: 24,
   },
   header: {
     flexDirection: "row",
@@ -464,6 +467,10 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
     backgroundColor: "transparent",
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   section: {
     marginBottom: 32,
@@ -477,10 +484,17 @@ const styles = StyleSheet.create({
   cardContent: {
     padding: 24,
   },
+  cardContentMobile: {
+    padding: 16,
+  },
   accountHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
+  },
+  accountHeaderMobile: {
+    flexDirection: "column",
+    gap: 16,
   },
   accountInfo: {
     flex: 1,
@@ -580,12 +594,6 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-  },
-  statusOnline: {
-    backgroundColor: "#22C55E",
-  },
-  statusOffline: {
-    backgroundColor: "#6B7280",
   },
   serverInfo: {
     gap: 8,

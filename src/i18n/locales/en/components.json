@@ -1,0 +1,197 @@
+{
+  "fearGreed": {
+    "title": "Fear & Greed Index",
+    "updated": "Updated 1h ago",
+    "description": "Market sentiment based on volatility, momentum, and social signals",
+    "levels": {
+      "extremeFear": "Extreme Fear",
+      "fear": "Fear",
+      "neutral": "Neutral",
+      "greed": "Greed",
+      "extremeGreed": "Extreme Greed"
+    },
+    "labels": {
+      "panic": "Panic",
+      "fearful": "Fearful",
+      "anxious": "Anxious",
+      "cautious": "Cautious",
+      "balanced": "Balanced",
+      "optimistic": "Optimistic",
+      "greedy": "Greedy",
+      "euphoric": "Euphoric",
+      "manic": "Manic"
+    },
+    "hint": {
+      "title": "Market Sentiment",
+      "content": "Values below 25 indicate extreme fear (potential buying opportunity). Values above 75 suggest extreme greed (potential correction ahead)."
+    }
+  },
+  "altcoinSeason": {
+    "title": "Altcoin Season Index",
+    "btcDominance": "BTC Dominance: {{value}}%",
+    "labels": {
+      "btc": "BTC",
+      "alt": "ALT"
+    },
+    "status": {
+      "bitcoinSeason": "Bitcoin Season",
+      "btcLeaning": "BTC Leaning",
+      "neutral": "Neutral",
+      "altLeaning": "Alt Leaning",
+      "altcoinSeason": "Altcoin Season"
+    },
+    "descriptions": {
+      "bitcoinSeason": "BTC strongly outperforming altcoins",
+      "btcLeaning": "Bitcoin showing relative strength",
+      "neutral": "Balanced market conditions",
+      "altLeaning": "Altcoins gaining momentum",
+      "altcoinSeason": "Altcoins strongly outperforming BTC"
+    },
+    "hint": {
+      "title": "Altcoin Season Index",
+      "content": "When 75% of the top 50 altcoins outperform Bitcoin over 90 days, it's 'Altcoin Season'. Low values favor holding BTC, high values favor altcoins."
+    }
+  },
+  "apiStats": {
+    "title": "API STATISTICS",
+    "online": "{{online}}/{{total}} Online",
+    "apiOffline": "API Offline",
+    "throughput": "Throughput",
+    "tps": "TPS",
+    "latency": "Latency",
+    "ms": "ms",
+    "trackedAssets": "Tracked Assets",
+    "totalUpdates": "Total Updates",
+    "uptime": "Uptime",
+    "systemHealth": "System Health"
+  },
+  "topMovers": {
+    "title": "TOP MOVERS",
+    "gainers": "Gainers",
+    "losers": "Losers",
+    "unableToLoad": "Unable to load movers",
+    "noGainers": "No gainers in this timeframe",
+    "noLosers": "No losers in this timeframe",
+    "tryDifferent": "Try a different time range"
+  },
+  "dataQuality": {
+    "title": "DATA QUALITY",
+    "subtitle": "{{symbol}} confidence & sources",
+    "unableToLoad": "Unable to load data",
+    "sources": "Sources",
+    "updates": "Updates",
+    "dataPoints": "Data Points",
+    "activeSources": "ACTIVE SOURCES",
+    "noSources": "No data sources yet",
+    "levels": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "fair": "Fair",
+      "low": "Low",
+      "veryLow": "Very Low"
+    },
+    "hint": {
+      "title": "Data Quality",
+      "content": "Measures how reliable the price data is based on source diversity, update frequency, data recency, and price consistency across sources. Higher scores mean more trustworthy data for analysis."
+    }
+  },
+  "signals": {
+    "title": "TRADING SIGNALS",
+    "subtitle": "Combined analysis of {{count}} technical indicators",
+    "compositeScore": "Composite Score",
+    "categoryBreakdown": "CATEGORY BREAKDOWN",
+    "categories": {
+      "trend": "Trend",
+      "momentum": "Momentum",
+      "volatility": "Volatility",
+      "volume": "Volume"
+    },
+    "interpretation": {
+      "strongBuy": "Strong buy conditions - multiple indicators suggest upward momentum",
+      "moderateBuy": "Moderate buy signal - consider entering positions",
+      "neutral": "Neutral - no clear direction, wait for stronger signals",
+      "moderateSell": "Moderate sell signal - consider reducing exposure",
+      "strongSell": "Strong sell conditions - indicators suggest downward pressure"
+    },
+    "conditions": {
+      "fallingKnife": "Falling Knife",
+      "oversold": "Oversold",
+      "overbought": "Overbought",
+      "uptrend": "Uptrend",
+      "downtrend": "Downtrend",
+      "consolidating": "Consolidating",
+      "highVol": "High Vol",
+      "volSurge": "Vol Surge",
+      "bullDiv": "Bull Div",
+      "bearDiv": "Bear Div"
+    },
+    "hint": {
+      "title": "Trading Signals",
+      "content": "The composite score combines multiple technical indicators into a single -100 to +100 value. Positive scores suggest bullish conditions, negative scores suggest bearish. Category breakdowns show which factors are driving the signal."
+    }
+  },
+  "indicators": {
+    "title": "TECHNICAL INDICATORS",
+    "subtitle": "Individual indicator breakdown with historical accuracy",
+    "columns": {
+      "indicator": "Indicator",
+      "value": "Value",
+      "score": "Score",
+      "signal": "Signal",
+      "accuracy": "Accuracy"
+    },
+    "noIndicators": "No {{category}} indicators available",
+    "legend": "Accuracy shows how often this indicator correctly predicted price direction historically",
+    "categoryDescriptions": {
+      "trend": "Shows overall price direction - moving averages and trend strength indicators",
+      "momentum": "Measures speed of price changes - identifies overbought/oversold conditions",
+      "volatility": "Tracks price fluctuations - higher values suggest bigger potential moves",
+      "volume": "Analyzes trading activity - confirms price movements and identifies interest"
+    },
+    "hint": {
+      "title": "Technical Indicators",
+      "content": "Individual indicator values and their Buy/Sell/Hold signals. Each indicator is scored from -100 to +100. Accuracy shows how often each indicator correctly predicted price direction based on historical data."
+    }
+  },
+  "prediction": {
+    "title": "MARKET PREDICTION",
+    "confidence": "Confidence",
+    "accuracy": "Accuracy",
+    "winRate": "Win Rate",
+    "basedOn": "Based on {{count}} predictions",
+    "history": {
+      "title": "PREDICTION HISTORY",
+      "legend": "Green = correct, Red = incorrect"
+    },
+    "pending": {
+      "title": "PENDING PREDICTIONS",
+      "awaitingValidation": "Awaiting validation"
+    },
+    "empty": {
+      "title": "No Predictions Yet",
+      "description": "Generate predictions to start tracking signal accuracy for this asset"
+    },
+    "generating": "Generating predictions...",
+    "analyzingMarket": "Analyzing market indicators and generating predictions for this asset",
+    "awaiting": "awaiting {{timeframe}}...",
+    "hint": {
+      "title": "Market Prediction",
+      "content": "BUY/SELL/HOLD recommendation based on weighted indicator signals. Confidence shows signal strength, Accuracy tracks historical correctness, Win Rate shows overall prediction success rate."
+    },
+    "historyHint": {
+      "title": "Prediction History",
+      "content": "Shows the last 3 predictions for each indicator with their outcomes at 5min, 1hr, and 4hr timeframes. Green means the prediction was correct, red means incorrect. The percentage shows lifetime accuracy for each indicator."
+    }
+  },
+  "countdown": {
+    "ready": "Ready"
+  },
+  "timeframe": {
+    "title": "TRADING STYLE",
+    "subtitle": "Choose your trading timeframe to optimize signal weighting",
+    "hint": {
+      "title": "Trading Style",
+      "content": "Select your trading timeframe to optimize how signals are weighted. Scalpers need fast signals, while investors focus on longer-term trends. This affects how the composite score is calculated."
+    }
+  }
+}

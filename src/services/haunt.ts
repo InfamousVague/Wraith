@@ -17,6 +17,7 @@ import type {
   TradingTimeframe,
   Recommendation,
 } from "../types/signals";
+import type { AggregatedOrderBook, OrderBookResponse } from "../types/orderbook";
 
 // Use relative path in dev (proxied by Vite), or direct URL in production
 const HAUNT_URL = import.meta.env.VITE_HAUNT_URL || "";
@@ -561,6 +562,17 @@ class HauntClient {
     await this.fetchWithAuth("/api/auth/logout", token, {
       method: "POST",
     });
+  }
+
+  // ========== Order Book API Methods ==========
+
+  /**
+   * Get aggregated order book for a symbol across multiple exchanges
+   * @param symbol Asset symbol (e.g., "btc", "eth")
+   * @param depth Number of price levels to return (default: 50, max: 100)
+   */
+  async getOrderBook(symbol: string, depth: number = 50): Promise<OrderBookResponse> {
+    return this.fetch(`/api/orderbook/${symbol.toLowerCase()}?depth=${depth}`);
   }
 }
 

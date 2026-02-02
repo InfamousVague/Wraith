@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView } from "react-native";
 import { Card, Text, ProgressBar, AnimatedNumber, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 
 type ExchangeStats = {
   source: string;
@@ -58,7 +59,7 @@ const ExchangeRow = React.memo(function ExchangeRow({ exchange, maxCount }: Exch
           </Text>
           {!exchange.online && (
             <View style={styles.offlineBadge}>
-              <Icon name="skull" size={Size.TwoXSmall} color="#FF5C7A" />
+              <Icon name="skull" size={Size.TwoXSmall} color={Colors.status.danger} />
             </View>
           )}
         </View>
@@ -154,7 +155,7 @@ export function ExchangeLiquidity({
 
         {error ? (
           <View style={styles.errorState}>
-            <Icon name="skull" size={Size.ExtraLarge} color="#FF5C7A" />
+            <Icon name="skull" size={Size.ExtraLarge} color={Colors.status.danger} />
             <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted} style={styles.errorText}>
               API Offline
             </Text>

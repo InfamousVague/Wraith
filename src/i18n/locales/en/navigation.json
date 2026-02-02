@@ -1,0 +1,16 @@
+{
+  "brand": "WRAITH",
+  "marketFilter": "Market",
+  "marketFilterOptions": {
+    "all": "All",
+    "crypto": "Crypto",
+    "stocks": "Stocks"
+  },
+  "viewMode": {
+    "list": "List",
+    "charts": "Charts"
+  },
+  "theme": "Theme",
+  "home": "Home",
+  "settings": "Settings"
+}

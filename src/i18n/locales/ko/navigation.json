@@ -1,0 +1,16 @@
+{
+  "brand": "WRAITH",
+  "marketFilter": "마켓",
+  "marketFilterOptions": {
+    "all": "전체",
+    "crypto": "암호화폐",
+    "stocks": "주식"
+  },
+  "viewMode": {
+    "list": "목록",
+    "charts": "차트"
+  },
+  "theme": "테마",
+  "home": "홈",
+  "settings": "설정"
+}

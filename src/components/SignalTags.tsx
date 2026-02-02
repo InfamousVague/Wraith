@@ -10,6 +10,7 @@ import { View, StyleSheet } from "react-native";
 import { Text, Tag } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import type { SymbolSignals, SignalDirection } from "../types/signals";
 
 type SignalTag = {
@@ -41,26 +42,26 @@ function generateTags(
   if (direction === "strong_buy") {
     tags.push({
       label: "Strong Buy Signal",
-      color: "#22C55E",
-      bgColor: "#22C55E20",
+      color: Colors.status.success,
+      bgColor: Colors.status.success + "20",
     });
   } else if (direction === "strong_sell") {
     tags.push({
       label: "Strong Sell Signal",
-      color: "#EF4444",
-      bgColor: "#EF444420",
+      color: Colors.status.danger,
+      bgColor: Colors.status.danger + "20",
     });
   } else if (direction === "buy") {
     tags.push({
       label: "Buy Signal",
-      color: "#84CC16",
-      bgColor: "#84CC1620",
+      color: Colors.status.successDim,
+      bgColor: Colors.status.successDim + "20",
     });
   } else if (direction === "sell") {
     tags.push({
       label: "Sell Signal",
-      color: "#F97316",
-      bgColor: "#F9731620",
+      color: Colors.status.dangerDim,
+      bgColor: Colors.status.dangerDim + "20",
     });
   }
 
@@ -72,8 +73,8 @@ function generateTags(
   ) {
     tags.push({
       label: "Falling Knife",
-      color: "#DC2626",
-      bgColor: "#DC262620",
+      color: Colors.status.danger,
+      bgColor: Colors.status.danger + "20",
     });
   }
 
@@ -81,8 +82,8 @@ function generateTags(
   if (momentumScore < -60 && trendScore > -20) {
     tags.push({
       label: "Oversold",
-      color: "#06B6D4",
-      bgColor: "#06B6D420",
+      color: Colors.status.info,
+      bgColor: Colors.status.info + "20",
     });
   }
 
@@ -90,8 +91,8 @@ function generateTags(
   if (momentumScore > 60 && trendScore < 20) {
     tags.push({
       label: "Overbought",
-      color: "#F59E0B",
-      bgColor: "#F59E0B20",
+      color: Colors.status.warning,
+      bgColor: Colors.status.warning + "20",
     });
   }
 
@@ -99,14 +100,14 @@ function generateTags(
   if (trendScore > 60) {
     tags.push({
       label: "Strong Uptrend",
-      color: "#10B981",
-      bgColor: "#10B98120",
+      color: Colors.status.success,
+      bgColor: Colors.status.success + "20",
     });
   } else if (trendScore < -60) {
     tags.push({
       label: "Strong Downtrend",
-      color: "#EF4444",
-      bgColor: "#EF444420",
+      color: Colors.status.danger,
+      bgColor: Colors.status.danger + "20",
     });
   }
 
@@ -118,8 +119,8 @@ function generateTags(
   ) {
     tags.push({
       label: "Consolidating",
-      color: "#6B7280",
-      bgColor: "#6B728020",
+      color: Colors.text.muted,
+      bgColor: Colors.text.muted + "20",
     });
   }
 
@@ -127,8 +128,8 @@ function generateTags(
   if (volatilityScore > 50) {
     tags.push({
       label: "High Volatility",
-      color: "#F97316",
-      bgColor: "#F9731620",
+      color: Colors.status.warning,
+      bgColor: Colors.status.warning + "20",
     });
   }
 
@@ -136,8 +137,8 @@ function generateTags(
   if (volumeScore > 50) {
     tags.push({
       label: "Volume Surge",
-      color: "#8B5CF6",
-      bgColor: "#8B5CF620",
+      color: Colors.accent.primary,
+      bgColor: Colors.accent.primary + "20",
     });
   }
 
@@ -145,8 +146,8 @@ function generateTags(
   if (momentumScore > 30 && trendScore < -10) {
     tags.push({
       label: "Bullish Divergence",
-      color: "#22C55E",
-      bgColor: "#22C55E20",
+      color: Colors.status.success,
+      bgColor: Colors.status.success + "20",
     });
   }
 
@@ -154,8 +155,8 @@ function generateTags(
   if (momentumScore < -30 && trendScore > 10) {
     tags.push({
       label: "Bearish Divergence",
-      color: "#EF4444",
-      bgColor: "#EF444420",
+      color: Colors.status.danger,
+      bgColor: Colors.status.danger + "20",
     });
   }
 

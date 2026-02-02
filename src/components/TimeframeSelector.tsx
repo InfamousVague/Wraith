@@ -6,9 +6,11 @@
 
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Text } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import { TRADING_TIMEFRAMES, type TradingTimeframe } from "../types/signals";
 import { HintIndicator } from "./HintIndicator";
 
@@ -21,6 +23,7 @@ export function TimeframeSelector({
   value,
   onChange,
 }: TimeframeSelectorProps) {
+  const { t } = useTranslation("components");
   const themeColors = useThemeColors();
 
   return (
@@ -31,14 +34,14 @@ export function TimeframeSelector({
           appearance={TextAppearance.Muted}
           style={styles.label}
         >
-          TRADING STYLE
+          {t("timeframe.title")}
         </Text>
         <HintIndicator
           id="trading-style-hint"
-          title="Trading Style"
-          content="Select your trading timeframe to optimize how signals are weighted. Scalpers need fast signals, while investors focus on longer-term trends. This affects how the composite score is calculated."
+          title={t("timeframe.hint.title")}
+          content={t("timeframe.hint.content")}
           icon="?"
-          color="#A78BFA"
+          color={Colors.accent.primary}
           priority={10}
           inline
         />
@@ -48,7 +51,7 @@ export function TimeframeSelector({
         appearance={TextAppearance.Muted}
         style={styles.subtitle}
       >
-        Choose your trading timeframe to optimize signal weighting
+        {t("timeframe.subtitle")}
       </Text>
       <View style={styles.options}>
         {TRADING_TIMEFRAMES.map((tf) => {

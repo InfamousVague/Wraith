@@ -30,8 +30,7 @@ function getAppearance(score: number): TextAppearance {
   if (score >= 40) return TextAppearance.Success; // Strong buy - green
   if (score >= 10) return TextAppearance.Info; // Buy - blue/cyan
   if (score > -10) return TextAppearance.Muted; // Neutral - gray
-  if (score > -40) return TextAppearance.Warning; // Sell - orange
-  return TextAppearance.Danger; // Strong sell - red
+  return TextAppearance.Danger; // Sell/Strong sell - red
 }
 
 export function SentimentMeter({

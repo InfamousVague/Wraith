@@ -1,10 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./i18n";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { View } from "react-native";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { HintProvider } from "./context/HintContext";
+import { PerformanceProvider } from "./context/PerformanceContext";
 import { GhostThemeProvider } from "@wraith/ghost";
 import { HauntSocketProvider } from "./hooks/useHauntSocket";
 import { Dashboard } from "./pages/Dashboard";
@@ -44,9 +46,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <AuthProvider>
           <HintProvider>
             <GhostThemeBridge>
-              <HauntSocketProvider>
-                <App />
-              </HauntSocketProvider>
+              <PerformanceProvider>
+                <HauntSocketProvider>
+                  <App />
+                </HauntSocketProvider>
+              </PerformanceProvider>
             </GhostThemeBridge>
           </HintProvider>
         </AuthProvider>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Card, Text, Currency, PercentChange, AnimatedNumber, SegmentedControl, Avatar, Icon, Button } from "@wraith/ghost/components";
 import { Size, TextAppearance, Appearance, Shape } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
@@ -200,6 +201,7 @@ export function TopMoversCard({
   pollInterval = 5000,
   assetType = "all",
 }: TopMoversCardProps) {
+  const { t } = useTranslation("components");
   const [timeframe, setTimeframe] = useState<MoverTimeframe>("1h");
   const [gainers, setGainers] = useState<Mover[]>([]);
   const [losers, setLosers] = useState<Mover[]>([]);
@@ -281,7 +283,7 @@ export function TopMoversCard({
       <View style={styles.content}>
         <View style={styles.header}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-            TOP MOVERS
+            {t("topMovers.title")}
           </Text>
           <SegmentedControl
             options={TIMEFRAME_OPTIONS}
@@ -295,7 +297,7 @@ export function TopMoversCard({
         <View style={styles.toggleRow}>
           <View style={styles.toggleButtonWrapper}>
             <Button
-              label="Gainers"
+              label={t("topMovers.gainers")}
               iconLeft="trending-up"
               appearance={showGainers ? Appearance.Success : Appearance.Ghost}
               backgroundOpacity={showGainers ? 0.15 : undefined}
@@ -306,7 +308,7 @@ export function TopMoversCard({
           </View>
           <View style={styles.toggleButtonWrapper}>
             <Button
-              label="Losers"
+              label={t("topMovers.losers")}
               iconLeft="trending-down"
               appearance={!showGainers ? Appearance.Danger : Appearance.Ghost}
               backgroundOpacity={!showGainers ? 0.15 : undefined}
@@ -322,16 +324,16 @@ export function TopMoversCard({
         {error ? (
           <View style={styles.emptyState}>
             <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-              Unable to load movers
+              {t("topMovers.unableToLoad")}
             </Text>
           </View>
         ) : movers.length === 0 ? (
           <View style={styles.emptyState}>
             <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-              {showGainers ? "No gainers" : "No losers"} in this timeframe
+              {showGainers ? t("topMovers.noGainers") : t("topMovers.noLosers")}
             </Text>
             <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-              Try a different time range
+              {t("topMovers.tryDifferent")}
             </Text>
           </View>
         ) : (

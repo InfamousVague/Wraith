@@ -8,22 +8,23 @@
 
 import React from "react";
 import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Text, Icon } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
 import type { LoginStep } from "../context/AuthContext";
-import { LOGIN_STEP_LABELS } from "../context/AuthContext";
 
 type StepConfig = {
   key: LoginStep;
-  label: string;
+  labelKey: string;
 };
 
 const STEPS: StepConfig[] = [
-  { key: "requesting_challenge", label: "Requesting challenge" },
-  { key: "signing", label: "Signing" },
-  { key: "verifying", label: "Verifying" },
-  { key: "loading_profile", label: "Loading profile" },
+  { key: "requesting_challenge", labelKey: "requestingChallenge" },
+  { key: "signing", labelKey: "signing" },
+  { key: "verifying", labelKey: "verifying" },
+  { key: "loading_profile", labelKey: "loadingProfile" },
 ];
 
 const STEP_ORDER: LoginStep[] = [
@@ -40,6 +41,7 @@ type Props = {
 };
 
 export function LoginProgress({ currentStep, error }: Props) {
+  const { t } = useTranslation("auth");
   const themeColors = useThemeColors();
 
   const currentIndex = STEP_ORDER.indexOf(currentStep);
@@ -64,9 +66,9 @@ export function LoginProgress({ currentStep, error }: Props) {
             {/* Icon */}
             <View style={styles.iconContainer}>
               {isError && isCurrent ? (
-                <Icon name="x-circle" size={Size.Small} color="#EF4444" />
+                <Icon name="x-circle" size={Size.Small} color={Colors.status.danger} />
               ) : isCompleted || (isSuccess && stepIndex <= currentIndex) ? (
-                <Icon name="check-circle" size={Size.Small} color="#22C55E" />
+                <Icon name="check-circle" size={Size.Small} color={Colors.status.success} />
               ) : isCurrent ? (
                 <ActivityIndicator size="small" color={themeColors.text.primary} />
               ) : (
@@ -89,7 +91,7 @@ export function LoginProgress({ currentStep, error }: Props) {
               weight={isCurrent ? "medium" : "regular"}
               style={styles.label}
             >
-              {step.label}
+              {t(`loginSteps.${step.labelKey}`)}
             </Text>
           </View>
         );
@@ -99,10 +101,10 @@ export function LoginProgress({ currentStep, error }: Props) {
       {isSuccess && (
         <View style={styles.stepRow}>
           <View style={styles.iconContainer}>
-            <Icon name="check-circle" size={Size.Small} color="#22C55E" />
+            <Icon name="check-circle" size={Size.Small} color={Colors.status.success} />
           </View>
-          <Text size={Size.Small} weight="medium" style={[styles.label, { color: "#22C55E" }]}>
-            Connected to server!
+          <Text size={Size.Small} weight="medium" style={[styles.label, { color: Colors.status.success }]}>
+            {t("loginSteps.success")}
           </Text>
         </View>
       )}
