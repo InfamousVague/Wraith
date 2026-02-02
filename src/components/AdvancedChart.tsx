@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { View, StyleSheet, Pressable, Platform } from "react-native";
+import { View, StyleSheet, Pressable, Platform, type ViewStyle } from "react-native";
 import {
   createChart,
   AreaSeries,
@@ -810,9 +810,12 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
     setCrosshairData(stats);
   }, [stats]);
 
+  // Flatten card styles for mobile
+  const cardStyle = StyleSheet.flatten([styles.card, isMobile && styles.cardMobile]) as ViewStyle;
+
   if (loading) {
     return (
-      <Card style={[styles.card, isMobile && styles.cardMobile]}>
+      <Card style={cardStyle}>
         <View style={[styles.controlsContainer, isMobile && styles.controlsContainerMobile]}>
           <Skeleton width={isMobile ? "100%" : 400} height={36} borderRadius={8} />
           {!isMobile && <Skeleton width={200} height={36} borderRadius={8} />}
@@ -826,7 +829,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
 
   if (chartError) {
     return (
-      <Card style={[styles.card, isMobile && styles.cardMobile]}>
+      <Card style={cardStyle}>
         <View style={[styles.placeholder, height ? { height } : undefined]}>
           <Icon name="skull" size={Size.TwoXLarge} color={Colors.status.danger} />
           <Text appearance={TextAppearance.Danger} style={{ marginTop: 12 }}>
@@ -847,7 +850,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
 
     const placeholderHeight = height ?? 400;
     return (
-      <Card style={[styles.card, isMobile && styles.cardMobile]}>
+      <Card style={cardStyle}>
         {showInitialLoading ? (
           <HeartbeatChart
             height={placeholderHeight}
@@ -883,7 +886,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   }
 
   return (
-    <Card style={[styles.card, isMobile && styles.cardMobile]}>
+    <Card style={cardStyle}>
       {/* Seeding banner - shows when we have some data but still updating more */}
       {isSeeding && apiChartData.length > 0 && (
         <View style={[styles.seedingBanner, isMobile && styles.seedingBannerMobile]}>
