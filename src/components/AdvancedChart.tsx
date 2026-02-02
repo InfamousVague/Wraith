@@ -26,6 +26,7 @@ import type { Asset } from "../types/asset";
 import { hauntClient, type OhlcPoint } from "../services/haunt";
 import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
 import { HeartbeatChart } from "./HeartbeatChart";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 // Types
 export type TimeRange = "1H" | "4H" | "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
@@ -301,6 +302,7 @@ function ChartLegend({
 
 export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
   const [timeRange, setTimeRange] = useState<TimeRange>("1W");
   const [chartType, setChartType] = useState<ChartType>("area");
   const [activeIndicators, setActiveIndicators] = useState<Set<Indicator>>(new Set(["volume"]));
@@ -593,12 +595,12 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
       handleScale: { mouseWheel: true, pinch: true },
       rightPriceScale: {
-        visible: true,
+        visible: !isMobile,
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: activeIndicators.has("volume") ? 0.2 : 0.1 },
       },
       timeScale: {
-        visible: true,
+        visible: !isMobile,
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
@@ -801,7 +803,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
       observer.disconnect();
       resizeObserver.disconnect();
     };
-  }, [lineData, ohlcData, chartType, activeIndicators, height, containerHeight, themeColors, isPositive, lineColor, stats]);
+  }, [lineData, ohlcData, chartType, activeIndicators, height, containerHeight, themeColors, isPositive, lineColor, stats, isMobile]);
 
   // Set initial crosshair data
   useEffect(() => {
@@ -810,10 +812,10 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
 
   if (loading) {
     return (
-      <Card style={styles.card}>
-        <View style={styles.controlsContainer}>
-          <Skeleton width={400} height={36} borderRadius={8} />
-          <Skeleton width={200} height={36} borderRadius={8} />
+      <Card style={[styles.card, isMobile && styles.cardMobile]}>
+        <View style={[styles.controlsContainer, isMobile && styles.controlsContainerMobile]}>
+          <Skeleton width={isMobile ? "100%" : 400} height={36} borderRadius={8} />
+          {!isMobile && <Skeleton width={200} height={36} borderRadius={8} />}
         </View>
         <View style={[styles.chartContainer, height ? { height } : undefined]}>
           <Skeleton width="100%" height="100%" borderRadius={8} />
@@ -824,7 +826,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
 
   if (chartError) {
     return (
-      <Card style={styles.card}>
+      <Card style={[styles.card, isMobile && styles.cardMobile]}>
         <View style={[styles.placeholder, height ? { height } : undefined]}>
           <Icon name="skull" size={Size.TwoXLarge} color={Colors.status.danger} />
           <Text appearance={TextAppearance.Danger} style={{ marginTop: 12 }}>
@@ -845,7 +847,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
 
     const placeholderHeight = height ?? 400;
     return (
-      <Card style={styles.card}>
+      <Card style={[styles.card, isMobile && styles.cardMobile]}>
         {showInitialLoading ? (
           <HeartbeatChart
             height={placeholderHeight}
@@ -881,10 +883,10 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   }
 
   return (
-    <Card style={styles.card}>
+    <Card style={[styles.card, isMobile && styles.cardMobile]}>
       {/* Seeding banner - shows when we have some data but still updating more */}
       {isSeeding && apiChartData.length > 0 && (
-        <View style={styles.seedingBanner}>
+        <View style={[styles.seedingBanner, isMobile && styles.seedingBannerMobile]}>
           <HeartbeatChart
             height={20}
             width={40}
@@ -898,12 +900,12 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         </View>
       )}
 
-      {/* Header with stats */}
-      <ChartLegend {...crosshairData} />
+      {/* Header with stats - hidden on mobile */}
+      {!isMobile && <ChartLegend {...crosshairData} />}
 
       {/* Controls */}
-      <View style={styles.controlsContainer}>
-        <View style={styles.leftControls}>
+      <View style={[styles.controlsContainer, isMobile && styles.controlsContainerMobile]}>
+        <View style={[styles.leftControls, isMobile && styles.leftControlsMobile]}>
           <SegmentedControl
             options={TIME_RANGE_OPTIONS}
             value={timeRange}
@@ -912,21 +914,25 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
           />
         </View>
 
-        <View style={styles.rightControls}>
-          {/* Indicators */}
-          <View style={styles.indicatorGroup}>
-            {INDICATORS.map((ind) => (
-              <FilterChip
-                key={ind.id}
-                label={ind.label}
-                selected={activeIndicators.has(ind.id)}
-                onPress={() => toggleIndicator(ind.id)}
-                size={Size.Small}
-              />
-            ))}
-          </View>
+        <View style={[styles.rightControls, isMobile && styles.rightControlsMobile]}>
+          {/* Indicators - hidden on mobile to save space */}
+          {!isMobile && (
+            <>
+              <View style={styles.indicatorGroup}>
+                {INDICATORS.map((ind) => (
+                  <FilterChip
+                    key={ind.id}
+                    label={ind.label}
+                    selected={activeIndicators.has(ind.id)}
+                    onPress={() => toggleIndicator(ind.id)}
+                    size={Size.Small}
+                  />
+                ))}
+              </View>
 
-          <View style={styles.divider} />
+              <View style={styles.divider} />
+            </>
+          )}
 
           {/* Chart type */}
           <SegmentedControl
@@ -991,6 +997,13 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "column",
   },
+  cardMobile: {
+    padding: 0,
+    gap: 8,
+    borderRadius: 0,
+    borderWidth: 0,
+    backgroundColor: "transparent",
+  },
   legend: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1010,15 +1023,30 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
   },
+  controlsContainerMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
   leftControls: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
+  leftControlsMobile: {
+    width: "100%",
+    justifyContent: "center",
+  },
   rightControls: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  rightControlsMobile: {
+    width: "100%",
+    justifyContent: "center",
   },
   indicatorGroup: {
     flexDirection: "row",
@@ -1068,6 +1096,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 8,
+  },
+  seedingBannerMobile: {
+    marginHorizontal: 12,
+    borderRadius: 6,
   },
   seedingHeartbeat: {
     marginRight: 8,

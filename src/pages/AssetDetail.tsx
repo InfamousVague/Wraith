@@ -141,21 +141,21 @@ export function AssetDetail() {
             </View>
 
             {/* Chart with Order Book */}
-            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+            <View style={[styles.section, { paddingHorizontal: isMobile ? 0 : sectionPadding }]}>
               <View style={[styles.chartRow, isMobile && styles.chartRowStacked]}>
                 {showOrderBook && (
                   <View style={[styles.orderBookColumn, { width: orderBookWidth }]} data-testid="order-book">
                     <AggregatedOrderBook symbol={asset?.symbol} loading={loading} />
                   </View>
                 )}
-                <View style={styles.chartColumn} data-testid="advanced-chart">
+                <View style={[styles.chartColumn, isMobile && styles.chartColumnMobile]} data-testid="advanced-chart">
                   <AdvancedChart asset={asset} loading={loading} />
                 </View>
               </View>
 
               {/* Mobile: Collapsible order book */}
               {isMobile && (
-                <View style={styles.collapsibleOrderBook} data-testid="collapsible-order-book">
+                <View style={[styles.collapsibleOrderBook, { paddingHorizontal: sectionPadding }]} data-testid="collapsible-order-book">
                   <CollapsibleSection title="Order Book" defaultOpen={false}>
                     <AggregatedOrderBook symbol={asset?.symbol} loading={loading} />
                   </CollapsibleSection>
@@ -257,6 +257,9 @@ const styles = StyleSheet.create({
     flex: 1,
     display: "flex",
     minHeight: 500, // Ensure chart has reasonable minimum height
+  },
+  chartColumnMobile: {
+    minHeight: 350, // Smaller minimum height on mobile
   },
   collapsibleOrderBook: {
     marginTop: 16,

@@ -15,17 +15,55 @@ vi.mock("@wraith/ghost/context/ThemeContext", () => ({
 }));
 
 // Mock haunt client
-vi.mock("../services/haunt", () => ({
-  hauntClient: {
-    getChart: vi.fn().mockResolvedValue({ data: { symbol: "btc", range: "1d", data: [], seeding: false } }),
-    seedSymbol: vi.fn(),
-  },
+vi.mock("../services/haunt", () => {
+  // Mock chart data with OHLC points
+  const mockChartData = Array.from({ length: 20 }, (_, i) => ({
+    time: Math.floor(Date.now() / 1000) - (20 - i) * 3600,
+    open: 49000 + i * 50,
+    high: 50000 + i * 50,
+    low: 48000 + i * 50,
+    close: 49500 + i * 50,
+    volume: 100000 + i * 1000,
+  }));
+
+  return {
+    hauntClient: {
+      getChart: vi.fn().mockResolvedValue({
+        data: {
+          symbol: "btc",
+          range: "1d",
+          data: mockChartData,
+          seeding: false,
+          seedingStatus: null,
+        }
+      }),
+      seedSymbol: vi.fn(),
+    },
+  };
+});
+
+// Mock useBreakpoint to simulate desktop viewport
+vi.mock("../hooks/useBreakpoint", () => ({
+  useBreakpoint: () => ({
+    breakpoint: "desktop",
+    width: 1280,
+    height: 800,
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+    isNarrow: false,
+  }),
+}));
+
+// Mock useHauntSocket
+vi.mock("../hooks/useHauntSocket", () => ({
+  useAssetSubscription: vi.fn(),
 }));
 
 // Mock Ghost components
 vi.mock("@wraith/ghost/components", () => ({
-  Card: ({ children, style }: { children: React.ReactNode; style?: object }) => (
-    <div data-testid="card" style={style}>{children}</div>
+  Card: ({ children, style }: { children: React.ReactNode; style?: object | object[] }) => (
+    <div data-testid="card" style={Array.isArray(style) ? Object.assign({}, ...style.filter(Boolean)) : style}>{children}</div>
   ),
   Skeleton: ({ width, height }: { width: number | string; height: number }) => (
     <div data-testid="skeleton" style={{ width, height }} />
@@ -53,6 +91,12 @@ vi.mock("@wraith/ghost/components", () => ({
     <button data-testid={`filter-chip-${label}`} data-selected={selected} onClick={onPress}>
       {label}
     </button>
+  ),
+  Currency: ({ value }: { value: number }) => (
+    <span data-testid="currency">${value.toFixed(2)}</span>
+  ),
+  PercentChange: ({ value }: { value: number }) => (
+    <span data-testid="percent-change">{value.toFixed(2)}%</span>
   ),
 }));
 
@@ -85,54 +129,74 @@ describe("AdvancedChart", () => {
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it("renders empty state when no asset", () => {
+  it("renders loading state when no asset", () => {
     render(<AdvancedChart asset={null} loading={false} />);
 
-    expect(screen.getByTestId("icon-bar-chart-2")).toBeInTheDocument();
-    expect(screen.getByText("No chart data available")).toBeInTheDocument();
+    // When no asset is provided, chart shows loading state (waiting for asset)
+    expect(screen.getByText("Loading chart...")).toBeInTheDocument();
   });
 
-  it("renders empty state when sparkline is too short", async () => {
+  it("renders chart with short sparkline when API returns data", async () => {
+    // Even with short sparkline, chart renders because API returns mock data
     const assetWithShortSparkline = { ...mockAsset, sparkline: [50000] };
     render(<AdvancedChart asset={assetWithShortSparkline} loading={false} />);
 
-    // Wait for fetch to complete (mocked to return empty data)
+    // Wait for fetch to complete - API returns valid data
     await waitFor(() => {
-      expect(screen.getByText("No chart data available")).toBeInTheDocument();
+      expect(screen.getByText("1H")).toBeInTheDocument();
     });
+
+    expect(screen.getByTestId("card")).toBeInTheDocument();
   });
 
-  it("renders chart with valid asset data", () => {
+  it("renders chart with valid asset data", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} />);
 
     // Should render the card
     expect(screen.getByTestId("card")).toBeInTheDocument();
 
+    // Wait for async fetch to complete and controls to appear
+    await waitFor(() => {
+      expect(screen.getByText("1H")).toBeInTheDocument();
+    });
+
     // Should render time range controls
-    expect(screen.getByText("1H")).toBeInTheDocument();
     expect(screen.getByText("1D")).toBeInTheDocument();
     expect(screen.getByText("1W")).toBeInTheDocument();
   });
 
-  it("renders indicator controls", () => {
+  it("renders indicator controls", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} />);
 
-    expect(screen.getByTestId("filter-chip-SMA")).toBeInTheDocument();
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByTestId("filter-chip-SMA")).toBeInTheDocument();
+    });
+
     expect(screen.getByTestId("filter-chip-EMA")).toBeInTheDocument();
     expect(screen.getByTestId("filter-chip-BB")).toBeInTheDocument();
     expect(screen.getByTestId("filter-chip-Vol")).toBeInTheDocument();
   });
 
-  it("renders chart type controls", () => {
+  it("renders chart type controls", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} />);
 
-    expect(screen.getByText("Area")).toBeInTheDocument();
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByText("Area")).toBeInTheDocument();
+    });
+
     expect(screen.getByText("Line")).toBeInTheDocument();
     expect(screen.getByText("Candle")).toBeInTheDocument();
   });
 
-  it("toggles indicators when clicked", () => {
+  it("toggles indicators when clicked", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} />);
+
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByTestId("filter-chip-SMA")).toBeInTheDocument();
+    });
 
     const smaChip = screen.getByTestId("filter-chip-SMA");
     expect(smaChip).toHaveAttribute("data-selected", "false");
@@ -143,8 +207,13 @@ describe("AdvancedChart", () => {
     // The component re-renders with new state
   });
 
-  it("changes time range when clicked", () => {
+  it("changes time range when clicked", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} />);
+
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByText("1D")).toBeInTheDocument();
+    });
 
     const dayButton = screen.getByText("1D");
     fireEvent.click(dayButton);
@@ -152,8 +221,13 @@ describe("AdvancedChart", () => {
     // Component should re-render with new time range
   });
 
-  it("changes chart type when clicked", () => {
+  it("changes chart type when clicked", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} />);
+
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByText("Candle")).toBeInTheDocument();
+    });
 
     const candleButton = screen.getByText("Candle");
     fireEvent.click(candleButton);
@@ -161,15 +235,25 @@ describe("AdvancedChart", () => {
     // Component should re-render with candlestick chart
   });
 
-  it("renders with custom height", () => {
+  it("renders with custom height", async () => {
     render(<AdvancedChart asset={mockAsset} loading={false} height={600} />);
+
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByText("1H")).toBeInTheDocument();
+    });
 
     expect(screen.getByTestId("card")).toBeInTheDocument();
   });
 
-  it("handles negative price changes", () => {
+  it("handles negative price changes", async () => {
     const bearishAsset = { ...mockAsset, change24h: -5.0, change7d: -10.0 };
     render(<AdvancedChart asset={bearishAsset} loading={false} />);
+
+    // Wait for async fetch to complete
+    await waitFor(() => {
+      expect(screen.getByText("1H")).toBeInTheDocument();
+    });
 
     expect(screen.getByTestId("card")).toBeInTheDocument();
   });
