@@ -320,6 +320,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
   const [seedingStatus, setSeedingStatus] = useState<string | null>(null);
   const [fetchingChart, setFetchingChart] = useState(true); // Start true for initial load
   const [initialFetchComplete, setInitialFetchComplete] = useState(false);
+  const [buildingTimeoutReached, setBuildingTimeoutReached] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -370,17 +371,35 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
   // Subscribe to real-time price updates for the current asset
   useAssetSubscription(asset ? [asset.symbol] : [], handlePriceUpdate);
 
+  // Timeout for building state - fall back to sparkline after 30 seconds
+  useEffect(() => {
+    if (!initialFetchComplete || apiChartData.length > 0) {
+      setBuildingTimeoutReached(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setBuildingTimeoutReached(true);
+    }, 30000);
+
+    return () => clearTimeout(timeout);
+  }, [initialFetchComplete, apiChartData.length, timeRange]);
+
   // Determine if we're actively building chart data
   // Show "Building" loading state when:
   // 1. Initial fetch hasn't completed yet
   // 2. OR seeding is explicitly in progress with no data yet
-  // 3. OR we have no data at all (API returned empty AND no sparkline) and status isn't failed
-  const hasNoDataAtAll = apiChartData.length === 0 && (!asset?.sparkline || asset.sparkline.length < 2);
+  // 3. OR API returned empty data and seeding hasn't failed (waiting for seeding to complete)
+  // BUT NOT if timeout has been reached (fall back to sparkline)
   const seedingInProgress = isSeeding || seedingStatus === "in_progress";
+  const apiReturnedEmpty = apiChartData.length === 0;
+  const seedingNotFailed = seedingStatus !== "failed";
   const isActivelyBuilding =
-    !initialFetchComplete ||
-    (seedingInProgress && apiChartData.length === 0) ||
-    (hasNoDataAtAll && seedingStatus !== "failed" && initialFetchComplete);
+    !buildingTimeoutReached && (
+      !initialFetchComplete ||
+      (seedingInProgress && apiReturnedEmpty) ||
+      (apiReturnedEmpty && seedingNotFailed && initialFetchComplete)
+    );
 
   // Generate chart data - prefer API data if available
   const { lineData, ohlcData } = useMemo(() => {
@@ -469,6 +488,7 @@ export function AdvancedChart({ asset, loading, height = 500 }: AdvancedChartPro
     // Reset state when time range changes
     setFetchingChart(true);
     setInitialFetchComplete(false);
+    setBuildingTimeoutReached(false);
 
     const fetchData = async () => {
       try {

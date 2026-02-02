@@ -17,6 +17,7 @@ import {
   type SignalOutput,
   type SignalCategory,
 } from "../types/signals";
+import { HintIndicator } from "./HintIndicator";
 
 type SignalIndicatorsPanelProps = {
   /** All indicator signals */
@@ -164,13 +165,24 @@ export function SignalIndicatorsPanel({
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text
-            size={Size.Medium}
-            appearance={TextAppearance.Muted}
-            style={styles.headerLabel}
-          >
-            TECHNICAL INDICATORS
-          </Text>
+          <View style={styles.headerRow}>
+            <Text
+              size={Size.Medium}
+              appearance={TextAppearance.Muted}
+              style={styles.headerLabel}
+            >
+              TECHNICAL INDICATORS
+            </Text>
+            <HintIndicator
+              id="technical-indicators-hint"
+              title="Technical Indicators"
+              content="Individual indicator values and their Buy/Sell/Hold signals. Each indicator is scored from -100 to +100. Accuracy shows how often each indicator correctly predicted price direction based on historical data."
+              icon="?"
+              color="#A78BFA"
+              priority={14}
+              inline
+            />
+          </View>
           <Text size={Size.Small} appearance={TextAppearance.Muted}>
             Individual indicator breakdown with historical accuracy
           </Text>
@@ -260,6 +272,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerLabel: {
     marginBottom: 4,

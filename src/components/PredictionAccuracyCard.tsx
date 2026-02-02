@@ -1,29 +1,34 @@
 /**
  * PredictionAccuracyCard Component
  *
- * Displays recommendation, prediction accuracy statistics, and recent predictions.
- * Combines the Buy/Sell/Hold recommendation with historical accuracy tracking.
+ * Displays recommendation, prediction accuracy statistics, and recent predictions
+ * with compact indicator cards showing green/red outcomes.
  */
 
 import React, { useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
 import {
   Card,
   Text,
-  ProgressBar,
-  AnimatedNumber,
   Icon,
 } from "@wraith/ghost/components";
-import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
-import type { SignalAccuracy, SignalPrediction, Recommendation } from "../types/signals";
+import Svg, { Path } from "react-native-svg";
+import type { SignalAccuracy, SignalPrediction, Recommendation, PredictionOutcome } from "../types/signals";
 import { getRecommendationColor } from "../types/signals";
+import { CountdownTimer } from "./CountdownTimer";
+import { HeartbeatChart } from "./HeartbeatChart";
+import { HintIndicator } from "./HintIndicator";
 
 type PredictionAccuracyCardProps = {
   accuracies: SignalAccuracy[];
   predictions: SignalPrediction[];
+  pendingPredictions?: SignalPrediction[];
   recommendation?: Recommendation | null;
   loading?: boolean;
+  generating?: boolean;
+  onGeneratePredictions?: () => void;
 };
 
 /**
@@ -32,175 +37,303 @@ type PredictionAccuracyCardProps = {
 function getAccuracyColor(accuracy: number): string {
   if (accuracy >= 70) return "#22C55E"; // Green
   if (accuracy >= 55) return "#EAB308"; // Yellow
-  return "#6B7280"; // Gray
+  return "#EF4444"; // Red
 }
 
-/**
- * Get icon for prediction outcome.
- */
-function getOutcomeIcon(
-  outcome: "correct" | "incorrect" | "neutral" | undefined
-): { name: string; color: string } {
+/** Get color for outcome */
+function getOutcomeColor(outcome: PredictionOutcome | undefined | null): string | null {
+  if (!outcome) return null;
   switch (outcome) {
-    case "correct":
-      return { name: "check-circle", color: "#22C55E" };
-    case "incorrect":
-      return { name: "x-circle", color: "#EF4444" };
-    case "neutral":
-      return { name: "minus-circle", color: "#6B7280" };
-    default:
-      return { name: "clock", color: "#6B7280" };
+    case "correct": return "#22C55E";
+    case "incorrect": return "#EF4444";
+    case "neutral": return "#6B7280";
+    default: return null;
   }
 }
 
-type AccuracyRowProps = {
-  accuracy: SignalAccuracy;
-};
+/** Get direction color */
+function getDirectionColor(direction: string): string {
+  switch (direction) {
+    case "strong_buy": return "#22C55E";
+    case "buy": return "#84CC16";
+    case "sell": return "#F97316";
+    case "strong_sell": return "#EF4444";
+    default: return "#6B7280";
+  }
+}
 
-const AccuracyRow = React.memo(function AccuracyRow({
-  accuracy,
-}: AccuracyRowProps) {
-  const color = getAccuracyColor(accuracy.accuracyPct);
+/** Get direction label */
+function getDirectionLabel(direction: string): string {
+  switch (direction) {
+    case "strong_buy":
+    case "buy":
+      return "BUY";
+    case "sell":
+    case "strong_sell":
+      return "SELL";
+    default:
+      return "HOLD";
+  }
+}
 
-  // Interpretation for this indicator's accuracy
-  const interpretation = accuracy.accuracyPct >= 70
-    ? "Reliable"
-    : accuracy.accuracyPct >= 55
-    ? "Moderate"
-    : "Low confidence";
+/** Format relative time compactly */
+function formatTimeAgo(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
 
-  return (
-    <View style={styles.accuracyRow}>
-      <View style={styles.accuracyLabel}>
-        <Text size={Size.Medium} weight="medium">
-          {accuracy.indicator}
-        </Text>
-        <Text size={Size.Small} appearance={TextAppearance.Muted}>
-          {accuracy.totalPredictions} predictions - {interpretation}
-        </Text>
-      </View>
-      <View style={styles.accuracyValue}>
-        <ProgressBar
-          value={accuracy.accuracyPct}
-          max={100}
-          size={Size.Large}
-          color={color}
-          brightness={Brightness.Soft}
-          style={styles.accuracyBar}
-        />
-        <Text size={Size.Large} weight="bold" style={{ color }}>
-          {Math.round(accuracy.accuracyPct)}%
-        </Text>
-      </View>
-    </View>
-  );
-});
+  if (days > 0) return `${days}d`;
+  if (hours > 0) return `${hours}h`;
+  if (minutes > 0) return `${minutes}m`;
+  return "now";
+}
 
-type PredictionRowProps = {
-  prediction: SignalPrediction;
-};
+/** Check if prediction has any validated outcomes */
+function hasValidatedOutcome(prediction: SignalPrediction): boolean {
+  return !!(prediction.outcome5m || prediction.outcome1h || prediction.outcome4h);
+}
 
-const PredictionRow = React.memo(function PredictionRow({
-  prediction,
-}: PredictionRowProps) {
-  // Prefer showing fastest validation (5m) if available, then 1h, then 4h
-  const outcome = prediction.outcome5m ?? prediction.outcome1h ?? prediction.outcome4h;
-  const timeframeLabel = prediction.outcome5m
-    ? "5m"
-    : prediction.outcome1h
-    ? "1h"
-    : prediction.outcome4h
-    ? "4h"
-    : "";
-  const icon = getOutcomeIcon(outcome);
-  const timeAgo = useMemo(() => {
-    const ms = Date.now() - prediction.timestamp;
-    const minutes = Math.floor(ms / 60000);
-    if (minutes < 1) return "< 1m ago";
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(ms / 3600000);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }, [prediction.timestamp]);
-
-  // Outcome description with timeframe context
-  const outcomeText = outcome === "correct"
-    ? `Correct after ${timeframeLabel}`
-    : outcome === "incorrect"
-    ? `Wrong after ${timeframeLabel}`
-    : outcome === "neutral"
-    ? `No move after ${timeframeLabel}`
-    : "Pending (5m, 1h, 4h)";
-
-  return (
-    <View style={styles.predictionRow}>
-      <Icon name={icon.name as any} size={Size.Large} color={icon.color} />
-      <View style={styles.predictionInfo}>
-        <Text size={Size.Medium} weight="medium">
-          {prediction.indicator}
-        </Text>
-        <Text size={Size.Small} appearance={TextAppearance.Muted}>
-          {prediction.direction.replace("_", " ")} • {timeAgo}
-        </Text>
-        <Text size={Size.ExtraSmall} style={{ color: icon.color }}>
-          {outcomeText}
-        </Text>
-      </View>
-      <View style={styles.predictionOutcomes}>
-        {/* Mini outcome indicators for each timeframe */}
-        <View style={styles.outcomeRow}>
-          <OutcomeBadge label="5m" outcome={prediction.outcome5m} />
-          <OutcomeBadge label="1h" outcome={prediction.outcome1h} />
-          <OutcomeBadge label="4h" outcome={prediction.outcome4h} />
-        </View>
-        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-          ${prediction.priceAtPrediction.toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-          })}
-        </Text>
-      </View>
-    </View>
-  );
-});
-
-type OutcomeBadgeProps = {
-  label: string;
-  outcome?: "correct" | "incorrect" | "neutral";
-};
-
-const OutcomeBadge = React.memo(function OutcomeBadge({
+/** Half-circle gauge component */
+function HalfCircleGauge({
+  value,
+  max = 100,
+  size = 120,
+  strokeWidth = 10,
+  color,
   label,
-  outcome,
-}: OutcomeBadgeProps) {
+  valueLabel,
+}: {
+  value: number;
+  max?: number;
+  size?: number;
+  strokeWidth?: number;
+  color: string;
+  label: string;
+  valueLabel: string;
+}) {
   const themeColors = useThemeColors();
-  const bgColor = outcome === "correct"
-    ? "rgba(34, 197, 94, 0.2)"
-    : outcome === "incorrect"
-    ? "rgba(239, 68, 68, 0.2)"
-    : outcome === "neutral"
-    ? "rgba(107, 114, 128, 0.2)"
-    : "rgba(107, 114, 128, 0.1)";
-  const textColor = outcome === "correct"
-    ? "#22C55E"
-    : outcome === "incorrect"
-    ? "#EF4444"
-    : themeColors.text.muted;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = Math.PI * radius;
+  const percentage = Math.min(Math.max(value / max, 0), 1);
+  const strokeDashoffset = circumference * (1 - percentage);
+
+  // Center point
+  const cx = size / 2;
+  const cy = size / 2;
+
+  // Create arc path (semicircle from left to right)
+  const startX = cx - radius;
+  const startY = cy;
+  const endX = cx + radius;
+  const endY = cy;
+
+  const backgroundPath = `M ${startX} ${startY} A ${radius} ${radius} 0 0 1 ${endX} ${endY}`;
 
   return (
-    <View style={[styles.outcomeBadge, { backgroundColor: bgColor }]}>
-      <Text size={Size.ExtraSmall} style={{ color: textColor }}>
+    <View style={styles.gaugeContainer}>
+      <Svg width={size} height={size / 2 + 10} viewBox={`0 0 ${size} ${size / 2 + 10}`}>
+        {/* Background arc */}
+        <Path
+          d={backgroundPath}
+          fill="none"
+          stroke={themeColors.border.subtle}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+        />
+        {/* Value arc */}
+        <Path
+          d={backgroundPath}
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+        />
+      </Svg>
+      <View style={styles.gaugeValueContainer}>
+        <Text size={Size.ExtraLarge} weight="bold" style={{ color }}>
+          {valueLabel}
+        </Text>
+      </View>
+      <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.gaugeLabel}>
         {label}
       </Text>
     </View>
   );
-});
+}
+
+/** Single prediction row in compact format */
+function CompactPredictionRow({
+  prediction,
+  opacity,
+}: {
+  prediction: SignalPrediction;
+  opacity: number;
+}) {
+  const themeColors = useThemeColors();
+  const directionColor = getDirectionColor(prediction.direction);
+
+  const color5m = getOutcomeColor(prediction.outcome5m);
+  const color1h = getOutcomeColor(prediction.outcome1h);
+  const color4h = getOutcomeColor(prediction.outcome4h);
+
+  return (
+    <View style={[styles.compactRow, { opacity }]}>
+      {/* Direction */}
+      <Text
+        size={Size.TwoXSmall}
+        weight="bold"
+        style={[styles.direction, { color: directionColor }]}
+      >
+        {getDirectionLabel(prediction.direction)}
+      </Text>
+
+      {/* Timeframe outcomes */}
+      <View style={styles.timeframes}>
+        <Text
+          size={Size.TwoXSmall}
+          weight="semibold"
+          style={[
+            styles.timeframe,
+            { color: color5m || themeColors.text.muted, opacity: color5m ? 1 : 0.3 },
+          ]}
+        >
+          5m
+        </Text>
+        <Text
+          size={Size.TwoXSmall}
+          weight="semibold"
+          style={[
+            styles.timeframe,
+            { color: color1h || themeColors.text.muted, opacity: color1h ? 1 : 0.3 },
+          ]}
+        >
+          1h
+        </Text>
+        <Text
+          size={Size.TwoXSmall}
+          weight="semibold"
+          style={[
+            styles.timeframe,
+            { color: color4h || themeColors.text.muted, opacity: color4h ? 1 : 0.3 },
+          ]}
+        >
+          4h
+        </Text>
+      </View>
+
+      {/* Time ago */}
+      <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.timeAgo}>
+        {formatTimeAgo(prediction.timestamp)}
+      </Text>
+    </View>
+  );
+}
+
+/** Indicator group showing last 3 validated predictions */
+function IndicatorGroup({
+  indicator,
+  predictions,
+  accuracy,
+}: {
+  indicator: string;
+  predictions: SignalPrediction[];
+  accuracy: number | null;
+}) {
+  const themeColors = useThemeColors();
+
+  return (
+    <View style={[styles.indicatorGroup, { borderColor: themeColors.border.subtle }]}>
+      {/* Indicator header */}
+      <View style={styles.indicatorHeader}>
+        <Text size={Size.Small} weight="semibold">
+          {indicator}
+        </Text>
+        {accuracy !== null && (
+          <Text
+            size={Size.TwoXSmall}
+            weight="medium"
+            style={{ color: accuracy >= 50 ? "#22C55E" : "#EF4444" }}
+          >
+            {accuracy.toFixed(0)}%
+          </Text>
+        )}
+      </View>
+
+      {/* Predictions */}
+      <View style={styles.predictionsStack}>
+        {predictions.map((prediction, index) => (
+          <CompactPredictionRow
+            key={prediction.id}
+            prediction={prediction}
+            opacity={1 - index * 0.25}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/** Pending prediction row with countdown timers */
+function PendingPredictionRow({
+  prediction,
+}: {
+  prediction: SignalPrediction;
+}) {
+  const themeColors = useThemeColors();
+  const directionColor = getDirectionColor(prediction.direction);
+
+  return (
+    <View style={[styles.pendingRow, { borderColor: themeColors.border.subtle }]}>
+      {/* Indicator name */}
+      <Text size={Size.Small} weight="semibold" style={styles.pendingIndicator}>
+        {prediction.indicator}
+      </Text>
+
+      {/* Direction */}
+      <Text
+        size={Size.TwoXSmall}
+        weight="bold"
+        style={{ color: directionColor, minWidth: 32 }}
+      >
+        {getDirectionLabel(prediction.direction)}
+      </Text>
+
+      {/* Countdown timers */}
+      <View style={styles.countdowns}>
+        {!prediction.outcome5m && (
+          <CountdownTimer
+            targetTime={prediction.timestamp + 300_000}
+            label="5m"
+          />
+        )}
+        {!prediction.outcome1h && (
+          <CountdownTimer
+            targetTime={prediction.timestamp + 3_600_000}
+            label="1h"
+          />
+        )}
+        {!prediction.outcome4h && (
+          <CountdownTimer
+            targetTime={prediction.timestamp + 14_400_000}
+            label="4h"
+          />
+        )}
+      </View>
+    </View>
+  );
+}
 
 export function PredictionAccuracyCard({
   accuracies,
   predictions,
+  pendingPredictions,
   recommendation,
   loading = false,
+  generating = false,
+  onGeneratePredictions,
 }: PredictionAccuracyCardProps) {
   const themeColors = useThemeColors();
 
@@ -220,22 +353,64 @@ export function PredictionAccuracyCard({
     return accuracies.reduce((sum, acc) => sum + acc.totalPredictions, 0);
   }, [accuracies]);
 
-  // Get top 5 accuracy entries sorted by prediction count
-  const topAccuracies = useMemo(() => {
-    return [...accuracies]
-      .filter((a) => a.totalPredictions >= 5)
-      .sort((a, b) => b.totalPredictions - a.totalPredictions)
-      .slice(0, 5);
+  // Calculate win rate (correct / total including neutral)
+  const winRate = useMemo(() => {
+    if (accuracies.length === 0) return 0;
+    let totalCorrect = 0;
+    let total = 0;
+    for (const acc of accuracies) {
+      totalCorrect += acc.correctPredictions;
+      total += acc.totalPredictions;
+    }
+    return total > 0 ? (totalCorrect / total) * 100 : 0;
   }, [accuracies]);
 
-  // Get recent predictions (last 5)
-  const recentPredictions = useMemo(() => {
-    return [...predictions]
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, 5);
+  // Group validated predictions by indicator and get last 3 for each
+  const groupedPredictions = useMemo(() => {
+    const groups: Record<string, SignalPrediction[]> = {};
+
+    // Filter to only validated predictions and sort by timestamp descending
+    const validated = predictions
+      .filter(hasValidatedOutcome)
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    for (const prediction of validated) {
+      const key = prediction.indicator;
+      if (!groups[key]) {
+        groups[key] = [];
+      }
+      if (groups[key].length < 3) {
+        groups[key].push(prediction);
+      }
+    }
+
+    return groups;
   }, [predictions]);
 
-  const overallColor = getAccuracyColor(overallAccuracy);
+  // Get LIFETIME accuracy for each indicator (aggregate across all timeframes)
+  const indicatorAccuracies = useMemo(() => {
+    const map: Record<string, { correct: number; incorrect: number }> = {};
+
+    // Aggregate across all timeframes for each indicator
+    for (const acc of accuracies) {
+      if (!map[acc.indicator]) {
+        map[acc.indicator] = { correct: 0, incorrect: 0 };
+      }
+      map[acc.indicator].correct += acc.correctPredictions;
+      map[acc.indicator].incorrect += acc.incorrectPredictions;
+    }
+
+    // Calculate percentage for each
+    const result: Record<string, number> = {};
+    for (const [indicator, stats] of Object.entries(map)) {
+      const total = stats.correct + stats.incorrect;
+      result[indicator] = total > 0 ? (stats.correct / total) * 100 : 0;
+    }
+
+    return result;
+  }, [accuracies]);
+
+  const indicators = Object.keys(groupedPredictions).sort();
 
   // Recommendation display
   const action = recommendation?.action ?? "hold";
@@ -243,97 +418,72 @@ export function PredictionAccuracyCard({
   const actionColor = getRecommendationColor(action);
   const confidence = recommendation?.confidence ?? 0;
 
-  // Generate interpretation text based on overall accuracy
-  const interpretationText = overallAccuracy >= 70
-    ? "Signals have been highly reliable - use with confidence"
-    : overallAccuracy >= 55
-    ? "Moderate accuracy - combine with other analysis methods"
-    : totalPredictions < 10
-    ? "Not enough data yet - accuracy will improve over time"
-    : "Lower accuracy - use signals as one of many inputs";
-
   return (
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
-        {/* Header with Recommendation Badge */}
-        <View style={styles.headerRow}>
-          {/* Recommendation Badge + Confidence */}
-          <View style={styles.recommendationSection}>
-            <View style={[styles.actionBadge, { backgroundColor: `${actionColor}15` }]}>
-              <Text
-                size={Size.TwoXLarge}
-                weight="bold"
-                style={{ color: actionColor }}
-              >
-                {actionLabel}
-              </Text>
-            </View>
-            <View style={styles.confidenceSection}>
-              <View style={styles.confidenceHeader}>
-                <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                  Confidence
-                </Text>
-                <Text size={Size.Medium} weight="semibold" style={{ color: actionColor }}>
-                  {Math.round(confidence)}%
-                </Text>
-              </View>
-              <ProgressBar
-                value={confidence}
-                max={100}
-                size={Size.Medium}
-                color={actionColor}
-                brightness={Brightness.Base}
-              />
-              {recommendation?.description && (
-                <Text
-                  size={Size.ExtraSmall}
-                  appearance={TextAppearance.Muted}
-                  style={styles.recommendationDesc}
-                >
-                  {recommendation.description}
-                </Text>
-              )}
-            </View>
-          </View>
-
-          {/* Overall Accuracy Stats */}
-          <View style={styles.accuracyStats}>
-            <View style={styles.statItem}>
-              <AnimatedNumber
-                value={overallAccuracy}
-                decimals={1}
-                suffix="%"
-                size={Size.ExtraLarge}
-                weight="bold"
-                style={{ color: overallColor }}
-                animate
-                animationDuration={300}
-              />
-              <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Overall Accuracy
-              </Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text size={Size.ExtraLarge} weight="semibold">
-                {totalPredictions.toLocaleString()}
-              </Text>
-              <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                Total Predictions
-              </Text>
-            </View>
-          </View>
+        {/* Section Header */}
+        <View style={styles.sectionHeaderRow}>
+          <Text size={Size.Medium} appearance={TextAppearance.Muted}>
+            MARKET PREDICTION
+          </Text>
+          <HintIndicator
+            id="market-prediction-hint"
+            title="Market Prediction"
+            content="BUY/SELL/HOLD recommendation based on weighted indicator signals. Confidence shows signal strength, Accuracy tracks historical correctness, Win Rate shows overall prediction success rate."
+            icon="?"
+            color="#A78BFA"
+            priority={12}
+            inline
+          />
         </View>
 
-        {/* Interpretation */}
+        {/* Top Row: Recommendation + Gauges - all inline */}
+        <View style={styles.topRow}>
+          {/* Recommendation Badge */}
+          <View style={[styles.actionBadge, { backgroundColor: `${actionColor}15` }]}>
+            <Text
+              size={Size.ThreeXLarge}
+              weight="bold"
+              style={{ color: actionColor }}
+            >
+              {actionLabel}
+            </Text>
+          </View>
+
+          {/* Three Half-Circle Gauges */}
+          <HalfCircleGauge
+            value={confidence}
+            max={100}
+            color={actionColor}
+            label="Confidence"
+            valueLabel={`${Math.round(confidence)}%`}
+          />
+          <HalfCircleGauge
+            value={overallAccuracy}
+            max={100}
+            color={getAccuracyColor(overallAccuracy)}
+            label="Accuracy"
+            valueLabel={`${overallAccuracy.toFixed(1)}%`}
+          />
+          <HalfCircleGauge
+            value={winRate}
+            max={100}
+            color={getAccuracyColor(winRate)}
+            label="Win Rate"
+            valueLabel={`${winRate.toFixed(1)}%`}
+          />
+        </View>
+
+        {/* Predictions count */}
         <Text
           size={Size.Small}
           appearance={TextAppearance.Muted}
-          style={styles.interpretation}
+          style={styles.predictionCount}
         >
-          {interpretationText}
+          Based on {totalPredictions.toLocaleString()} predictions
         </Text>
 
-        {topAccuracies.length > 0 && (
+        {indicators.length > 0 && (
           <>
             <View
               style={[
@@ -343,25 +493,37 @@ export function PredictionAccuracyCard({
             />
 
             <View style={styles.section}>
-              <Text
-                size={Size.Medium}
-                appearance={TextAppearance.Muted}
-                style={styles.sectionLabel}
-              >
-                TOP PERFORMING INDICATORS
-              </Text>
-              <Text
-                size={Size.Small}
-                appearance={TextAppearance.Muted}
-                style={styles.sectionHint}
-              >
-                Indicators ranked by prediction count and accuracy
-              </Text>
-              <View style={styles.accuracyList}>
-                {topAccuracies.map((accuracy, index) => (
-                  <AccuracyRow
-                    key={`${accuracy.indicator}-${accuracy.timeframe}`}
-                    accuracy={accuracy}
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text
+                    size={Size.Medium}
+                    appearance={TextAppearance.Muted}
+                  >
+                    PREDICTION HISTORY
+                  </Text>
+                  <HintIndicator
+                    id="prediction-history-hint"
+                    title="Prediction History"
+                    content="Shows the last 3 predictions for each indicator with their outcomes at 5min, 1hr, and 4hr timeframes. Green means the prediction was correct, red means incorrect. The percentage shows lifetime accuracy for each indicator."
+                    icon="?"
+                    color="#A78BFA"
+                    priority={13}
+                    inline
+                  />
+                </View>
+                <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+                  Green = correct, Red = incorrect
+                </Text>
+              </View>
+
+              {/* Grid of indicator groups */}
+              <View style={styles.indicatorGrid}>
+                {indicators.map((indicator) => (
+                  <IndicatorGroup
+                    key={indicator}
+                    indicator={indicator}
+                    predictions={groupedPredictions[indicator]}
+                    accuracy={indicatorAccuracies[indicator] ?? null}
                   />
                 ))}
               </View>
@@ -369,7 +531,8 @@ export function PredictionAccuracyCard({
           </>
         )}
 
-        {recentPredictions.length > 0 && (
+        {/* Pending Predictions Section */}
+        {pendingPredictions && pendingPredictions.length > 0 && (
           <>
             <View
               style={[
@@ -379,46 +542,88 @@ export function PredictionAccuracyCard({
             />
 
             <View style={styles.section}>
-              <Text
-                size={Size.Medium}
-                appearance={TextAppearance.Muted}
-                style={styles.sectionLabel}
-              >
-                RECENT PREDICTIONS
-              </Text>
-              <Text
-                size={Size.Small}
-                appearance={TextAppearance.Muted}
-                style={styles.sectionHint}
-              >
-                Latest signal predictions and their outcomes
-              </Text>
-              <View style={styles.predictionList}>
-                {recentPredictions.map((prediction) => (
-                  <PredictionRow key={prediction.id} prediction={prediction} />
+              <View style={styles.sectionHeader}>
+                <Text size={Size.Medium} appearance={TextAppearance.Muted}>
+                  PENDING PREDICTIONS
+                </Text>
+                <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+                  Awaiting validation
+                </Text>
+              </View>
+
+              <View style={styles.pendingGrid}>
+                {pendingPredictions.map((prediction) => (
+                  <PendingPredictionRow
+                    key={prediction.id}
+                    prediction={prediction}
+                  />
                 ))}
               </View>
             </View>
           </>
         )}
 
-        {topAccuracies.length === 0 && recentPredictions.length === 0 && (
+        {/* Generating State - show heartbeat animation while generating */}
+        {generating && indicators.length === 0 && (!pendingPredictions || pendingPredictions.length === 0) && (
+          <>
+            <View style={styles.generatingBanner}>
+              <HeartbeatChart
+                height={20}
+                width={40}
+                color="#3B82F6"
+                animationDuration={1500}
+                style={styles.generatingHeartbeat}
+              />
+              <Text size={Size.Small} style={{ color: "#3B82F6" }}>
+                Generating predictions...
+              </Text>
+            </View>
+            <View style={styles.emptyState}>
+              <HeartbeatChart
+                height={80}
+                width={120}
+                color="#3B82F6"
+                animationDuration={1500}
+              />
+              <Text
+                size={Size.Medium}
+                appearance={TextAppearance.Muted}
+                style={[styles.emptySubtext, { marginTop: 16 }]}
+              >
+                Analyzing market indicators and generating predictions for this asset
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* Empty State - show when no predictions at all and not generating */}
+        {!generating && indicators.length === 0 && (!pendingPredictions || pendingPredictions.length === 0) && (
           <View style={styles.emptyState}>
-            <Icon name="clock" size={Size.TwoXLarge} color={themeColors.text.muted} />
+            <Icon name="zap" size={Size.TwoXLarge} color={themeColors.text.muted} />
             <Text
               size={Size.Large}
               appearance={TextAppearance.Muted}
               style={styles.emptyText}
             >
-              Tracking Predictions
+              No Predictions Yet
             </Text>
             <Text
               size={Size.Medium}
               appearance={TextAppearance.Muted}
               style={styles.emptySubtext}
             >
-              As signals are generated, we'll track their accuracy over time to show which indicators work best for this asset
+              Generate predictions to start tracking signal accuracy for this asset
             </Text>
+            {onGeneratePredictions && (
+              <TouchableOpacity
+                onPress={onGeneratePredictions}
+                style={styles.generateButton}
+              >
+                <Text weight="semibold" style={{ color: "#3B82F6" }}>
+                  Generate Predictions
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </View>
@@ -434,104 +639,96 @@ const styles = StyleSheet.create({
   content: {
     padding: 24,
   },
-  headerRow: {
-    flexDirection: "row",
-    gap: 32,
-  },
-  recommendationSection: {
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
+    justifyContent: "space-between",
+    gap: 16,
+  },
+  sectionTitle: {
+    marginBottom: 16,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   actionBadge: {
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 48,
+    paddingVertical: 24,
     borderRadius: 12,
-  },
-  confidenceSection: {
+    alignItems: "center",
+    justifyContent: "center",
+    height: 90,
     minWidth: 160,
-    gap: 6,
   },
-  confidenceHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  gaugeContainer: {
     alignItems: "center",
   },
-  recommendationDesc: {
+  gaugeValueContainer: {
+    marginTop: -28,
+    alignItems: "center",
+  },
+  gaugeLabel: {
     marginTop: 4,
   },
-  accuracyStats: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 32,
-  },
-  statItem: {
-    alignItems: "center",
-    gap: 4,
+  predictionCount: {
+    marginTop: 16,
   },
   divider: {
     height: 1,
     marginVertical: 20,
   },
-  interpretation: {
-    marginTop: 16,
-    marginBottom: 4,
-  },
   section: {
     gap: 12,
   },
-  sectionLabel: {
-    marginBottom: 4,
-  },
-  sectionHint: {
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
-  accuracyList: {
-    gap: 18,
-  },
-  accuracyRow: {
+  indicatorGrid: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
+    flexWrap: "wrap",
+    gap: 8,
   },
-  accuracyLabel: {
+  indicatorGroup: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    minWidth: 150,
     flex: 1,
-    minWidth: 140,
+    maxWidth: 200,
   },
-  accuracyValue: {
-    flex: 2,
+  indicatorHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 16,
+    marginBottom: 8,
   },
-  accuracyBar: {
-    flex: 1,
-  },
-  predictionList: {
-    gap: 16,
-  },
-  predictionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  predictionInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  predictionOutcomes: {
-    alignItems: "flex-end",
+  predictionsStack: {
     gap: 4,
   },
-  outcomeRow: {
+  compactRow: {
     flexDirection: "row",
-    gap: 4,
+    alignItems: "center",
+    gap: 8,
   },
-  outcomeBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  direction: {
+    width: 32,
+  },
+  timeframes: {
+    flexDirection: "row",
+    gap: 6,
+    flex: 1,
+  },
+  timeframe: {
+    fontFamily: "monospace",
+  },
+  timeAgo: {
+    minWidth: 24,
+    textAlign: "right",
   },
   emptyState: {
     alignItems: "center",
@@ -544,5 +741,54 @@ const styles = StyleSheet.create({
   emptySubtext: {
     textAlign: "center",
     maxWidth: 280,
+  },
+  generateButton: {
+    marginTop: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
+  },
+  generateButtonDisabled: {
+    backgroundColor: "rgba(107, 114, 128, 0.1)",
+  },
+  generatingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  generatingHeartbeat: {
+    marginRight: 8,
+    backgroundColor: "transparent",
+    borderRadius: 0,
+  },
+  pendingGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  pendingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    minWidth: 280,
+    flex: 1,
+  },
+  pendingIndicator: {
+    minWidth: 80,
+  },
+  countdowns: {
+    flexDirection: "row",
+    gap: 12,
+    flex: 1,
+    justifyContent: "flex-end",
   },
 });

@@ -16,6 +16,7 @@ import {
   getScoreColor,
   type SignalDirection,
 } from "../types/signals";
+import { HintIndicator } from "./HintIndicator";
 
 type CategoryScore = {
   label: string;
@@ -192,13 +193,24 @@ export function SignalSummaryCard({
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text
-            size={Size.Medium}
-            appearance={TextAppearance.Muted}
-            style={styles.headerLabel}
-          >
-            TRADING SIGNALS
-          </Text>
+          <View style={styles.headerRow}>
+            <Text
+              size={Size.Medium}
+              appearance={TextAppearance.Muted}
+              style={styles.headerLabel}
+            >
+              TRADING SIGNALS
+            </Text>
+            <HintIndicator
+              id="trading-signals-hint"
+              title="Trading Signals"
+              content="The composite score combines multiple technical indicators into a single -100 to +100 value. Positive scores suggest bullish conditions, negative scores suggest bearish. Category breakdowns show which factors are driving the signal."
+              icon="?"
+              color="#A78BFA"
+              priority={11}
+              inline
+            />
+          </View>
           <Text size={Size.Small} appearance={TextAppearance.Muted}>
             Combined analysis of {indicatorCount} technical indicators
           </Text>
@@ -308,6 +320,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   headerLabel: {
     marginBottom: 4,

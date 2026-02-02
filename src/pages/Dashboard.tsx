@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Navbar } from "../components/Navbar";
 import { MetricsCarousel } from "../components/MetricsCarousel";
@@ -34,7 +34,6 @@ export function Dashboard() {
   const [viewMode, setViewMode] = usePersistedState<ViewMode>("wraith:viewMode", "list");
   const [cardSize, setCardSize] = usePersistedState("wraith:cardSize", 220);
   const [filters, setFilters] = usePersistedState<FilterState>("wraith:filters", DEFAULT_FILTERS);
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Get assets for ChartGrid with filter params
   const { assets, loading, error } = useCryptoData({
@@ -68,7 +67,6 @@ export function Dashboard() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Navbar
-        onSearch={setSearchQuery}
         assetType={filters.assetType}
         onAssetTypeChange={handleAssetTypeChange}
       />
@@ -84,9 +82,9 @@ export function Dashboard() {
         />
         <View style={styles.contentContainer}>
           {viewMode === "list" ? (
-            <AssetList searchQuery={searchQuery} filters={filters} />
+            <AssetList filters={filters} />
           ) : (
-            <ChartGrid assets={filteredAssets} loading={showChartGridLoading} searchQuery={searchQuery} cardSize={cardSize} />
+            <ChartGrid assets={filteredAssets} loading={showChartGridLoading} cardSize={cardSize} />
           )}
         </View>
       </ScrollView>

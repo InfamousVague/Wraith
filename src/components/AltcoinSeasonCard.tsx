@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Card, Text, ProgressBar, Number } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
+import { HintIndicator } from "./HintIndicator";
 
 type AltcoinSeasonCardProps = {
   /** 0 = BTC season, 100 = Altcoin season */
@@ -63,6 +64,16 @@ export function AltcoinSeasonCard({
   return (
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
+        {/* Hint indicator in top-right corner */}
+        <HintIndicator
+          id="altcoin-season-hint"
+          title="Altcoin Season Index"
+          content="When 75% of the top 50 altcoins outperform Bitcoin over 90 days, it's 'Altcoin Season'. Low values favor holding BTC, high values favor altcoins."
+          icon="i"
+          color="#A78BFA"
+          priority={2}
+        />
+
         {/* Header - stays at top */}
         <View style={styles.header}>
           <Text size={Size.Small} weight="semibold">
@@ -142,6 +153,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     alignItems: "center",
+    // @ts-ignore - position relative needed for absolute positioned hint
+    position: "relative",
   },
   header: {
     alignItems: "center",

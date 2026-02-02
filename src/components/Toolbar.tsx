@@ -190,12 +190,14 @@ export function Toolbar({
         )}
 
         {/* View Toggle */}
-        <SegmentedControl
-          options={VIEW_OPTIONS}
-          value={viewMode}
-          onChange={onViewModeChange}
-          size={Size.Medium}
-        />
+        <div data-sherpa="view-toggle">
+          <SegmentedControl
+            options={VIEW_OPTIONS}
+            value={viewMode}
+            onChange={onViewModeChange}
+            size={Size.Medium}
+          />
+        </div>
       </View>
     </View>
   );

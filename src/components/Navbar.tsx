@@ -1,32 +1,31 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { useNavigate } from "react-router-dom";
-import { Text, Toggle, Input, Icon } from "@wraith/ghost/components";
-import { Size, Shape } from "@wraith/ghost/enums";
+import { Text, Toggle, Icon, Button } from "@wraith/ghost/components";
+import { Size, Shape, Appearance, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { MarketFilter } from "./MarketFilter";
 import type { AssetType } from "../services/haunt";
 
 type NavbarProps = {
-  onSearch?: (query: string) => void;
   assetType?: AssetType;
   onAssetTypeChange?: (type: AssetType) => void;
 };
 
-export function Navbar({ onSearch, assetType = "all", onAssetTypeChange }: NavbarProps) {
+export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
   const navigate = useNavigate();
   const { toggleTheme, isDark } = useTheme();
   const themeColors = useThemeColors();
-  const [searchValue, setSearchValue] = useState("");
-
-  const handleSearchChange = (text: string) => {
-    setSearchValue(text);
-    onSearch?.(text);
-  };
+  const { isAuthenticated, user } = useAuth();
 
   const handleAssetTypeChange = (type: AssetType) => {
     onAssetTypeChange?.(type);
+  };
+
+  const handleProfileClick = () => {
+    navigate("/profile");
   };
 
   const handleSettingsClick = () => {
@@ -35,24 +34,16 @@ export function Navbar({ onSearch, assetType = "all", onAssetTypeChange }: Navba
 
   return (
     <View style={[styles.container, { borderBottomColor: themeColors.border.subtle }]}>
-      <Pressable style={styles.logoSection} onPress={() => navigate("/")}>
-        <Text size={Size.Large} weight="bold">WRAITH</Text>
-      </Pressable>
+      <div data-sherpa="navbar-logo">
+        <Pressable style={styles.logoSection} onPress={() => navigate("/")}>
+          <Text size={Size.Large} weight="bold">WRAITH</Text>
+        </Pressable>
+      </div>
 
       {/* Center: Market Filter */}
       <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
 
       <View style={styles.rightSection}>
-        <Input
-          value={searchValue}
-          onChangeText={handleSearchChange}
-          placeholder="Search assets..."
-          leadingIcon="search"
-          size={Size.Medium}
-          shape={Shape.Rounded}
-          style={styles.searchInput}
-        />
-
         <View style={styles.themeToggle}>
           <Toggle
             value={isDark}
@@ -63,9 +54,32 @@ export function Navbar({ onSearch, assetType = "all", onAssetTypeChange }: Navba
           />
         </View>
 
+        {/* Profile or Login button */}
+        {isAuthenticated && user ? (
+          <Pressable
+            onPress={handleProfileClick}
+            style={[styles.profileButton, { backgroundColor: themeColors.background.raised }]}
+          >
+            <Icon name="user" size={Size.Medium} color={themeColors.text.muted} />
+            <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.accountId}>
+              {user.publicKey.slice(0, 3)}...{user.publicKey.slice(-3)}
+            </Text>
+          </Pressable>
+        ) : (
+          <Button
+            label="Login"
+            onPress={handleProfileClick}
+            size={Size.Small}
+            shape={Shape.Rounded}
+            appearance={Appearance.Secondary}
+            leadingIcon="log-in"
+          />
+        )}
+
+        {/* Settings cog */}
         <Pressable
           onPress={handleSettingsClick}
-          style={[styles.settingsButton, { backgroundColor: themeColors.background.raised }]}
+          style={[styles.iconButton, { backgroundColor: themeColors.background.raised }]}
         >
           <Icon name="settings" size={Size.Medium} color={themeColors.text.muted} />
         </Pressable>
@@ -99,14 +113,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 16,
   },
-  searchInput: {
-    minWidth: 280,
-  },
   themeToggle: {
     marginLeft: 8,
   },
-  settingsButton: {
+  iconButton: {
     padding: 10,
     borderRadius: 8,
+  },
+  profileButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  accountId: {
+    fontFamily: "monospace",
   },
 });

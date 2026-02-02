@@ -1,8 +1,8 @@
-import React, { useMemo, useEffect, useRef, useCallback } from "react";
-import { View, StyleSheet, Pressable, Platform } from "react-native";
-import { useNavigate } from "react-router-dom";
-import { Text, Skeleton, Card, Avatar, PercentChange, Currency, Tag } from "@wraith/ghost/components";
-import { Size, TextAppearance } from "@wraith/ghost/enums";
+import React, { useMemo, useEffect, useRef, useCallback, useState } from "react";
+import { View, StyleSheet, Platform } from "react-native";
+import { Link } from "react-router-dom";
+import { Text, Skeleton, Card, Avatar, PercentChange, Currency, Tag, Input } from "@wraith/ghost/components";
+import { Size, TextAppearance, Shape } from "@wraith/ghost/enums";
 import { Typography, Colors } from "@wraith/ghost/tokens";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import type { Asset } from "../types/asset";
@@ -13,7 +13,6 @@ import type { FilterState } from "./Toolbar";
 import { getMarketStatus } from "../utils/marketHours";
 
 type AssetListProps = {
-  searchQuery: string;
   filters: FilterState;
 };
 
@@ -22,19 +21,27 @@ type AssetRowProps = {
   isLast: boolean;
   borderColor: string;
   searchQuery: string;
-  onPress: (asset: Asset) => void;
 };
 
-const AssetRow = React.memo(function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRowProps) {
+const AssetRow = React.memo(function AssetRow({ asset, isLast, borderColor, searchQuery }: AssetRowProps) {
   const themeColors = useThemeColors();
 
   return (
-    <Pressable
-      onPress={() => onPress(asset)}
-      style={[
-        styles.row,
-        !isLast && [styles.rowBorder, { borderBottomColor: borderColor }],
-      ]}
+    <Link
+      to={`/asset/${asset.id}`}
+      style={{
+        textDecoration: "none",
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        paddingLeft: 20,
+        paddingRight: 20,
+        paddingTop: 16,
+        paddingBottom: 16,
+        borderBottomWidth: isLast ? 0 : 1,
+        borderBottomStyle: "solid",
+        borderBottomColor: isLast ? "transparent" : borderColor,
+      }}
     >
       {/* Rank */}
       <View style={styles.rankCol}>
@@ -130,7 +137,7 @@ const AssetRow = React.memo(function AssetRow({ asset, isLast, borderColor, sear
           height={32}
         />
       </View>
-    </Pressable>
+    </Link>
   );
 }, (prevProps, nextProps) => {
   // Custom comparator - only re-render if these specific values change
@@ -187,9 +194,9 @@ function LoadingRow({ borderColor }: { borderColor: string }) {
   );
 }
 
-export function AssetList({ searchQuery, filters }: AssetListProps) {
+export function AssetList({ filters }: AssetListProps) {
   const themeColors = useThemeColors();
-  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
   const { assets, loading, loadingMore, hasMore, loadMore, search, error } = useCryptoData({
     limit: 20,
     useMock: false,
@@ -199,9 +206,6 @@ export function AssetList({ searchQuery, filters }: AssetListProps) {
     assetType: filters.assetType,
   });
 
-  const handleAssetPress = useCallback((asset: Asset) => {
-    navigate(`/asset/${asset.id}`);
-  }, [navigate]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreCallbackRef = useRef(loadMore);
   const hasMoreRef = useRef(hasMore);
@@ -259,12 +263,25 @@ export function AssetList({ searchQuery, filters }: AssetListProps) {
   return (
     <Card style={styles.container}>
       <View style={styles.header}>
-        <Text size={Size.Large} weight="semibold">
-          Asset Prices
-        </Text>
-        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-          {assets.length} assets • Live prices
-        </Text>
+        <View style={styles.headerLeft}>
+          <Text size={Size.Large} weight="semibold">
+            Asset Prices
+          </Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+            {assets.length} assets • Live prices
+          </Text>
+        </View>
+        <div data-sherpa="asset-search">
+          <Input
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search assets..."
+            leadingIcon="search"
+            size={Size.Small}
+            shape={Shape.Rounded}
+            style={styles.searchInput}
+          />
+        </div>
       </View>
 
       <View style={[styles.tableHeader, { borderBottomColor: borderColor }]}>
@@ -314,7 +331,6 @@ export function AssetList({ searchQuery, filters }: AssetListProps) {
               isLast={index === filteredAssets.length - 1 && !hasMore}
               borderColor={borderColor}
               searchQuery={searchQuery}
-              onPress={handleAssetPress}
             />
           ))}
 
@@ -361,9 +377,17 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     padding: 20,
     paddingBottom: 16,
+  },
+  headerLeft: {
     gap: 4,
+  },
+  searchInput: {
+    minWidth: 240,
   },
   tableHeader: {
     flexDirection: "row",

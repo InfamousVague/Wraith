@@ -9,7 +9,6 @@ import { AssetHeader } from "../components/AssetHeader";
 import { AdvancedChart } from "../components/AdvancedChart";
 import { MetricsGrid } from "../components/MetricsGrid";
 import { AssetSourceBreakdown } from "../components/AssetSourceBreakdown";
-import { ConfidenceCard } from "../components/ConfidenceCard";
 import { SignalSummaryCard } from "../components/SignalSummaryCard";
 import { SignalIndicatorsPanel } from "../components/SignalIndicatorsPanel";
 import { PredictionAccuracyCard } from "../components/PredictionAccuracyCard";
@@ -46,8 +45,11 @@ export function AssetDetail() {
     signals,
     accuracies,
     predictions,
+    pendingPredictions,
     recommendation,
     loading: signalsLoading,
+    generating: generatingPredictions,
+    generatePredictions,
   } = useSignals(asset?.symbol, { timeframe: tradingTimeframe });
 
   // Handle real-time price updates
@@ -134,19 +136,18 @@ export function AssetDetail() {
             </View>
 
             {/* Trading Timeframe Selector */}
-            {asset && (
-              <View style={styles.section}>
-                <TimeframeSelector
-                  value={tradingTimeframe}
-                  onChange={setTradingTimeframe}
-                />
-              </View>
-            )}
+            <View style={styles.section}>
+              <TimeframeSelector
+                value={tradingTimeframe}
+                onChange={setTradingTimeframe}
+              />
+            </View>
 
-            {/* Trading Signals & Prediction Accuracy */}
-            {asset && (
-              <View style={styles.section}>
-                <View style={styles.signalsRow}>
+            {/* Trading Signals, Data Quality & Prediction Accuracy */}
+            <View style={styles.section}>
+              <View style={styles.signalsRow}>
+                {/* Left column: Trading Signals + Data Quality stacked */}
+                <View style={styles.leftColumn}>
                   <SignalSummaryCard
                     compositeScore={signals?.compositeScore ?? 0}
                     direction={signals?.direction ?? "neutral"}
@@ -155,38 +156,31 @@ export function AssetDetail() {
                     volatilityScore={signals?.volatilityScore ?? 0}
                     volumeScore={signals?.volumeScore ?? 0}
                     indicatorCount={signals?.signals?.length ?? 12}
-                    priceChange24h={asset.change24h}
-                    loading={signalsLoading}
+                    priceChange24h={asset?.change24h ?? 0}
+                    loading={loading || signalsLoading}
                   />
-                  <PredictionAccuracyCard
-                    recommendation={recommendation}
-                    accuracies={accuracies}
-                    predictions={predictions}
-                    loading={signalsLoading}
-                  />
+                  <AssetSourceBreakdown symbol={asset?.symbol} loading={loading} />
                 </View>
-              </View>
-            )}
-
-            {/* Technical Indicators Panel */}
-            {asset && (
-              <View style={styles.section}>
-                <SignalIndicatorsPanel
-                  signals={signals?.signals ?? []}
-                  loading={signalsLoading}
+                {/* Right column: Market Prediction (tall) */}
+                <PredictionAccuracyCard
+                  recommendation={recommendation}
+                  accuracies={accuracies}
+                  predictions={predictions}
+                  pendingPredictions={pendingPredictions}
+                  loading={loading || signalsLoading}
+                  generating={generatingPredictions}
+                  onGeneratePredictions={generatePredictions}
                 />
               </View>
-            )}
+            </View>
 
-            {/* Data Quality Cards */}
-            {asset && (
-              <View style={styles.section}>
-                <View style={styles.cardsRow}>
-                  <ConfidenceCard symbol={asset.symbol} loading={loading} />
-                  <AssetSourceBreakdown symbol={asset.symbol} loading={loading} />
-                </View>
-              </View>
-            )}
+            {/* Technical Indicators Panel */}
+            <View style={styles.section}>
+              <SignalIndicatorsPanel
+                signals={signals?.signals ?? []}
+                loading={loading || signalsLoading}
+              />
+            </View>
           </>
         )}
       </ScrollView>
@@ -212,8 +206,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 24,
   },
-  cardsRow: {
-    flexDirection: "row",
+  leftColumn: {
+    flex: 1,
     gap: 24,
   },
   errorContainer: {

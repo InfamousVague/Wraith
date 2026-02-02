@@ -10,6 +10,7 @@ import { Text } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { TRADING_TIMEFRAMES, type TradingTimeframe } from "../types/signals";
+import { HintIndicator } from "./HintIndicator";
 
 type TimeframeSelectorProps = {
   value: TradingTimeframe;
@@ -24,13 +25,24 @@ export function TimeframeSelector({
 
   return (
     <View style={styles.container}>
-      <Text
-        size={Size.Medium}
-        appearance={TextAppearance.Muted}
-        style={styles.label}
-      >
-        TRADING STYLE
-      </Text>
+      <View style={styles.headerRow}>
+        <Text
+          size={Size.Medium}
+          appearance={TextAppearance.Muted}
+          style={styles.label}
+        >
+          TRADING STYLE
+        </Text>
+        <HintIndicator
+          id="trading-style-hint"
+          title="Trading Style"
+          content="Select your trading timeframe to optimize how signals are weighted. Scalpers need fast signals, while investors focus on longer-term trends. This affects how the composite score is calculated."
+          icon="?"
+          color="#A78BFA"
+          priority={10}
+          inline
+        />
+      </View>
       <Text
         size={Size.Small}
         appearance={TextAppearance.Muted}
@@ -86,6 +98,11 @@ export function TimeframeSelector({
 const styles = StyleSheet.create({
   container: {
     marginBottom: 24,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   label: {
     marginBottom: 4,

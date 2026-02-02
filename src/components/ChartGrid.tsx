@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useEffect, useState } from "react";
-import { View, StyleSheet, Pressable, Platform } from "react-native";
-import { useNavigate } from "react-router-dom";
+import { View, StyleSheet, Platform } from "react-native";
+import { Link } from "react-router-dom";
 import { FixedSizeGrid as Grid } from "react-window";
 import { Card, Text, Avatar, PercentChange, Currency, Skeleton } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
@@ -34,17 +34,16 @@ type ChartCardProps = {
   cardSize: number;
   themeColors: ThemeColors;
   searchQuery: string;
-  onPress: (asset: Asset) => void;
 };
 
-const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, searchQuery, onPress }: ChartCardProps) {
+const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, searchQuery }: ChartCardProps) {
   const isPositive = asset.change24h >= 0;
   const chartHeight = getChartHeight(cardSize);
   const compact = isCompactSize(cardSize);
 
   return (
     <View style={styles.cardWrapper}>
-      <Pressable style={styles.cardPressable} onPress={() => onPress(asset)}>
+      <Link to={`/asset/${asset.id}`} style={{ textDecoration: "none", flex: 1 }}>
         <Card style={styles.chartCard}>
           <View style={styles.cardContent}>
             <View style={styles.cardHeader}>
@@ -129,7 +128,7 @@ const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, 
             )}
           </View>
         </Card>
-      </Pressable>
+      </Link>
     </View>
   );
 }, (prevProps, nextProps) => {
@@ -185,13 +184,8 @@ const VIRTUALIZATION_THRESHOLD = 50;
 
 export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize = 220 }: ChartGridProps) {
   const themeColors = useThemeColors();
-  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-
-  const handleAssetPress = useCallback((asset: Asset) => {
-    navigate(`/asset/${asset.id}`);
-  }, [navigate]);
 
   // Track container size for virtualization
   useEffect(() => {
@@ -268,11 +262,10 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
           cardSize={cardSize}
           themeColors={themeColors}
           searchQuery={searchQuery}
-          onPress={handleAssetPress}
         />
       </div>
     );
-  }, [filteredAssets, columnCount, cardSize, themeColors, searchQuery, handleAssetPress]);
+  }, [filteredAssets, columnCount, cardSize, themeColors, searchQuery]);
 
   return (
     <View style={styles.container}>
@@ -314,7 +307,6 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
                   cardSize={cardSize}
                   themeColors={themeColors}
                   searchQuery={searchQuery}
-                  onPress={handleAssetPress}
                 />
               ))}
             </View>
@@ -331,7 +323,6 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
                   cardSize={cardSize}
                   themeColors={themeColors}
                   searchQuery={searchQuery}
-                  onPress={handleAssetPress}
                 />
               ))}
         </View>

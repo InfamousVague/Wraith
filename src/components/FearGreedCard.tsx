@@ -2,6 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Card, Text, ProgressCircle } from "@wraith/ghost/components";
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
+import { HintIndicator } from "./HintIndicator";
 
 type FearGreedCardProps = {
   value?: number;
@@ -46,6 +47,16 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
   return (
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
+        {/* Hint indicator in top-right corner */}
+        <HintIndicator
+          id="fear-greed-hint"
+          title="Market Sentiment"
+          content="Values below 25 indicate extreme fear (potential buying opportunity). Values above 75 suggest extreme greed (potential correction ahead)."
+          icon="i"
+          color="#A78BFA"
+          priority={1}
+        />
+
         {/* Header - stays at top */}
         <View style={styles.header}>
           <Text size={Size.Small} weight="semibold">
@@ -104,6 +115,8 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     alignItems: "center",
+    // @ts-ignore - position relative needed for absolute positioned hint
+    position: "relative",
   },
   header: {
     alignItems: "center",

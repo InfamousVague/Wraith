@@ -4,9 +4,17 @@
  * Manages user authentication using crypto wallet keypairs.
  * Generates ed25519-style keypairs for signing requests.
  * Stores private key in localStorage for testing.
+ *
+ * Backend authentication flow:
+ * 1. Get challenge from server
+ * 2. Sign challenge with private key
+ * 3. Verify signature with server
+ * 4. Receive session token
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { hauntClient } from "../services/haunt";
+import type { Profile as ServerProfile } from "../services/haunt";
 
 // Simple crypto utilities using Web Crypto API
 async function generateKeyPair(): Promise<{ publicKey: string; privateKey: string }> {
@@ -57,32 +65,72 @@ type User = {
   createdAt: number;
 };
 
+/** Login progress steps */
+export type LoginStep =
+  | "idle"
+  | "requesting_challenge"
+  | "signing"
+  | "verifying"
+  | "loading_profile"
+  | "success"
+  | "error";
+
+/** Login step labels for display */
+export const LOGIN_STEP_LABELS: Record<LoginStep, string> = {
+  idle: "Ready",
+  requesting_challenge: "Requesting challenge...",
+  signing: "Signing...",
+  verifying: "Verifying...",
+  loading_profile: "Loading profile...",
+  success: "Connected!",
+  error: "Failed",
+};
+
 type AuthContextType = {
   user: User | null;
   privateKey: string | null;
   isAuthenticated: boolean;
   loading: boolean;
+  // Backend session state
+  sessionToken: string | null;
+  serverProfile: ServerProfile | null;
+  isConnectedToServer: boolean;
+  loginStep: LoginStep;
+  loginError: string | null;
+  // Actions
   createAccount: () => Promise<void>;
   logout: () => void;
   importPrivateKey: (key: string) => Promise<void>;
   exportPrivateKey: () => string | null;
   signRequest: (message: string) => Promise<string | null>;
+  loginToBackend: () => Promise<void>;
+  disconnectFromServer: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const STORAGE_KEY_PRIVATE = "wraith_private_key";
 const STORAGE_KEY_USER = "wraith_user";
+const STORAGE_KEY_SESSION = "wraith_session_token";
+const STORAGE_KEY_SERVER_PROFILE = "wraith_server_profile";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [privateKey, setPrivateKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Backend session state
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [serverProfile, setServerProfile] = useState<ServerProfile | null>(null);
+  const [loginStep, setLoginStep] = useState<LoginStep>("idle");
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   // Load from localStorage on mount
   useEffect(() => {
     const storedPrivateKey = localStorage.getItem(STORAGE_KEY_PRIVATE);
     const storedUser = localStorage.getItem(STORAGE_KEY_USER);
+    const storedSession = localStorage.getItem(STORAGE_KEY_SESSION);
+    const storedServerProfile = localStorage.getItem(STORAGE_KEY_SERVER_PROFILE);
 
     if (storedPrivateKey && storedUser) {
       try {
@@ -94,6 +142,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem(STORAGE_KEY_USER);
       }
     }
+
+    // Restore session if available
+    if (storedSession && storedServerProfile) {
+      try {
+        setSessionToken(storedSession);
+        setServerProfile(JSON.parse(storedServerProfile));
+        setLoginStep("success");
+      } catch (e) {
+        console.error("Failed to parse stored session:", e);
+        localStorage.removeItem(STORAGE_KEY_SESSION);
+        localStorage.removeItem(STORAGE_KEY_SERVER_PROFILE);
+      }
+    }
+
     setLoading(false);
   }, []);
 
@@ -119,11 +181,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Clear local account
     localStorage.removeItem(STORAGE_KEY_PRIVATE);
     localStorage.removeItem(STORAGE_KEY_USER);
     setPrivateKey(null);
     setUser(null);
+
+    // Clear server session
+    localStorage.removeItem(STORAGE_KEY_SESSION);
+    localStorage.removeItem(STORAGE_KEY_SERVER_PROFILE);
+    setSessionToken(null);
+    setServerProfile(null);
+    setLoginStep("idle");
+    setLoginError(null);
   }, []);
+
+  const disconnectFromServer = useCallback(() => {
+    // Only clear server session, keep local account
+    if (sessionToken) {
+      // Fire and forget logout request
+      hauntClient.logout(sessionToken).catch(() => {});
+    }
+    localStorage.removeItem(STORAGE_KEY_SESSION);
+    localStorage.removeItem(STORAGE_KEY_SERVER_PROFILE);
+    setSessionToken(null);
+    setServerProfile(null);
+    setLoginStep("idle");
+    setLoginError(null);
+  }, [sessionToken]);
 
   const importPrivateKey = useCallback(async (key: string) => {
     try {
@@ -172,6 +257,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [privateKey]);
 
+  /**
+   * Login to the backend server.
+   * Steps:
+   * 1. Request challenge from server
+   * 2. Sign challenge with private key
+   * 3. Send signed challenge to server
+   * 4. Receive session token and profile
+   */
+  const loginToBackend = useCallback(async () => {
+    if (!user || !privateKey) {
+      setLoginError("No account found. Create an account first.");
+      setLoginStep("error");
+      return;
+    }
+
+    try {
+      setLoginError(null);
+
+      // Step 1: Request challenge
+      setLoginStep("requesting_challenge");
+      const challengeResponse = await hauntClient.getChallenge();
+      const { challenge, timestamp: challengeTimestamp } = challengeResponse.data;
+
+      // Step 2: Sign challenge
+      setLoginStep("signing");
+      const signature = await signMessage(privateKey, challenge);
+
+      // Step 3: Verify with server
+      setLoginStep("verifying");
+      const verifyResponse = await hauntClient.verify({
+        publicKey: user.publicKey,
+        challenge,
+        signature,
+        timestamp: challengeTimestamp,
+      });
+
+      const { sessionToken: token, profile } = verifyResponse.data;
+
+      // Step 4: Store session
+      setLoginStep("loading_profile");
+      localStorage.setItem(STORAGE_KEY_SESSION, token);
+      localStorage.setItem(STORAGE_KEY_SERVER_PROFILE, JSON.stringify(profile));
+      setSessionToken(token);
+      setServerProfile(profile);
+
+      // Success!
+      setLoginStep("success");
+    } catch (e) {
+      console.error("Login failed:", e);
+      setLoginError(e instanceof Error ? e.message : "Login failed");
+      setLoginStep("error");
+    }
+  }, [user, privateKey]);
+
+  // Auto-connect to server when authenticated but not connected
+  const autoConnectAttempted = useRef(false);
+  useEffect(() => {
+    // Only auto-connect if:
+    // 1. User is authenticated (has local account)
+    // 2. Not currently connected to server
+    // 3. Not currently in the middle of a login attempt
+    // 4. Haven't already attempted auto-connect this session
+    // 5. Initial loading is complete
+    const shouldAutoConnect =
+      user &&
+      privateKey &&
+      !sessionToken &&
+      loginStep === "idle" &&
+      !autoConnectAttempted.current &&
+      !loading;
+
+    if (shouldAutoConnect) {
+      autoConnectAttempted.current = true;
+      console.log("Auto-connecting to server...");
+      loginToBackend();
+    }
+  }, [user, privateKey, sessionToken, loginStep, loading, loginToBackend]);
+
+  // Reset auto-connect flag when user logs out
+  useEffect(() => {
+    if (!user) {
+      autoConnectAttempted.current = false;
+    }
+  }, [user]);
+
+  // Auto-reconnect when disconnected (with delay to avoid rapid retries)
+  useEffect(() => {
+    if (user && privateKey && !sessionToken && loginStep === "error") {
+      const reconnectTimer = setTimeout(() => {
+        console.log("Auto-reconnecting to server after error...");
+        setLoginStep("idle");
+        setLoginError(null);
+        autoConnectAttempted.current = false;
+      }, 5000); // Wait 5 seconds before allowing reconnect
+
+      return () => clearTimeout(reconnectTimer);
+    }
+  }, [user, privateKey, sessionToken, loginStep]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -179,11 +363,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         privateKey,
         isAuthenticated: !!user,
         loading,
+        // Backend session state
+        sessionToken,
+        serverProfile,
+        isConnectedToServer: !!sessionToken && loginStep === "success",
+        loginStep,
+        loginError,
+        // Actions
         createAccount,
         logout,
         importPrivateKey,
         exportPrivateKey,
         signRequest,
+        loginToBackend,
+        disconnectFromServer,
       }}
     >
       {children}

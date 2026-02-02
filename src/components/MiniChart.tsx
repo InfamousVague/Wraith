@@ -53,7 +53,7 @@ export const MiniChart = React.memo(function MiniChart({
   // Show heartbeat animation when loading or no data available
   if (chartData.length < 2 || loading) {
     return (
-      <View style={[styles.container, styles.loadingContainer, containerStyle]}>
+      <View style={[styles.container, styles.loadingContainer, containerStyle]} pointerEvents="none">
         <HeartbeatChart
           width={typeof width === "number" ? width : 100}
           height={height}
@@ -65,7 +65,7 @@ export const MiniChart = React.memo(function MiniChart({
   }
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, containerStyle]} pointerEvents="none">
       <LightweightChart
         data={chartData}
         type="area"

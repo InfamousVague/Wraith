@@ -175,6 +175,42 @@ export type ConfidenceResponse = {
   timestamp: number;
 };
 
+// Auth types
+export type AuthChallenge = {
+  challenge: string;
+  timestamp: number;
+  expiresAt: number;
+};
+
+export type AuthRequest = {
+  publicKey: string;
+  challenge: string;
+  signature: string;
+  timestamp: number;
+};
+
+export type Profile = {
+  id: string;
+  publicKey: string;
+  createdAt: number;
+  lastSeen: number;
+  settings: ProfileSettings;
+};
+
+export type ProfileSettings = {
+  defaultTimeframe: string;
+  preferredIndicators: string[];
+  notificationsEnabled: boolean;
+};
+
+export type AuthResponse = {
+  authenticated: boolean;
+  publicKey: string;
+  sessionToken: string;
+  expiresAt: number;
+  profile: Profile;
+};
+
 // Generate synthetic sparkline data based on price and percent change
 function generateSparkline(price: number, change7d: number, points: number = 168): number[] {
   if (price <= 0) return [];
@@ -248,14 +284,24 @@ class HauntClient {
     this.baseUrl = baseUrl;
   }
 
-  private async fetch<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`);
+  private async fetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${endpoint}`, options);
 
     if (!response.ok) {
       throw new Error(`Haunt API error: ${response.status} ${response.statusText}`);
     }
 
     return response.json();
+  }
+
+  private async fetchWithAuth<T>(endpoint: string, token: string, options?: RequestInit): Promise<T> {
+    return this.fetch<T>(endpoint, {
+      ...options,
+      headers: {
+        ...options?.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
   }
 
   /**
@@ -417,11 +463,23 @@ class HauntClient {
   }
 
   /**
-   * Get recent predictions for a symbol
+   * Get predictions for a symbol
    * Shows predictions made and their outcomes
+   * @param symbol - The symbol to get predictions for
+   * @param options - Optional parameters for filtering
+   * @param options.status - Filter by status: "all", "validated", "pending"
+   * @param options.limit - Maximum number of predictions to return (default: 50, max: 500)
    */
-  async getSignalPredictions(symbol: string): Promise<ApiResponse<PredictionsResponse>> {
-    return this.fetch(`/api/signals/${symbol.toLowerCase()}/predictions`);
+  async getSignalPredictions(
+    symbol: string,
+    options?: { status?: "all" | "validated" | "pending"; limit?: number }
+  ): Promise<ApiResponse<PredictionsResponse>> {
+    const params = new URLSearchParams();
+    if (options?.status) params.set("status", options.status);
+    if (options?.limit) params.set("limit", options.limit.toString());
+    const queryString = params.toString();
+    const url = `/api/signals/${symbol.toLowerCase()}/predictions${queryString ? `?${queryString}` : ""}`;
+    return this.fetch(url);
   }
 
   /**
@@ -441,6 +499,68 @@ class HauntClient {
     timeframe: TradingTimeframe = "day_trading"
   ): Promise<ApiResponse<Recommendation>> {
     return this.fetch(`/api/signals/${symbol.toLowerCase()}/recommendation?timeframe=${timeframe}`);
+  }
+
+  /**
+   * Generate predictions for a symbol immediately
+   * Forces fresh signal computation and prediction generation
+   * @param symbol Asset symbol
+   * @param timeframe Trading timeframe (default: day_trading)
+   */
+  async generatePredictions(
+    symbol: string,
+    timeframe: TradingTimeframe = "day_trading"
+  ): Promise<ApiResponse<SymbolSignals>> {
+    return this.fetch(`/api/signals/${symbol.toLowerCase()}/generate?timeframe=${timeframe}`, {
+      method: "POST",
+    });
+  }
+
+  // ========== Auth API Methods ==========
+
+  /**
+   * Get a challenge to sign for authentication
+   */
+  async getChallenge(): Promise<ApiResponse<AuthChallenge>> {
+    return this.fetch("/api/auth/challenge");
+  }
+
+  /**
+   * Verify a signed challenge and create a session
+   */
+  async verify(request: AuthRequest): Promise<ApiResponse<AuthResponse>> {
+    return this.fetch("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Get the current authenticated user's profile
+   */
+  async getMe(token: string): Promise<ApiResponse<Profile>> {
+    return this.fetchWithAuth("/api/auth/me", token);
+  }
+
+  /**
+   * Update the authenticated user's profile settings
+   */
+  async updateProfile(token: string, settings: ProfileSettings): Promise<ApiResponse<Profile>> {
+    return this.fetchWithAuth("/api/auth/profile", token, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+  }
+
+  /**
+   * Logout and invalidate the current session
+   */
+  async logout(token: string): Promise<void> {
+    await this.fetchWithAuth("/api/auth/logout", token, {
+      method: "POST",
+    });
   }
 }
 
