@@ -69,7 +69,7 @@ export function AltcoinSeasonCard({
             Altcoin Season Index
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-            BTC Dominance: {btcDominance.toFixed(1)}%
+            BTC Dominance: {(btcDominance ?? 0).toFixed(1)}%
           </Text>
         </View>
 
@@ -135,7 +135,7 @@ export function AltcoinSeasonCard({
 const styles = StyleSheet.create({
   card: {
     width: 280,
-    minHeight: 280,
+    height: 356,
     flexShrink: 0,
   },
   content: {

@@ -74,7 +74,7 @@ const ExchangeRow = React.memo(function ExchangeRow({ exchange, maxCount }: Exch
             animationDuration={200}
           />
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-            {" "}({exchange.updatePercent.toFixed(1)}%)
+            {" "}({(exchange.updatePercent ?? 0).toFixed(1)}%)
           </Text>
         </View>
       </View>

@@ -15,8 +15,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:api": "playwright test e2e/api.spec.ts",
+    "test:all": "vitest run && playwright test",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "sanity": "node scripts/ui-sanity-check.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "^6.1.2",
@@ -35,14 +43,18 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.2",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "react-window": "^1.8.11"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.1",
     "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.7",
     "@types/react-native-web": "^0.19.2",
+    "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^27.4.0",
     "puppeteer": "^24.36.1",

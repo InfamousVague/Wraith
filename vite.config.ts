@@ -14,10 +14,34 @@ export default defineConfig({
     extensions: [".web.tsx", ".web.ts", ".web.js", ".tsx", ".ts", ".js"],
   },
   define: {
-    __DEV__: JSON.stringify(true),
+    __DEV__: JSON.stringify(process.env.NODE_ENV !== "production"),
   },
   optimizeDeps: {
     exclude: ["react-native-svg"],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          charts: ["lightweight-charts"],
+        },
+      },
+      // Exclude expo-linear-gradient from build as it's not web-compatible
+      external: ["expo-linear-gradient"],
+    },
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    target: "esnext",
+    sourcemap: false,
+  },
+  esbuild: {
+    treeShaking: true,
   },
   server: {
     fs: {

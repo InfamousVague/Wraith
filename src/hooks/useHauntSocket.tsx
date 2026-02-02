@@ -22,12 +22,32 @@ function getWebSocketUrl(): string {
   return "ws://localhost:3001/ws";
 }
 
+// Fetch initial update count from the API
+async function fetchInitialUpdateCount(): Promise<number> {
+  try {
+    const response = await fetch("/api/market/stats");
+    if (response.ok) {
+      const json = await response.json();
+      return json.data?.totalUpdates || 0;
+    }
+  } catch (e) {
+    logger.error("Failed to fetch initial update count", e);
+  }
+  return 0;
+}
+
 export type PriceSourceId =
   | "binance"
   | "coinbase"
   | "coinmarketcap"
   | "coingecko"
-  | "cryptocompare";
+  | "cryptocompare"
+  | "kraken"
+  | "kucoin"
+  | "okx"
+  | "huobi";
+
+export type TradeDirection = "up" | "down";
 
 export type PriceUpdate = {
   id: number;
@@ -36,6 +56,7 @@ export type PriceUpdate = {
   previousPrice?: number;
   change24h?: number;
   volume24h?: number;
+  tradeDirection?: TradeDirection;
   source?: PriceSourceId;
   sources?: PriceSourceId[];
   timestamp: string;
@@ -63,6 +84,7 @@ type HauntSocketContextType = {
   error: string | null;
   onPriceUpdate: (callback: (update: PriceUpdate) => void) => () => void;
   onMarketUpdate: (callback: (update: MarketUpdate) => void) => () => void;
+  updateCount: number;
 };
 
 const HauntSocketContext = createContext<HauntSocketContextType | null>(null);
@@ -85,13 +107,29 @@ export function HauntSocketProvider({
   const [connected, setConnected] = useState(false);
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [updateCount, setUpdateCount] = useState(0);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mountedRef = useRef(true);
+  const updateCountRef = useRef(0);
+  const initialCountLoadedRef = useRef(false);
 
   // Compute WebSocket URL once
   const wsUrl = useMemo(() => getWebSocketUrl(), []);
+
+  // Fetch initial update count from API on mount
+  useEffect(() => {
+    if (initialCountLoadedRef.current) return;
+    initialCountLoadedRef.current = true;
+
+    fetchInitialUpdateCount().then((count) => {
+      if (mountedRef.current) {
+        updateCountRef.current = count;
+        setUpdateCount(count);
+      }
+    });
+  }, []);
 
   // Callback registries
   const priceCallbacksRef = useRef<Set<(update: PriceUpdate) => void>>(new Set());
@@ -133,12 +171,14 @@ export function HauntSocketProvider({
 
         try {
           const message = JSON.parse(event.data) as WSMessage;
-          console.log("[HauntSocket] Message:", message.type, message.type === "price_update" ? message.data.symbol : "");
 
           switch (message.type) {
             case "price_update":
-              console.log("[HauntSocket] Price callbacks:", priceCallbacksRef.current.size);
               priceCallbacksRef.current.forEach((cb) => cb(message.data));
+              // Increment update count locally for real-time display
+              // Backend tracks the authoritative count
+              updateCountRef.current += 1;
+              setUpdateCount(updateCountRef.current);
               break;
 
             case "market_update":
@@ -244,7 +284,8 @@ export function HauntSocketProvider({
     error,
     onPriceUpdate,
     onMarketUpdate,
-  }), [connected, subscribe, unsubscribe, subscriptions, error, onPriceUpdate, onMarketUpdate]);
+    updateCount,
+  }), [connected, subscribe, unsubscribe, subscriptions, error, onPriceUpdate, onMarketUpdate, updateCount]);
 
   return (
     <HauntSocketContext.Provider value={value}>
@@ -262,6 +303,7 @@ const noopContext: HauntSocketContextType = {
   error: null,
   onPriceUpdate: () => () => {},
   onMarketUpdate: () => () => {},
+  updateCount: 0,
 };
 
 /**

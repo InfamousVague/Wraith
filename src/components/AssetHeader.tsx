@@ -1,7 +1,7 @@
 import React from "react";
-import { View, StyleSheet, Pressable } from "react-native";
-import { Text, Avatar, PercentChange, Currency, Skeleton } from "@wraith/ghost/components";
-import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { View, StyleSheet } from "react-native";
+import { Text, Avatar, PercentChange, Currency, Skeleton, Button } from "@wraith/ghost/components";
+import { Size, TextAppearance, Appearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import type { Asset } from "../types/asset";
 
@@ -36,11 +36,12 @@ export function AssetHeader({ asset, loading, onBack }: AssetHeaderProps) {
     <View style={styles.container}>
       <View style={styles.leftSection}>
         {onBack && (
-          <Pressable onPress={onBack} style={styles.backButton}>
-            <Text size={Size.Large} appearance={TextAppearance.Muted}>
-              ←
-            </Text>
-          </Pressable>
+          <Button
+            iconLeft="chevron-left"
+            appearance={Appearance.Ghost}
+            onPress={onBack}
+            size={Size.Medium}
+          />
         )}
         <Avatar
           uri={asset.image}
@@ -82,10 +83,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 16,
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
   },
   info: {
     gap: 4,

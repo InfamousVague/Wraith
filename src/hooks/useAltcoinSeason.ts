@@ -45,9 +45,12 @@ export function useAltcoinSeason(): UseAltcoinSeasonResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchAltcoinSeason = useCallback(async () => {
+  const fetchAltcoinSeason = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      // Only show loading skeleton on initial fetch, not refetches
+      if (isInitial) {
+        setLoading(true);
+      }
       setError(null);
 
       logger.request("/api/market/global");
@@ -105,12 +108,12 @@ export function useAltcoinSeason(): UseAltcoinSeasonResult {
   useMarketSubscription(handleMarketUpdate);
 
   useEffect(() => {
-    fetchAltcoinSeason();
+    fetchAltcoinSeason(true); // Initial fetch shows loading
 
-    // Refresh every 1 minute (server caches for 1 minute)
-    const interval = setInterval(fetchAltcoinSeason, 60 * 1000);
+    // Refresh every 1 minute (server caches for 1 minute) - no loading flash
+    const interval = setInterval(() => fetchAltcoinSeason(false), 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchAltcoinSeason]);
 
-  return { data, loading, error, refresh: fetchAltcoinSeason };
+  return { data, loading, error, refresh: () => fetchAltcoinSeason(false) };
 }

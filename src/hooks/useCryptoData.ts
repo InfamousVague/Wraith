@@ -1,17 +1,23 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { hauntClient, type ListingsParams } from "../services/haunt";
+import { hauntClient, type ListingsParams, type SortField, type SortDirection, type ListingFilter, type AssetType } from "../services/haunt";
 import { useHauntSocket, type PriceUpdate } from "./useHauntSocket";
 import { MOCK_ASSETS } from "../data/mockAssets";
-import { logger } from "../utils/logger";
 import type { Asset } from "../types/asset";
+
+// Search debounce delay
+const SEARCH_DEBOUNCE_MS = 150;
 
 type UseCryptoDataOptions = {
   /** Number of cryptocurrencies to fetch per page */
   limit?: number;
   /** Sort field */
-  sort?: ListingsParams["sort"];
+  sort?: SortField;
   /** Sort direction */
-  sortDir?: ListingsParams["sort_dir"];
+  sortDir?: SortDirection;
+  /** Listing filter (gainers, losers, etc.) */
+  filter?: ListingFilter;
+  /** Asset type filter */
+  assetType?: AssetType;
   /** Auto-refresh interval in milliseconds (0 to disable, default uses WebSocket) */
   refreshInterval?: number;
   /** Use mock data instead of API (default: false, falls back to mock on error) */
@@ -39,6 +45,8 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
     limit = 20,
     sort = "market_cap",
     sortDir = "desc",
+    filter = "all",
+    assetType = "all",
     refreshInterval = 0,
     useMock = false,
   } = options;
@@ -69,27 +77,53 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
 
     subscribe(symbols);
 
-    // Handle price updates - also update sparkline with new prices
+    // Handle price updates with structural sharing - only update changed assets
     const unsubscribe = onPriceUpdate((update: PriceUpdate) => {
-      setAssets((prev) =>
-        prev.map((asset) => {
-          if (asset.symbol.toLowerCase() !== update.symbol.toLowerCase()) {
-            return asset;
-          }
+      setAssets((prev) => {
+        const updateSymbol = update.symbol.toLowerCase();
+        const assetIndex = prev.findIndex(
+          (asset) => asset.symbol.toLowerCase() === updateSymbol
+        );
 
-          // Update sparkline: add new price, keep last 60 points (1 hour at 1-min intervals)
-          const newSparkline = [...asset.sparkline, update.price].slice(-60);
+        // Asset not found, return same reference
+        if (assetIndex === -1) return prev;
 
-          return {
-            ...asset,
-            price: update.price,
-            // Ensure change values are valid numbers (not NaN)
-            change24h: Number.isFinite(update.change24h) ? update.change24h : asset.change24h,
-            volume24h: Number.isFinite(update.volume24h) ? update.volume24h : asset.volume24h,
-            sparkline: newSparkline,
-          };
-        })
-      );
+        const asset = prev[assetIndex];
+
+        // Check if anything actually changed to avoid unnecessary updates
+        const priceChanged = asset.price !== update.price;
+        const change24hChanged = update.change24h !== undefined && asset.change24h !== update.change24h;
+        const volumeChanged = update.volume24h !== undefined && asset.volume24h !== update.volume24h;
+
+        if (!priceChanged && !change24hChanged && !volumeChanged) {
+          return prev; // No change, return same reference
+        }
+
+        // Use trade direction from server if available, otherwise calculate locally
+        const tradeDirection = update.tradeDirection
+          ?? (update.price > asset.price ? "up" as const
+            : update.price < asset.price ? "down" as const
+            : asset.tradeDirection);
+
+        // Update sparkline: add new price, keep last 60 points (1 hour at 1-min intervals)
+        const newSparkline = priceChanged
+          ? [...asset.sparkline, update.price].slice(-60)
+          : asset.sparkline;
+
+        // Create new array with only the changed asset replaced (structural sharing)
+        // Use WebSocket data for change24h and volume24h since our backend aggregates from all sources
+        const newAssets = [...prev];
+        newAssets[assetIndex] = {
+          ...asset,
+          price: update.price,
+          change24h: update.change24h ?? asset.change24h,
+          volume24h: update.volume24h ?? asset.volume24h,
+          sparkline: newSparkline,
+          tradeDirection,
+        };
+
+        return newAssets;
+      });
     });
 
     return unsubscribe;
@@ -98,8 +132,6 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
   const fetchData = useCallback(async (append = false) => {
     // Mock data path
     if (useMock) {
-      logger.data("useCryptoData", { mode: "MOCK", append, page: pageRef.current });
-
       if (append) {
         setLoadingMore(true);
       } else {
@@ -113,12 +145,6 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
       const start = append ? (pageRef.current - 1) * limit : 0;
       const end = start + limit;
       const pageData = MOCK_ASSETS.slice(start, end);
-
-      logger.data("Mock Data Loaded", {
-        range: `${start}-${end}`,
-        count: pageData.length,
-        hasMore: end < MOCK_ASSETS.length,
-      });
 
       if (append) {
         setAssets((prev) => [...prev, ...pageData]);
@@ -134,8 +160,6 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
 
     // Haunt API path
     try {
-      logger.data("useCryptoData", { mode: "HAUNT", append, page: pageRef.current });
-
       if (append) {
         setLoadingMore(true);
       } else {
@@ -149,15 +173,11 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
         start: append ? (pageRef.current - 1) * limit + 1 : 1,
         sort,
         sort_dir: sortDir,
+        filter: filter !== "all" ? filter : undefined,
+        asset_type: assetType !== "all" ? assetType : undefined,
       });
 
       const fetchedAssets = response.data;
-
-      logger.data("Haunt Data Loaded", {
-        count: fetchedAssets.length,
-        cached: response.meta.cached,
-        sample: fetchedAssets.slice(0, 3).map((a) => ({ symbol: a.symbol, price: a.price })),
-      });
 
       if (append) {
         setAssets((prev) => [...prev, ...fetchedAssets]);
@@ -167,13 +187,7 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
 
       setHasMore(fetchedAssets.length === limit);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
       setError(err instanceof Error ? err : new Error("Failed to fetch data"));
-      logger.error("useCryptoData Haunt API failed", err);
-      logger.data("useCryptoData", {
-        reason: errorMessage,
-        mode: "ERROR",
-      });
       // Don't fall back to mock data - show error state instead
       if (!append) {
         setAssets([]);
@@ -183,7 +197,7 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [limit, sort, sortDir, useMock]);
+  }, [limit, sort, sortDir, filter, assetType, useMock]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore) return;
@@ -200,19 +214,49 @@ export function useCryptoData(options: UseCryptoDataOptions = {}): UseCryptoData
     }
   }, [fetchData, refreshInterval]);
 
+  // Debounced search with memoization
+  const searchCacheRef = useRef<Map<string, Asset[]>>(new Map());
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Clear search cache when assets change
+  useEffect(() => {
+    searchCacheRef.current.clear();
+  }, [assets]);
+
   const search = useCallback(
     (query: string): Asset[] => {
       if (!query) return assets;
 
+      // Check cache first
+      const cached = searchCacheRef.current.get(query);
+      if (cached) return cached;
+
       const queryLower = query.toLowerCase();
-      return assets.filter(
+      const results = assets.filter(
         (asset) =>
           asset.name.toLowerCase().includes(queryLower) ||
           asset.symbol.toLowerCase().includes(queryLower)
       );
+
+      // Cache the result (limit cache size to prevent memory issues)
+      if (searchCacheRef.current.size > 100) {
+        searchCacheRef.current.clear();
+      }
+      searchCacheRef.current.set(query, results);
+
+      return results;
     },
     [assets]
   );
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, []);
 
   return {
     assets,

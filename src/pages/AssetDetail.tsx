@@ -10,9 +10,15 @@ import { AdvancedChart } from "../components/AdvancedChart";
 import { MetricsGrid } from "../components/MetricsGrid";
 import { AssetSourceBreakdown } from "../components/AssetSourceBreakdown";
 import { ConfidenceCard } from "../components/ConfidenceCard";
+import { SignalSummaryCard } from "../components/SignalSummaryCard";
+import { SignalIndicatorsPanel } from "../components/SignalIndicatorsPanel";
+import { PredictionAccuracyCard } from "../components/PredictionAccuracyCard";
+import { TimeframeSelector } from "../components/TimeframeSelector";
 import { hauntClient } from "../services/haunt";
 import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
+import { useSignals } from "../hooks/useSignals";
 import type { Asset } from "../types/asset";
+import type { TradingTimeframe } from "../types/signals";
 
 // Theme colors
 const themes = {
@@ -33,6 +39,16 @@ export function AssetDetail() {
   const [asset, setAsset] = useState<Asset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tradingTimeframe, setTradingTimeframe] = useState<TradingTimeframe>("day_trading");
+
+  // Fetch trading signals with timeframe
+  const {
+    signals,
+    accuracies,
+    predictions,
+    recommendation,
+    loading: signalsLoading,
+  } = useSignals(asset?.symbol, { timeframe: tradingTimeframe });
 
   // Handle real-time price updates
   // IMPORTANT: Only update price and tradeDirection from WebSocket.
@@ -108,14 +124,61 @@ export function AssetDetail() {
           </View>
         ) : (
           <>
-            <View style={styles.section}>
-              <AdvancedChart asset={asset} loading={loading} height={400} />
-            </View>
-
+            {/* Key Details - above chart */}
             <View style={styles.section}>
               <MetricsGrid asset={asset} loading={loading} />
             </View>
 
+            <View style={styles.section}>
+              <AdvancedChart asset={asset} loading={loading} height={400} />
+            </View>
+
+            {/* Trading Timeframe Selector */}
+            {asset && (
+              <View style={styles.section}>
+                <TimeframeSelector
+                  value={tradingTimeframe}
+                  onChange={setTradingTimeframe}
+                />
+              </View>
+            )}
+
+            {/* Trading Signals & Prediction Accuracy */}
+            {asset && (
+              <View style={styles.section}>
+                <View style={styles.signalsRow}>
+                  <SignalSummaryCard
+                    compositeScore={signals?.compositeScore ?? 0}
+                    direction={signals?.direction ?? "neutral"}
+                    trendScore={signals?.trendScore ?? 0}
+                    momentumScore={signals?.momentumScore ?? 0}
+                    volatilityScore={signals?.volatilityScore ?? 0}
+                    volumeScore={signals?.volumeScore ?? 0}
+                    indicatorCount={signals?.signals?.length ?? 12}
+                    priceChange24h={asset.change24h}
+                    loading={signalsLoading}
+                  />
+                  <PredictionAccuracyCard
+                    recommendation={recommendation}
+                    accuracies={accuracies}
+                    predictions={predictions}
+                    loading={signalsLoading}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Technical Indicators Panel */}
+            {asset && (
+              <View style={styles.section}>
+                <SignalIndicatorsPanel
+                  signals={signals?.signals ?? []}
+                  loading={signalsLoading}
+                />
+              </View>
+            )}
+
+            {/* Data Quality Cards */}
             {asset && (
               <View style={styles.section}>
                 <View style={styles.cardsRow}>
@@ -144,6 +207,10 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 24,
     marginBottom: 24,
+  },
+  signalsRow: {
+    flexDirection: "row",
+    gap: 24,
   },
   cardsRow: {
     flexDirection: "row",

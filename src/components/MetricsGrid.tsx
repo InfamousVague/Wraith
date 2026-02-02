@@ -68,6 +68,7 @@ export function MetricsGrid({ asset, loading }: MetricsGridProps) {
                 weight="semibold"
                 compact
                 decimals={2}
+                mono
               />
             )
           }
@@ -83,6 +84,7 @@ export function MetricsGrid({ asset, loading }: MetricsGridProps) {
                 weight="semibold"
                 compact
                 decimals={2}
+                mono
               />
             )
           }
@@ -130,13 +132,13 @@ export function MetricsGrid({ asset, loading }: MetricsGridProps) {
             }
           />
         )}
-        {asset?.maxSupply && (
+        {asset?.maxSupply && asset.maxSupply > 0 && (
           <MetricCard
             label="Supply %"
             loading={loading}
             value={
               <Text size={Size.Medium} weight="semibold">
-                {((asset.circulatingSupply / asset.maxSupply) * 100).toFixed(1)}%
+                {(((asset.circulatingSupply || 0) / asset.maxSupply) * 100).toFixed(1)}%
               </Text>
             }
           />

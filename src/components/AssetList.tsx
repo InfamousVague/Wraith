@@ -1,18 +1,20 @@
 import React, { useMemo, useEffect, useRef, useCallback } from "react";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useNavigate } from "react-router-dom";
-import { Text, Skeleton, Card, Avatar, PercentChange, Currency } from "@wraith/ghost/components";
+import { Text, Skeleton, Card, Avatar, PercentChange, Currency, Tag } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
-import { Typography } from "@wraith/ghost/tokens";
+import { Typography, Colors } from "@wraith/ghost/tokens";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import type { Asset } from "../types/asset";
 import { MiniChart } from "./MiniChart";
 import { HighlightedText } from "./HighlightedText";
 import { useCryptoData } from "../hooks/useCryptoData";
+import type { FilterState } from "./Toolbar";
+import { getMarketStatus } from "../utils/marketHours";
 
 type AssetListProps = {
   searchQuery: string;
-  filter: "all" | "gainers" | "losers";
+  filters: FilterState;
 };
 
 type AssetRowProps = {
@@ -23,7 +25,7 @@ type AssetRowProps = {
   onPress: (asset: Asset) => void;
 };
 
-function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRowProps) {
+const AssetRow = React.memo(function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRowProps) {
   const themeColors = useThemeColors();
 
   return (
@@ -72,36 +74,51 @@ function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRow
       <View style={styles.priceCol}>
         <Currency
           value={asset.price}
-          size={Size.Small}
+          size={Size.Medium}
           weight="medium"
-          decimals={asset.price < 1 ? 4 : 2}
+          decimals={asset.price < 1 ? 6 : 2}
           animate
+          mono
         />
       </View>
 
-      <View style={styles.changeCol}>
-        <PercentChange value={asset.change24h} size={Size.Small} />
+      <View style={styles.tradeCol}>
+        {asset.tradeDirection ? (
+          <Tag
+            direction={asset.tradeDirection}
+            label={asset.tradeDirection === "up" ? "BUY" : "SELL"}
+            size={Size.TwoXSmall}
+          />
+        ) : (
+          <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>—</Text>
+        )}
       </View>
 
       <View style={styles.changeCol}>
-        <PercentChange value={asset.change7d} size={Size.Small} />
+        <PercentChange value={asset.change24h} size={Size.Medium} />
+      </View>
+
+      <View style={styles.changeCol}>
+        <PercentChange value={asset.change7d} size={Size.Medium} />
       </View>
 
       <View style={styles.marketCapCol}>
         <Currency
           value={asset.marketCap}
-          size={Size.Small}
+          size={Size.Medium}
           compact
-          decimals={1}
+          decimals={2}
+          mono
         />
       </View>
 
       <View style={styles.volumeCol}>
         <Currency
           value={asset.volume24h}
-          size={Size.Small}
+          size={Size.Medium}
           compact
-          decimals={1}
+          decimals={2}
+          mono
         />
       </View>
 
@@ -115,7 +132,22 @@ function AssetRow({ asset, isLast, borderColor, searchQuery, onPress }: AssetRow
       </View>
     </Pressable>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparator - only re-render if these specific values change
+  return (
+    prevProps.asset.id === nextProps.asset.id &&
+    prevProps.asset.price === nextProps.asset.price &&
+    prevProps.asset.change24h === nextProps.asset.change24h &&
+    prevProps.asset.change7d === nextProps.asset.change7d &&
+    prevProps.asset.volume24h === nextProps.asset.volume24h &&
+    prevProps.asset.marketCap === nextProps.asset.marketCap &&
+    prevProps.asset.sparkline === nextProps.asset.sparkline &&
+    prevProps.asset.tradeDirection === nextProps.asset.tradeDirection &&
+    prevProps.isLast === nextProps.isLast &&
+    prevProps.borderColor === nextProps.borderColor &&
+    prevProps.searchQuery === nextProps.searchQuery
+  );
+});
 
 function LoadingRow({ borderColor }: { borderColor: string }) {
   return (
@@ -132,6 +164,9 @@ function LoadingRow({ borderColor }: { borderColor: string }) {
       </View>
       <View style={styles.priceCol}>
         <Skeleton width={80} height={14} />
+      </View>
+      <View style={styles.tradeCol}>
+        <Skeleton width={36} height={18} borderRadius={4} />
       </View>
       <View style={styles.changeCol}>
         <Skeleton width={50} height={14} />
@@ -152,12 +187,16 @@ function LoadingRow({ borderColor }: { borderColor: string }) {
   );
 }
 
-export function AssetList({ searchQuery, filter }: AssetListProps) {
+export function AssetList({ searchQuery, filters }: AssetListProps) {
   const themeColors = useThemeColors();
   const navigate = useNavigate();
   const { assets, loading, loadingMore, hasMore, loadMore, search, error } = useCryptoData({
     limit: 20,
     useMock: false,
+    sort: filters.sort,
+    sortDir: filters.sortDir,
+    filter: filters.filter,
+    assetType: filters.assetType,
   });
 
   const handleAssetPress = useCallback((asset: Asset) => {
@@ -177,18 +216,21 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
     searchQueryRef.current = searchQuery;
   }, [loadMore, hasMore, loadingMore, searchQuery]);
 
+  // Apply search filter and market status filter
   const filteredAssets = useMemo(() => {
-    // First apply search
-    const searchResults = searchQuery ? search(searchQuery) : assets;
+    let result = searchQuery ? search(searchQuery) : assets;
 
-    // Then apply filter
-    return searchResults.filter((asset) => {
-      if (filter === "all") return true;
-      if (filter === "gainers") return asset.change24h > 0;
-      if (filter === "losers") return asset.change24h < 0;
-      return true;
-    });
-  }, [assets, searchQuery, filter, search]);
+    // Filter out assets from closed markets if showOfflineMarkets is false
+    if (!filters.showOfflineMarkets) {
+      result = result.filter((asset) => {
+        const marketStatus = getMarketStatus(asset.assetType);
+        // Show assets that are 24/7 or have open markets
+        return marketStatus === "24/7" || marketStatus === "open";
+      });
+    }
+
+    return result;
+  }, [assets, searchQuery, search, filters.showOfflineMarkets]);
 
   // Callback ref for the load more trigger element
   const setLoadMoreRef = useCallback((node: HTMLDivElement | null) => {
@@ -218,7 +260,7 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
     <Card style={styles.container}>
       <View style={styles.header}>
         <Text size={Size.Large} weight="semibold">
-          Cryptocurrency Prices
+          Asset Prices
         </Text>
         <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
           {assets.length} assets • Live prices
@@ -235,6 +277,9 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
         <View style={styles.priceCol}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Price</Text>
         </View>
+        <View style={styles.tradeCol}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Trade</Text>
+        </View>
         <View style={styles.changeCol}>
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>24h</Text>
         </View>
@@ -248,7 +293,7 @@ export function AssetList({ searchQuery, filter }: AssetListProps) {
           <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Volume 24h</Text>
         </View>
         <View style={styles.chartCol}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Last 7 Days</Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Pulse</Text>
         </View>
       </View>
 
@@ -358,6 +403,10 @@ const styles = StyleSheet.create({
   },
   price: {
     fontFamily: "Inter, sans-serif",
+  },
+  tradeCol: {
+    width: 70,
+    alignItems: "center",
   },
   changeCol: {
     flex: 1,

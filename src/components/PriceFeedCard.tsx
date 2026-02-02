@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import { View, StyleSheet, ScrollView, Animated } from "react-native";
-import { Card, Text, Currency, PercentChange } from "@wraith/ghost/components";
+import { Card, Text, Currency, PercentChange, AnimatedNumber } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { useHauntSocket, type PriceUpdate, type PriceSourceId } from "../hooks/useHauntSocket";
 
 // Pool of reusable Animated.Value objects to prevent memory leaks
@@ -61,19 +62,45 @@ type FeedEvent = {
   opacity: Animated.Value;
 };
 
+type StatsData = {
+  tps: number;
+  uptimeSecs: number;
+  activeSymbols: number;
+  onlineSources: number;
+  totalSources: number;
+};
+
 // Format source name for display
 function formatSource(source?: PriceSourceId): string {
   if (!source) return "";
   const sourceNames: Record<PriceSourceId, string> = {
-    binance: "binance",
-    coinbase: "coinbase",
-    coinmarketcap: "cmc",
-    coingecko: "gecko",
-    cryptocompare: "cc",
+    binance: "Binance",
+    coinbase: "Coinbase",
+    coinmarketcap: "CMC",
+    coingecko: "CoinGecko",
+    cryptocompare: "CryptoCompare",
+    kraken: "Kraken",
+    kucoin: "KuCoin",
+    okx: "OKX",
+    huobi: "Huobi",
   };
   return sourceNames[source] || source;
 }
 
+// Format seconds to human-readable uptime
+function formatUptime(secs: number): string {
+  const days = Math.floor(secs / 86400);
+  const hours = Math.floor((secs % 86400) / 3600);
+  const mins = Math.floor((secs % 3600) / 60);
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+  if (hours > 0) {
+    return `${hours}h ${mins}m`;
+  }
+  return `${mins}m`;
+}
 
 type PriceFeedCardProps = {
   maxEvents?: number;
@@ -86,9 +113,31 @@ export function PriceFeedCard({
   eventLifetime = 30000, // 30 seconds
   loading = false,
 }: PriceFeedCardProps) {
-  const { connected, onPriceUpdate, subscribe } = useHauntSocket();
+  const { connected, onPriceUpdate, subscribe, updateCount } = useHauntSocket();
   const [events, setEvents] = useState<FeedEvent[]>([]);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const eventsRef = useRef<FeedEvent[]>([]);
+  const themeColors = useThemeColors();
+
+  // Fetch stats from API
+  const fetchStats = useCallback(async () => {
+    try {
+      const response = await fetch("/api/market/stats");
+      if (response.ok) {
+        const json = await response.json();
+        setStats(json.data || null);
+      }
+    } catch {
+      // Silently fail - stats are optional
+    }
+  }, []);
+
+  // Poll stats every 2 seconds
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 2000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
 
   // Memoize top assets to prevent recreation
   const topAssets = useMemo(() => Object.keys(SYMBOL_NAMES), []);
@@ -198,23 +247,90 @@ export function PriceFeedCard({
     };
   }, []);
 
-  // Memoize connection dot style
-  const connectionDotStyle = useMemo(() => [
-    styles.connectionDot,
-    { backgroundColor: connected ? "#22c55e" : "#ef4444" },
-  ], [connected]);
-
   return (
     <Card style={styles.card} loading={loading}>
       <View style={styles.content}>
+        {/* Header with Updates Tracked + Live badge */}
         <View style={styles.header}>
-          <Text size={Size.Small} weight="semibold">
-            Live Feed
-          </Text>
-          <View style={styles.connectionStatus}>
-            <View style={connectionDotStyle} />
+          <View style={styles.headerLeft}>
+            <View style={styles.titleRow}>
+              <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+                UPDATES TRACKED
+              </Text>
+              <View style={[styles.connectionDot, { backgroundColor: connected ? "#22c55e" : "#ef4444" }]} />
+            </View>
+            <AnimatedNumber
+              value={updateCount}
+              decimals={0}
+              separator=","
+              size={Size.TwoXLarge}
+              weight="bold"
+              appearance={TextAppearance.Link}
+              animate
+              animationDuration={200}
+            />
+          </View>
+          <View style={styles.tpsBadge}>
+            <AnimatedNumber
+              value={stats?.tps || 0}
+              decimals={1}
+              size={Size.Small}
+              weight="semibold"
+              appearance={TextAppearance.Muted}
+              animate
+              animationDuration={200}
+            />
+            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+              /sec
+            </Text>
           </View>
         </View>
+
+        {/* Metrics row - fixed width columns for alignment */}
+        <View style={styles.metricsRow}>
+          <View style={styles.metricItem}>
+            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+              Uptime
+            </Text>
+            <Text size={Size.Small} weight="semibold">
+              {formatUptime(stats?.uptimeSecs || 0)}
+            </Text>
+          </View>
+          <View style={styles.metricItem}>
+            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+              Symbols
+            </Text>
+            <AnimatedNumber
+              value={stats?.activeSymbols || 0}
+              decimals={0}
+              separator=","
+              size={Size.Small}
+              weight="semibold"
+              animate
+              animationDuration={200}
+            />
+          </View>
+          <View style={styles.metricItem}>
+            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+              Sources
+            </Text>
+            <View style={styles.metricValue}>
+              <AnimatedNumber
+                value={stats?.onlineSources || 0}
+                decimals={0}
+                size={Size.Small}
+                weight="semibold"
+                animate
+                animationDuration={200}
+              />
+              <Text size={Size.Small} weight="semibold" appearance={TextAppearance.Muted}>
+                /{stats?.totalSources || 0}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: themeColors.border.subtle }]} />
 
         <ScrollView
           style={styles.scrollView}
@@ -261,7 +377,8 @@ const FeedEventLine = memo(function FeedEventLine({ event }: FeedEventLineProps)
         size={Size.ExtraSmall}
         weight="medium"
         compact
-        decimals={event.price >= 1 ? 2 : 4}
+        decimals={event.price >= 1 ? 2 : 6}
+        mono
       />
 
       {event.percentChange !== undefined && Math.abs(event.percentChange) >= 0.01 ? (
@@ -284,10 +401,8 @@ const FeedEventLine = memo(function FeedEventLine({ event }: FeedEventLineProps)
 const styles = StyleSheet.create({
   card: {
     width: 320,
-    minHeight: 280,
-    maxHeight: 280,
+    height: 356,
     flexShrink: 0,
-    alignSelf: "stretch",
   },
   content: {
     flex: 1,
@@ -296,23 +411,54 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 12,
   },
-  connectionStatus: {
+  headerLeft: {
+    flex: 1,
+  },
+  titleRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
   },
   connectionDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
   },
+  tpsBadge: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  metricsRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+    gap: 16,
+  },
+  metricItem: {
+    flex: 1,
+    gap: 2,
+  },
+  metricValue: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  divider: {
+    height: 1,
+    marginBottom: 12,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    gap: 2,
+    gap: 4,
   },
   emptyState: {
     flex: 1,
@@ -329,7 +475,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   eventSymbol: {
-    width: 38,
+    width: 40,
   },
   eventSource: {
     marginLeft: "auto",

@@ -9,6 +9,14 @@
  */
 
 import type { Asset } from "../types/asset";
+import type {
+  SymbolSignals,
+  AccuracyResponse,
+  PredictionsResponse,
+  SignalAccuracy,
+  TradingTimeframe,
+  Recommendation,
+} from "../types/signals";
 
 // Use relative path in dev (proxied by Vite), or direct URL in production
 const HAUNT_URL = import.meta.env.VITE_HAUNT_URL || "";
@@ -49,7 +57,7 @@ export type ListingFilter =
   | "most_volatile"
   | "top_volume";
 
-export type AssetType = "all" | "crypto" | "stock" | "forex" | "commodity";
+export type AssetType = "all" | "crypto" | "stock" | "etf" | "forex" | "commodity";
 
 export type ListingsParams = {
   start?: number;
@@ -347,9 +355,18 @@ class HauntClient {
    * Get top movers (gainers and losers)
    * @param timeframe Time window: "1m", "5m", "15m", "1h", "4h", "24h"
    * @param limit Number of movers to return (default 10, max 50)
+   * @param assetType Asset type filter: "all", "crypto", "stock"
    */
-  async getMovers(timeframe: MoverTimeframe = "1h", limit: number = 10): Promise<ApiResponse<MoversResponse>> {
-    return this.fetch(`/api/market/movers?timeframe=${timeframe}&limit=${limit}`);
+  async getMovers(
+    timeframe: MoverTimeframe = "1h",
+    limit: number = 10,
+    assetType?: AssetType
+  ): Promise<ApiResponse<MoversResponse>> {
+    let url = `/api/market/movers?timeframe=${timeframe}&limit=${limit}`;
+    if (assetType && assetType !== "all") {
+      url += `&asset_type=${assetType}`;
+    }
+    return this.fetch(url);
   }
 
   /**
@@ -376,6 +393,54 @@ class HauntClient {
     uptime: number;
   }> {
     return this.fetch("/api/health");
+  }
+
+  /**
+   * Get trading signals for a symbol
+   * Includes technical indicators, composite scores, and accuracy data
+   * @param symbol Asset symbol
+   * @param timeframe Trading timeframe (default: day_trading)
+   */
+  async getSignals(
+    symbol: string,
+    timeframe: TradingTimeframe = "day_trading"
+  ): Promise<ApiResponse<SymbolSignals>> {
+    return this.fetch(`/api/signals/${symbol.toLowerCase()}?timeframe=${timeframe}`);
+  }
+
+  /**
+   * Get signal accuracy stats for a symbol
+   * Shows historical accuracy of predictions for each indicator
+   */
+  async getSignalAccuracy(symbol: string): Promise<ApiResponse<AccuracyResponse>> {
+    return this.fetch(`/api/signals/${symbol.toLowerCase()}/accuracy`);
+  }
+
+  /**
+   * Get recent predictions for a symbol
+   * Shows predictions made and their outcomes
+   */
+  async getSignalPredictions(symbol: string): Promise<ApiResponse<PredictionsResponse>> {
+    return this.fetch(`/api/signals/${symbol.toLowerCase()}/predictions`);
+  }
+
+  /**
+   * Get global accuracy stats for an indicator
+   * Shows cross-symbol accuracy for a specific indicator
+   */
+  async getIndicatorAccuracy(indicator: string): Promise<ApiResponse<SignalAccuracy[]>> {
+    return this.fetch(`/api/signals/accuracy/${indicator.toLowerCase()}`);
+  }
+
+  /**
+   * Get accuracy-weighted recommendation for a symbol
+   * Returns a simple Buy/Sell/Hold with confidence based on indicator accuracy
+   */
+  async getRecommendation(
+    symbol: string,
+    timeframe: TradingTimeframe = "day_trading"
+  ): Promise<ApiResponse<Recommendation>> {
+    return this.fetch(`/api/signals/${symbol.toLowerCase()}/recommendation?timeframe=${timeframe}`);
   }
 }
 

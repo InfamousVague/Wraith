@@ -9,8 +9,13 @@ import { PriceFeedCard } from "./PriceFeedCard";
 import { ExchangeLiquidity } from "./ExchangeLiquidity";
 import { TopMoversCard } from "./TopMoversCard";
 import { ApiStatsCard } from "./ApiStatsCard";
+import type { AssetType } from "../services/haunt";
 
-export function MetricsCarousel() {
+type MetricsCarouselProps = {
+  assetType?: AssetType;
+};
+
+export function MetricsCarousel({ assetType = "all" }: MetricsCarouselProps) {
   const themeColors = useThemeColors();
   const scrollRef = useRef<ScrollView>(null);
   const { data: fearGreedData, loading: fearGreedLoading, error: fearGreedError } = useFearGreed();
@@ -30,8 +35,7 @@ export function MetricsCarousel() {
         decelerationRate="fast"
         snapToAlignment="start"
       >
-        <PriceFeedCard />
-        <TopMoversCard />
+        <TopMoversCard assetType={assetType} />
         <FearGreedCard
           value={fearGreedData?.value ?? 0}
           loading={showFearGreedLoading}
@@ -41,6 +45,7 @@ export function MetricsCarousel() {
           btcDominance={altcoinData?.btcDominance ?? 0}
           loading={showAltcoinLoading}
         />
+        <PriceFeedCard />
         <ExchangeLiquidity />
         <ApiStatsCard />
       </ScrollView>

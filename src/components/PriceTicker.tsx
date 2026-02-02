@@ -7,12 +7,10 @@ import { useCryptoData } from "../hooks/useCryptoData";
 
 // Edge fade gradient component for web - static style, no hooks needed
 function EdgeFade({ side, color }: { side: "left" | "right"; color: string }) {
-  // Platform check must be after hooks, or we use no hooks at all
   if (Platform.OS !== "web") return null;
 
   const gradientDirection = side === "left" ? "to right" : "to left";
 
-  // Inline style - no useMemo to avoid hooks order issues
   const style: React.CSSProperties = {
     position: "absolute",
     top: 0,
@@ -27,7 +25,8 @@ function EdgeFade({ side, color }: { side: "left" | "right"; color: string }) {
   return <div style={style} />;
 }
 
-function TickerItem({ symbol, price, change }: {
+// Memoized ticker item to prevent unnecessary re-renders
+const TickerItem = React.memo(function TickerItem({ symbol, price, change }: {
   symbol: string;
   price: number;
   change: number;
@@ -40,10 +39,11 @@ function TickerItem({ symbol, price, change }: {
       <Currency
         value={price}
         currency="USD"
-        decimals={price >= 1 ? 2 : 4}
+        decimals={price >= 1 ? 2 : 6}
         size={Size.Small}
         weight="medium"
         brightness={Brightness.Soft}
+        mono
       />
       <PercentChange
         value={change}
@@ -52,7 +52,7 @@ function TickerItem({ symbol, price, change }: {
       />
     </View>
   );
-}
+});
 
 function LoadingTickerItem() {
   return (
@@ -64,28 +64,32 @@ function LoadingTickerItem() {
   );
 }
 
-export function PriceTicker() {
+// Static loading items - created once
+const LOADING_ITEMS = Array.from({ length: 10 });
+
+export const PriceTicker = React.memo(function PriceTicker() {
   const { assets, loading, error } = useCryptoData({ limit: 20, useMock: false });
-  // Show loading state when there's an error (no data to display)
   const showLoading = loading || (error !== null && assets.length === 0);
   const themeColors = useThemeColors();
 
-  // IMPORTANT: All hooks must be called before any conditional returns!
-  // Memoize duplicated items for seamless loop effect
+  // Memoize container style
+  const containerStyle = useMemo(() => [
+    styles.container,
+    { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }
+  ], [themeColors.border.subtle]);
+
+  // Memoize duplicated items for seamless loop effect - only duplicate once
   const tickerItems = useMemo(() => [...assets, ...assets], [assets]);
 
-  // Loading items array (static, no memo needed)
-  const loadingItems = Array.from({ length: 20 });
-
-  // Show loading skeletons while data loads or on error (still scrolling)
+  // Show loading skeletons while data loads or on error
   if (showLoading) {
     if (Platform.OS === "web") {
       return (
-        <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
+        <View style={containerStyle}>
           <EdgeFade side="left" color={themeColors.background.canvas} />
           <EdgeFade side="right" color={themeColors.background.canvas} />
           <div className="ticker-track">
-            {loadingItems.map((_, i) => (
+            {LOADING_ITEMS.map((_, i) => (
               <LoadingTickerItem key={`loading-${i}`} />
             ))}
           </div>
@@ -94,9 +98,9 @@ export function PriceTicker() {
     }
 
     return (
-      <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
+      <View style={containerStyle}>
         <View style={styles.loadingTrack}>
-          {loadingItems.slice(0, 10).map((_, i) => (
+          {LOADING_ITEMS.map((_, i) => (
             <LoadingTickerItem key={`loading-${i}`} />
           ))}
         </View>
@@ -106,7 +110,7 @@ export function PriceTicker() {
 
   if (Platform.OS === "web") {
     return (
-      <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
+      <View style={containerStyle}>
         <EdgeFade side="left" color={themeColors.background.canvas} />
         <EdgeFade side="right" color={themeColors.background.canvas} />
         <div className="ticker-track">
@@ -124,7 +128,7 @@ export function PriceTicker() {
   }
 
   return (
-    <View style={[styles.container, { borderTopColor: themeColors.border.subtle, borderBottomColor: themeColors.border.subtle }]}>
+    <View style={containerStyle}>
       <View style={styles.scrollContent}>
         {assets.map((asset) => (
           <TickerItem
@@ -137,7 +141,7 @@ export function PriceTicker() {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

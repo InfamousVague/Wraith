@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { View, StyleSheet, ScrollView, Pressable } from "react-native";
-import { Card, Text, Currency, PercentChange, AnimatedNumber, SegmentedControl, Avatar, Icon } from "@wraith/ghost/components";
-import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
+import { View, StyleSheet, ScrollView } from "react-native";
+import { Card, Text, Currency, PercentChange, AnimatedNumber, SegmentedControl, Avatar, Icon, Button } from "@wraith/ghost/components";
+import { Size, TextAppearance, Appearance, Shape } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
-import { hauntClient, type Mover, type MoverTimeframe } from "../services/haunt";
+import { hauntClient, type Mover, type MoverTimeframe, type AssetType } from "../services/haunt";
 import { useHauntSocket, type PriceUpdate } from "../hooks/useHauntSocket";
 
 // CMC ID mapping for common symbols (for avatar images)
@@ -191,11 +191,14 @@ const MoverRow = React.memo(function MoverRow({ mover, rank }: MoverRowProps) {
 type TopMoversCardProps = {
   loading?: boolean;
   pollInterval?: number;
+  /** Asset type filter - when "all", includes stocks in top movers */
+  assetType?: AssetType;
 };
 
 export function TopMoversCard({
   loading = false,
   pollInterval = 5000,
+  assetType = "all",
 }: TopMoversCardProps) {
   const [timeframe, setTimeframe] = useState<MoverTimeframe>("1h");
   const [gainers, setGainers] = useState<Mover[]>([]);
@@ -210,7 +213,7 @@ export function TopMoversCard({
 
   const fetchMovers = useCallback(async () => {
     try {
-      const response = await hauntClient.getMovers(timeframe, 10);
+      const response = await hauntClient.getMovers(timeframe, 10, assetType);
       setGainers(response.data?.gainers || []);
       setLosers(response.data?.losers || []);
       setError(null);
@@ -219,7 +222,7 @@ export function TopMoversCard({
     } finally {
       setIsLoading(false);
     }
-  }, [timeframe]);
+  }, [timeframe, assetType]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -290,50 +293,28 @@ export function TopMoversCard({
 
         {/* Toggle between gainers and losers */}
         <View style={styles.toggleRow}>
-          <Pressable
-            style={[
-              styles.toggleButton,
-              showGainers && styles.toggleButtonActive,
-              showGainers && { backgroundColor: "rgba(34, 197, 94, 0.1)" },
-            ]}
-            onPress={() => setShowGainers(true)}
-          >
-            <Icon
-              name="trending-up"
+          <View style={styles.toggleButtonWrapper}>
+            <Button
+              label="Gainers"
+              iconLeft="trending-up"
+              appearance={showGainers ? Appearance.Success : Appearance.Ghost}
+              backgroundOpacity={showGainers ? 0.15 : undefined}
               size={Size.ExtraSmall}
-              color={showGainers ? "#22C55E" : themeColors.text.muted}
+              shape={Shape.Rounded}
+              onPress={() => setShowGainers(true)}
             />
-            <Text
+          </View>
+          <View style={styles.toggleButtonWrapper}>
+            <Button
+              label="Losers"
+              iconLeft="trending-down"
+              appearance={!showGainers ? Appearance.Danger : Appearance.Ghost}
+              backgroundOpacity={!showGainers ? 0.15 : undefined}
               size={Size.ExtraSmall}
-              weight={showGainers ? "semibold" : "regular"}
-              appearance={showGainers ? TextAppearance.Success : TextAppearance.Muted}
-              brightness={showGainers ? Brightness.Soft : Brightness.None}
-            >
-              Gainers
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.toggleButton,
-              !showGainers && styles.toggleButtonActive,
-              !showGainers && { backgroundColor: "rgba(239, 68, 68, 0.1)" },
-            ]}
-            onPress={() => setShowGainers(false)}
-          >
-            <Icon
-              name="trending-down"
-              size={Size.ExtraSmall}
-              color={!showGainers ? "#EF4444" : themeColors.text.muted}
+              shape={Shape.Rounded}
+              onPress={() => setShowGainers(false)}
             />
-            <Text
-              size={Size.ExtraSmall}
-              weight={!showGainers ? "semibold" : "regular"}
-              appearance={!showGainers ? TextAppearance.Danger : TextAppearance.Muted}
-              brightness={!showGainers ? Brightness.Soft : Brightness.None}
-            >
-              Losers
-            </Text>
-          </Pressable>
+          </View>
         </View>
 
         <View style={[styles.divider, { backgroundColor: themeColors.border.subtle }]} />
@@ -390,18 +371,8 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 12,
   },
-  toggleButton: {
+  toggleButtonWrapper: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
-  },
-  toggleButtonActive: {
-    borderWidth: 0,
   },
   divider: {
     height: 1,

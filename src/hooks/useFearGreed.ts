@@ -25,9 +25,12 @@ export function useFearGreed(): UseFearGreedResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchFearGreed = useCallback(async () => {
+  const fetchFearGreed = useCallback(async (isInitial = false) => {
     try {
-      setLoading(true);
+      // Only show loading skeleton on initial fetch, not refetches
+      if (isInitial) {
+        setLoading(true);
+      }
       setError(null);
 
       logger.request("/api/market/fear-greed");
@@ -60,14 +63,14 @@ export function useFearGreed(): UseFearGreedResult {
   }, []);
 
   useEffect(() => {
-    fetchFearGreed();
+    fetchFearGreed(true); // Initial fetch shows loading
 
-    // Refresh every 5 minutes (server caches for 5 minutes)
-    const interval = setInterval(fetchFearGreed, 5 * 60 * 1000);
+    // Refresh every 5 minutes (server caches for 5 minutes) - no loading flash
+    const interval = setInterval(() => fetchFearGreed(false), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchFearGreed]);
 
-  return { data, loading, error, refresh: fetchFearGreed };
+  return { data, loading, error, refresh: () => fetchFearGreed(false) };
 }
 
 /**

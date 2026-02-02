@@ -97,7 +97,7 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
 const styles = StyleSheet.create({
   card: {
     width: 280,
-    minHeight: 280,
+    height: 356,
     flexShrink: 0,
   },
   content: {

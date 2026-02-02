@@ -1,6 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { View, StyleSheet } from "react-native";
 import { LightweightChart, type ChartDataPoint } from "@wraith/ghost/components";
+import { HeartbeatChart } from "./HeartbeatChart";
+import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 
 type MiniChartProps = {
   data: number[];
@@ -9,23 +11,31 @@ type MiniChartProps = {
   height?: number;
   /** Enable glow effect (default true) */
   glow?: boolean;
+  /** Show loading animation when data is not available */
+  loading?: boolean;
 };
 
-export function MiniChart({
+// Stable base time to prevent unnecessary recalculations
+const getStableBaseTime = () => Math.floor(Date.now() / 60000) * 60;
+
+export const MiniChart = React.memo(function MiniChart({
   data,
   isPositive,
   width = "100%",
   height = 40,
   glow = true,
+  loading = false,
 }: MiniChartProps) {
+  const themeColors = useThemeColors();
+  // Cache the base time to avoid recalculating on every render
+  const baseTimeRef = useRef(getStableBaseTime());
+
   // Convert number[] to ChartDataPoint[] with 1-minute intervals (past hour)
   const chartData = useMemo<ChartDataPoint[]>(() => {
     if (!data || data.length < 2) return [];
 
-    // Use 1-minute intervals to show more recent data
-    const now = Math.floor(Date.now() / 1000);
     const interval = 60; // 1 minute
-    const baseTime = now - data.length * interval;
+    const baseTime = baseTimeRef.current - data.length * interval;
 
     return data.map((value, index) => ({
       time: baseTime + index * interval,
@@ -33,12 +43,25 @@ export function MiniChart({
     }));
   }, [data]);
 
-  const containerStyle = typeof width === "number"
-    ? { width, height }
-    : { width: "100%" as const, height };
+  const containerStyle = useMemo(() =>
+    typeof width === "number"
+      ? { width, height }
+      : { width: "100%" as const, height },
+    [width, height]
+  );
 
-  if (chartData.length < 2) {
-    return <View style={[styles.container, containerStyle]} />;
+  // Show heartbeat animation when loading or no data available
+  if (chartData.length < 2 || loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, containerStyle]}>
+        <HeartbeatChart
+          width={typeof width === "number" ? width : 100}
+          height={height}
+          color={themeColors.text.muted}
+          animationDuration={2000}
+        />
+      </View>
+    );
   }
 
   return (
@@ -59,10 +82,30 @@ export function MiniChart({
       />
     </View>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparator - compare data arrays by reference first, then by content
+  if (prevProps.data !== nextProps.data) {
+    if (prevProps.data.length !== nextProps.data.length) return false;
+    for (let i = 0; i < prevProps.data.length; i++) {
+      if (prevProps.data[i] !== nextProps.data[i]) return false;
+    }
+  }
+  return (
+    prevProps.isPositive === nextProps.isPositive &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height &&
+    prevProps.glow === nextProps.glow &&
+    prevProps.loading === nextProps.loading
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
+  },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    opacity: 0.5,
   },
 });

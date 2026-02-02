@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useEffect, useState } from "react";
 import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useNavigate } from "react-router-dom";
+import { FixedSizeGrid as Grid } from "react-window";
 import { Card, Text, Avatar, PercentChange, Currency, Skeleton } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { Typography } from "@wraith/ghost/tokens";
@@ -36,7 +37,7 @@ type ChartCardProps = {
   onPress: (asset: Asset) => void;
 };
 
-function ChartCard({ asset, cardSize, themeColors, searchQuery, onPress }: ChartCardProps) {
+const ChartCard = React.memo(function ChartCard({ asset, cardSize, themeColors, searchQuery, onPress }: ChartCardProps) {
   const isPositive = asset.change24h >= 0;
   const chartHeight = getChartHeight(cardSize);
   const compact = isCompactSize(cardSize);
@@ -84,7 +85,7 @@ function ChartCard({ asset, cardSize, themeColors, searchQuery, onPress }: Chart
                 />
                 <PercentChange
                   value={asset.change24h}
-                  size={Size.Small}
+                  size={Size.Medium}
                 />
               </View>
             </View>
@@ -105,23 +106,23 @@ function ChartCard({ asset, cardSize, themeColors, searchQuery, onPress }: Chart
             {!compact && (
               <View style={[styles.cardFooter, { borderTopColor: themeColors.border.subtle }]}>
                 <View style={styles.stat}>
-                  <Text size={Size.Small} appearance={TextAppearance.Muted}>
+                  <Text size={Size.Medium} appearance={TextAppearance.Muted}>
                     Vol
                   </Text>
                   <Currency
                     value={asset.volume24h}
-                    size={Size.Small}
+                    size={Size.Medium}
                     compact
                     decimals={1}
                   />
                 </View>
                 <View style={styles.stat}>
-                  <Text size={Size.Small} appearance={TextAppearance.Muted}>
+                  <Text size={Size.Medium} appearance={TextAppearance.Muted}>
                     7d
                   </Text>
                   <PercentChange
                     value={asset.change7d}
-                    size={Size.Small}
+                    size={Size.Medium}
                   />
                 </View>
               </View>
@@ -131,7 +132,17 @@ function ChartCard({ asset, cardSize, themeColors, searchQuery, onPress }: Chart
       </Pressable>
     </View>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.asset.id === nextProps.asset.id &&
+    prevProps.asset.price === nextProps.asset.price &&
+    prevProps.asset.change24h === nextProps.asset.change24h &&
+    prevProps.asset.change7d === nextProps.asset.change7d &&
+    prevProps.asset.sparkline === nextProps.asset.sparkline &&
+    prevProps.cardSize === nextProps.cardSize &&
+    prevProps.searchQuery === nextProps.searchQuery
+  );
+});
 
 function LoadingCard({ cardSize, themeColors }: { cardSize: number; themeColors: ThemeColors }) {
   const chartHeight = getChartHeight(cardSize);
@@ -169,13 +180,36 @@ function LoadingCard({ cardSize, themeColors }: { cardSize: number; themeColors:
   );
 }
 
+// Virtualization threshold - use virtualized grid when asset count exceeds this
+const VIRTUALIZATION_THRESHOLD = 50;
+
 export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize = 220 }: ChartGridProps) {
   const themeColors = useThemeColors();
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
   const handleAssetPress = useCallback((asset: Asset) => {
     navigate(`/asset/${asset.id}`);
   }, [navigate]);
+
+  // Track container size for virtualization
+  useEffect(() => {
+    if (Platform.OS !== "web" || !containerRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Memoize filtered assets to prevent recalculation on every render
   const filteredAssets = useMemo(() => {
@@ -188,6 +222,23 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
     );
   }, [assets, searchQuery]);
 
+  // Calculate grid dimensions for virtualization
+  const columnCount = useMemo(() => {
+    if (containerSize.width === 0) return 1;
+    return Math.max(1, Math.floor(containerSize.width / (cardSize + 8)));
+  }, [containerSize.width, cardSize]);
+
+  const rowCount = useMemo(() => {
+    return Math.ceil(filteredAssets.length / columnCount);
+  }, [filteredAssets.length, columnCount]);
+
+  const cardHeight = useMemo(() => {
+    const chartHeight = getChartHeight(cardSize);
+    const compact = isCompactSize(cardSize);
+    // Base padding + header + chart + footer
+    return compact ? chartHeight + 80 : chartHeight + 140;
+  }, [cardSize]);
+
   // Memoize grid style to prevent object recreation on every render
   const gridStyle = useMemo(() => Platform.OS === "web" ? {
     display: "grid" as any,
@@ -198,6 +249,30 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
     flexWrap: "wrap" as const,
     gap: 8,
   }, [cardSize]);
+
+  // Use virtualization for large datasets on web
+  const useVirtualization = Platform.OS === "web" &&
+    filteredAssets.length > VIRTUALIZATION_THRESHOLD &&
+    containerSize.width > 0;
+
+  // Cell renderer for virtualized grid
+  const Cell = useCallback(({ columnIndex, rowIndex, style }: { columnIndex: number; rowIndex: number; style: React.CSSProperties }) => {
+    const index = rowIndex * columnCount + columnIndex;
+    if (index >= filteredAssets.length) return null;
+
+    const asset = filteredAssets[index];
+    return (
+      <div style={{ ...style, padding: 4 }}>
+        <ChartCard
+          asset={asset}
+          cardSize={cardSize}
+          themeColors={themeColors}
+          searchQuery={searchQuery}
+          onPress={handleAssetPress}
+        />
+      </div>
+    );
+  }, [filteredAssets, columnCount, cardSize, themeColors, searchQuery, handleAssetPress]);
 
   return (
     <View style={styles.container}>
@@ -210,20 +285,57 @@ export function ChartGrid({ assets, loading = false, searchQuery = "", cardSize 
         ` }} />
       )}
 
-      <View style={[styles.grid, gridStyle]}>
-        {loading
-          ? Array.from({ length: 20 }).map((_, i) => <LoadingCard key={`loading-${i}`} cardSize={cardSize} themeColors={themeColors} />)
-          : filteredAssets.map((asset) => (
-              <ChartCard
-                key={asset.id}
-                asset={asset}
-                cardSize={cardSize}
-                themeColors={themeColors}
-                searchQuery={searchQuery}
-                onPress={handleAssetPress}
-              />
-            ))}
-      </View>
+      {Platform.OS === "web" ? (
+        <div ref={containerRef} style={{ flex: 1, minHeight: 400 }}>
+          {loading ? (
+            <View style={[styles.grid, gridStyle]}>
+              {Array.from({ length: 20 }).map((_, i) => (
+                <LoadingCard key={`loading-${i}`} cardSize={cardSize} themeColors={themeColors} />
+              ))}
+            </View>
+          ) : useVirtualization ? (
+            <Grid
+              columnCount={columnCount}
+              columnWidth={(containerSize.width - 8) / columnCount}
+              height={Math.min(containerSize.height || 600, 800)}
+              rowCount={rowCount}
+              rowHeight={cardHeight + 8}
+              width={containerSize.width}
+              overscanRowCount={2}
+            >
+              {Cell}
+            </Grid>
+          ) : (
+            <View style={[styles.grid, gridStyle]}>
+              {filteredAssets.map((asset) => (
+                <ChartCard
+                  key={asset.id}
+                  asset={asset}
+                  cardSize={cardSize}
+                  themeColors={themeColors}
+                  searchQuery={searchQuery}
+                  onPress={handleAssetPress}
+                />
+              ))}
+            </View>
+          )}
+        </div>
+      ) : (
+        <View style={[styles.grid, gridStyle]}>
+          {loading
+            ? Array.from({ length: 20 }).map((_, i) => <LoadingCard key={`loading-${i}`} cardSize={cardSize} themeColors={themeColors} />)
+            : filteredAssets.map((asset) => (
+                <ChartCard
+                  key={asset.id}
+                  asset={asset}
+                  cardSize={cardSize}
+                  themeColors={themeColors}
+                  searchQuery={searchQuery}
+                  onPress={handleAssetPress}
+                />
+              ))}
+        </View>
+      )}
 
       {!loading && filteredAssets.length === 0 && (
         <View style={styles.empty}>
