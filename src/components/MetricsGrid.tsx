@@ -3,6 +3,7 @@ import { View, StyleSheet, Platform } from "react-native";
 import { Text, Card, Currency, PercentChange, Skeleton } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { Asset } from "../types/asset";
 
 type MetricsGridProps = {
@@ -10,32 +11,16 @@ type MetricsGridProps = {
   loading?: boolean;
 };
 
-// Static grid style - defined outside component to prevent recreation
-const webGridStyle = {
-  display: "grid" as const,
-  gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-  gap: 12,
-};
-
-const nativeGridStyle = {
-  flexDirection: "row" as const,
-  flexWrap: "wrap" as const,
-  gap: 12,
-};
-
-const gridStyle = Platform.OS === "web" ? webGridStyle : nativeGridStyle;
-
 type MetricCardProps = {
   label: string;
   value: React.ReactNode;
   loading?: boolean;
+  fullBleed?: boolean;
 };
 
-function MetricCard({ label, value, loading }: MetricCardProps) {
-  const themeColors = useThemeColors();
-
+function MetricCard({ label, value, loading, fullBleed }: MetricCardProps) {
   return (
-    <Card style={styles.metricCard}>
+    <Card style={styles.metricCard} fullBleed={fullBleed}>
       <View style={styles.metricContent}>
         <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
           {label}
@@ -51,11 +36,30 @@ function MetricCard({ label, value, loading }: MetricCardProps) {
 }
 
 export function MetricsGrid({ asset, loading }: MetricsGridProps) {
+  const { isMobile } = useBreakpoint();
+
+  // Responsive grid style
+  const gridStyle = Platform.OS === "web"
+    ? {
+        display: "grid" as const,
+        gridTemplateColumns: isMobile
+          ? "repeat(2, 1fr)"
+          : "repeat(auto-fill, minmax(160px, 1fr))",
+        gap: isMobile ? 8 : 12,
+      }
+    : {
+        flexDirection: "row" as const,
+        flexWrap: "wrap" as const,
+        gap: isMobile ? 8 : 12,
+      };
+
   return (
     <View style={styles.container}>
-      <Text size={Size.Medium} weight="semibold" style={styles.title}>
-        Key Metrics
-      </Text>
+      {!isMobile && (
+        <Text size={Size.Medium} weight="semibold" style={styles.title}>
+          Key Metrics
+        </Text>
+      )}
       <View style={gridStyle}>
         <MetricCard
           label="Market Cap"

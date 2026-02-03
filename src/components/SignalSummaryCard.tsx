@@ -19,6 +19,7 @@ import {
   type SignalDirection,
 } from "../types/signals";
 import { HintIndicator } from "./HintIndicator";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 type CategoryScore = {
   label: string;
@@ -165,6 +166,7 @@ export function SignalSummaryCard({
 }: SignalSummaryCardProps) {
   const { t } = useTranslation("components");
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
   const directionColor = getDirectionColor(direction);
   const directionLabel = getDirectionLabel(direction);
 
@@ -194,8 +196,8 @@ export function SignalSummaryCard({
   const interpretationText = t(`signals.interpretation.${interpretationKey}`);
 
   return (
-    <Card style={styles.card} loading={loading}>
-      <View style={styles.content}>
+    <Card style={styles.card} loading={loading} fullBleed={isMobile}>
+      <View style={[styles.content, isMobile && styles.contentMobile]}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Text
@@ -321,6 +323,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+  },
+  contentMobile: {
+    padding: 16,
   },
   header: {
     marginBottom: 16,

@@ -21,6 +21,7 @@ import {
   type SignalCategory,
 } from "../types/signals";
 import { HintIndicator } from "./HintIndicator";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 type SignalIndicatorsPanelProps = {
   /** All indicator signals */
@@ -137,6 +138,7 @@ export function SignalIndicatorsPanel({
 }: SignalIndicatorsPanelProps) {
   const { t } = useTranslation("components");
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
   const [activeCategory, setActiveCategory] = useState<SignalCategory>("trend");
 
   // Category options for segmented control - must be inside component for i18n
@@ -168,8 +170,8 @@ export function SignalIndicatorsPanel({
   const currentSignals = signalsByCategory[activeCategory];
 
   return (
-    <Card style={styles.card} loading={loading}>
-      <View style={styles.content}>
+    <Card style={styles.card} loading={loading} fullBleed={isMobile}>
+      <View style={[styles.content, isMobile && styles.contentMobile]}>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Text
@@ -275,6 +277,9 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+  },
+  contentMobile: {
+    padding: 12,
   },
   header: {
     marginBottom: 16,

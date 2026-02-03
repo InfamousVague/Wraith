@@ -136,7 +136,7 @@ export function AssetDetail() {
         ) : (
           <>
             {/* Key Details - above chart */}
-            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+            <View style={[styles.section, { paddingHorizontal: isMobile ? 8 : sectionPadding }]}>
               <MetricsGrid asset={asset} loading={loading} />
             </View>
 
@@ -164,7 +164,7 @@ export function AssetDetail() {
             </View>
 
             {/* Trading Timeframe Selector */}
-            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+            <View style={[styles.section, { paddingHorizontal: isMobile ? 12 : sectionPadding }]}>
               <TimeframeSelector
                 value={tradingTimeframe}
                 onChange={setTradingTimeframe}
@@ -172,7 +172,7 @@ export function AssetDetail() {
             </View>
 
             {/* Trading Signals, Data Quality & Prediction Accuracy */}
-            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+            <View style={[styles.section, { paddingHorizontal: isMobile ? 0 : sectionPadding }]}>
               <View style={[styles.signalsRow, isNarrow && styles.signalsRowStacked]}>
                 {/* Left column: Trading Signals + Data Quality stacked */}
                 <View style={styles.leftColumn}>
@@ -203,7 +203,7 @@ export function AssetDetail() {
             </View>
 
             {/* Technical Indicators Panel */}
-            <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+            <View style={[styles.section, { paddingHorizontal: isMobile ? 0 : sectionPadding }]}>
               <SignalIndicatorsPanel
                 signals={signals?.signals ?? []}
                 loading={loading || signalsLoading}

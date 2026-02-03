@@ -13,6 +13,7 @@ import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { TRADING_TIMEFRAMES, type TradingTimeframe } from "../types/signals";
 import { HintIndicator } from "./HintIndicator";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 type TimeframeSelectorProps = {
   value: TradingTimeframe;
@@ -25,6 +26,7 @@ export function TimeframeSelector({
 }: TimeframeSelectorProps) {
   const { t } = useTranslation("components");
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
 
   return (
     <View style={styles.container}>
@@ -46,14 +48,16 @@ export function TimeframeSelector({
           inline
         />
       </View>
-      <Text
-        size={Size.Small}
-        appearance={TextAppearance.Muted}
-        style={styles.subtitle}
-      >
-        {t("timeframe.subtitle")}
-      </Text>
-      <View style={styles.options}>
+      {!isMobile && (
+        <Text
+          size={Size.Small}
+          appearance={TextAppearance.Muted}
+          style={styles.subtitle}
+        >
+          {t("timeframe.subtitle")}
+        </Text>
+      )}
+      <View style={[styles.options, isMobile && styles.optionsMobile]}>
         {TRADING_TIMEFRAMES.map((tf) => {
           const isSelected = value === tf.value;
           return (
@@ -116,6 +120,10 @@ const styles = StyleSheet.create({
   options: {
     flexDirection: "row",
     gap: 14,
+  },
+  optionsMobile: {
+    flexDirection: "column",
+    gap: 8,
   },
   option: {
     flex: 1,

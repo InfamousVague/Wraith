@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo } from "react";
-import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity, type ViewStyle } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
   Card,
@@ -23,6 +23,7 @@ import { CountdownTimer } from "./CountdownTimer";
 import { HeartbeatChart } from "./HeartbeatChart";
 import { HintIndicator } from "./HintIndicator";
 import { IndicatorTooltip } from "./IndicatorTooltip";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 type PredictionAccuracyCardProps = {
   accuracies: SignalAccuracy[];
@@ -348,6 +349,7 @@ export function PredictionAccuracyCard({
 }: PredictionAccuracyCardProps) {
   const { t } = useTranslation(["components", "common"]);
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
 
   // Calculate overall accuracy
   const overallAccuracy = useMemo(() => {
@@ -430,9 +432,12 @@ export function PredictionAccuracyCard({
   const actionColor = getRecommendationColor(action);
   const confidence = recommendation?.confidence ?? 0;
 
+  // Flatten style arrays for web compatibility
+  const cardStyle = StyleSheet.flatten([styles.card, isMobile && styles.cardMobile]) as ViewStyle;
+
   return (
-    <Card style={styles.card} loading={loading}>
-      <View style={styles.content}>
+    <Card style={cardStyle} loading={loading} fullBleed={isMobile}>
+      <View style={[styles.content, isMobile && styles.contentMobile]}>
         {/* Section Header */}
         <View style={styles.sectionHeaderRow}>
           <Text size={Size.Medium} appearance={TextAppearance.Muted}>
@@ -450,7 +455,7 @@ export function PredictionAccuracyCard({
         </View>
 
         {/* Top Row: Recommendation + Gauges - all inline */}
-        <View style={styles.topRow}>
+        <View style={[styles.topRow, isMobile && styles.topRowMobile]}>
           {/* Recommendation Badge */}
           <View style={[styles.actionBadge, { backgroundColor: `${actionColor}15` }]}>
             <Text
@@ -649,14 +654,26 @@ const styles = StyleSheet.create({
     flex: 2,
     minWidth: 560,
   },
+  cardMobile: {
+    minWidth: 0,
+    flex: 1,
+  },
   content: {
     padding: 24,
+  },
+  contentMobile: {
+    padding: 16,
   },
   topRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 16,
+  },
+  topRowMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
   },
   sectionTitle: {
     marginBottom: 16,

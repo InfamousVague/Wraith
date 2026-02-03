@@ -42,7 +42,7 @@ export default defineConfig({
 
   use: {
     // Base URL for page.goto()
-    baseURL: 'http://localhost:5174',
+    baseURL: 'http://localhost:5173',
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',

@@ -7,6 +7,7 @@ import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { hauntClient, type SymbolSourceStat, type ConfidenceResponse } from "../services/haunt";
 import { HintIndicator } from "./HintIndicator";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 // Exchange display names and brand colors
 const EXCHANGE_CONFIG: Record<string, { name: string; color: string }> = {
@@ -245,6 +246,7 @@ export function AssetSourceBreakdown({
     return Math.max(...sources.map((s) => s.updateCount), 1);
   }, [sources]);
 
+  const { isMobile } = useBreakpoint();
   const showLoading = loading || isLoading;
   const score = confidence?.confidence.score ?? 0;
   const scoreColor = getScoreColor(score);
@@ -252,8 +254,8 @@ export function AssetSourceBreakdown({
   const scoreLabel = t(`dataQuality.levels.${scoreLabelKey}`);
 
   return (
-    <Card style={styles.card} loading={showLoading}>
-      <View style={styles.content}>
+    <Card style={styles.card} loading={showLoading} fullBleed={isMobile}>
+      <View style={[styles.content, isMobile && styles.contentMobile]}>
         {/* Header with hint */}
         <View style={styles.header}>
           <View style={styles.headerRow}>
@@ -385,6 +387,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+  },
+  contentMobile: {
+    padding: 12,
   },
   header: {
     marginBottom: 12,
