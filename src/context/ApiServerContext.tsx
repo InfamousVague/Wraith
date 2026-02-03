@@ -385,6 +385,20 @@ export function ApiServerProvider({ children }: ApiServerProviderProps) {
 
   // Check servers on mount and periodically
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const localIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Fast refresh for local server (every 5 seconds)
+  const refreshLocalServer = useCallback(async () => {
+    const localServer = servers.find((s) => s.isLocal);
+    if (!localServer) return;
+
+    const update = await checkServer(localServer);
+    setServers((prev) =>
+      prev.map((server) =>
+        server.isLocal ? { ...server, ...update } : server
+      )
+    );
+  }, [servers, checkServer]);
 
   useEffect(() => {
     // Initial status check after a short delay to allow discovery
@@ -392,8 +406,13 @@ export function ApiServerProvider({ children }: ApiServerProviderProps) {
       refreshServerStatus();
     }, 500);
 
-    // Refresh every 30 seconds
+    // Refresh all servers every 30 seconds
     intervalRef.current = setInterval(refreshServerStatus, 30000);
+
+    // Fast refresh local server every 5 seconds (for real-time latency in dev)
+    if (!isProduction) {
+      localIntervalRef.current = setInterval(refreshLocalServer, 5000);
+    }
 
     // Re-discover servers every 5 minutes
     const discoveryInterval = setInterval(discoverServers, 5 * 60 * 1000);
@@ -403,9 +422,12 @@ export function ApiServerProvider({ children }: ApiServerProviderProps) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      if (localIntervalRef.current) {
+        clearInterval(localIntervalRef.current);
+      }
       clearInterval(discoveryInterval);
     };
-  }, [refreshServerStatus, discoverServers]);
+  }, [refreshServerStatus, refreshLocalServer, discoverServers]);
 
   const setActiveServer = useCallback((serverId: string) => {
     // Disable auto-fastest when manually selecting a server

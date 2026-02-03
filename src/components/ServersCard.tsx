@@ -121,11 +121,13 @@ const ServerRow = React.memo(function ServerRow({
   const themeColors = useThemeColors();
   const statusColor = getStatusColor(server.status);
 
-  // Use peer latency if available and connected
-  const displayLatency = peerStatus?.status === "connected" && peerStatus.latencyMs
-    ? peerStatus.latencyMs
-    : server.latencyMs;
-  const displayLatencyColor = getLatencyColor(displayLatency);
+  // Client ping: frontend → server (from health check)
+  const clientLatency = server.latencyMs;
+  const clientLatencyColor = getLatencyColor(clientLatency);
+
+  // Mesh ping: server → server (from peer mesh)
+  const meshLatency = peerStatus?.status === "connected" ? peerStatus.latencyMs : null;
+  const meshLatencyColor = getLatencyColor(meshLatency);
 
   return (
     <Pressable
@@ -173,33 +175,17 @@ const ServerRow = React.memo(function ServerRow({
       <View style={styles.serverStats}>
         {server.status === "checking" ? (
           <PingIndicator latencyMs={null} size={Size.TwoXSmall} />
-        ) : server.status === "online" && displayLatency !== null && displayLatency !== undefined ? (
-          showPingIndicator ? (
-            <View style={styles.pingWithValue}>
-              <PingIndicator latencyMs={displayLatency} size={Size.TwoXSmall} />
-              <View style={styles.latencyContainer}>
-                <AnimatedNumber
-                  value={Math.round(displayLatency)}
-                  decimals={0}
-                  size={Size.ExtraSmall}
-                  weight="semibold"
-                  style={{ color: displayLatencyColor }}
-                  animate
-                  animationDuration={100}
-                />
-                <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  ms
-                </Text>
-              </View>
-            </View>
-          ) : (
+        ) : server.status === "online" ? (
+          <View style={styles.dualPingContainer}>
+            {/* Client ping with animation */}
+            <PingIndicator latencyMs={clientLatency} size={Size.TwoXSmall} />
             <View style={styles.latencyContainer}>
               <AnimatedNumber
-                value={Math.round(displayLatency)}
+                value={clientLatency !== null && clientLatency !== undefined ? Math.round(clientLatency) : 0}
                 decimals={0}
-                size={Size.Small}
+                size={Size.TwoXSmall}
                 weight="semibold"
-                style={{ color: displayLatencyColor }}
+                style={{ color: clientLatencyColor }}
                 animate
                 animationDuration={100}
               />
@@ -207,7 +193,11 @@ const ServerRow = React.memo(function ServerRow({
                 ms
               </Text>
             </View>
-          )
+            {/* Mesh ping as simple text */}
+            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+              Mesh {meshLatency !== null && meshLatency !== undefined ? `${Math.round(meshLatency)}ms` : "—"}
+            </Text>
+          </View>
         ) : (
           <Text size={Size.ExtraSmall} style={{ color: statusColor }}>
             {server.status}
@@ -224,8 +214,6 @@ export function ServersCard() {
     servers,
     activeServer,
     setActiveServer,
-    refreshServerStatus,
-    isRefreshing,
     useAutoFastest,
     setUseAutoFastest,
     fastestServer,
@@ -255,10 +243,17 @@ export function ServersCard() {
     }, [])
   );
 
-  // Get peer status by region name
-  const getPeerStatus = (serverName: string): PeerStatus | undefined => {
+  // Get peer status by server ID or name
+  const getPeerStatus = (server: ApiServer): PeerStatus | undefined => {
+    // Try to match by ID first (most accurate)
+    const byId = peerData?.peers.find(
+      (p) => p.id.toLowerCase() === server.id.toLowerCase()
+    );
+    if (byId) return byId;
+
+    // Fall back to matching by name
     return peerData?.peers.find(
-      (p) => p.region.toLowerCase().includes(serverName.toLowerCase())
+      (p) => p.id.toLowerCase() === server.name.toLowerCase()
     );
   };
 
@@ -320,13 +315,6 @@ export function ServersCard() {
               </View>
             )}
           </View>
-          <Pressable onPress={refreshServerStatus} disabled={isRefreshing}>
-            <Icon
-              name="clock"
-              size={Size.Small}
-              color={isRefreshing ? Colors.data.amber : themeColors.text.muted}
-            />
-          </Pressable>
         </View>
 
         {/* Fastest Server Card */}
@@ -416,90 +404,10 @@ export function ServersCard() {
               server={server}
               isActive={activeServer?.id === server.id}
               onSelect={setActiveServer}
-              peerStatus={getPeerStatus(server.name)}
+              peerStatus={getPeerStatus(server)}
             />
           ))}
         </ScrollView>
-
-        {/* Mesh Health Visualization */}
-        {peerData && peerData.peers.length > 0 && (
-          <View style={styles.meshHealthSection}>
-            <View style={[styles.divider, { backgroundColor: themeColors.border.subtle }]} />
-            <View style={styles.meshHealthHeader}>
-              <View style={styles.meshHealthTitleRow}>
-                <Icon name="layers" size={Size.Small} color={themeColors.text.muted} />
-                <Text size={Size.Small} weight="semibold">
-                  Mesh Network
-                </Text>
-              </View>
-              {meshStats && meshStats.avgLatency !== null && (
-                <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  Avg: {Math.round(meshStats.avgLatency)}ms
-                </Text>
-              )}
-            </View>
-
-            {/* Visual mesh diagram showing connected nodes */}
-            <View style={styles.meshDiagram}>
-              {/* Current server (center node) */}
-              <View style={styles.meshCenterNode}>
-                <View style={[styles.meshNode, styles.meshNodeActive, { borderColor: Colors.status.success }]}>
-                  <Icon name="database" size={Size.ExtraSmall} color={Colors.status.success} />
-                </View>
-                <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  {peerData.serverRegion}
-                </Text>
-              </View>
-
-              {/* Connected peer nodes */}
-              <View style={styles.meshPeerNodes}>
-                {peerData.peers.slice(0, 4).map((peer, index) => {
-                  const isConnected = peer.status === "connected";
-                  const nodeColor = isConnected ? Colors.status.success : Colors.text.muted;
-                  return (
-                    <View key={peer.id} style={styles.meshPeerNode}>
-                      {/* Connection line */}
-                      <View
-                        style={[
-                          styles.meshConnectionLine,
-                          { backgroundColor: isConnected ? `${nodeColor}50` : `${nodeColor}20` },
-                        ]}
-                      />
-                      <View
-                        style={[
-                          styles.meshNode,
-                          {
-                            borderColor: nodeColor,
-                            opacity: isConnected ? 1 : 0.5,
-                          },
-                        ]}
-                      >
-                        <Icon
-                          name={isConnected ? "database" : "wifi-off"}
-                          size={Size.TwoXSmall}
-                          color={nodeColor}
-                        />
-                      </View>
-                      <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                        {peer.region.split(" ")[0]}
-                      </Text>
-                      {isConnected && peer.latencyMs && (
-                        <Text
-                          size={Size.TwoXSmall}
-                          style={{ color: getLatencyColor(peer.latencyMs) }}
-                        >
-                          {Math.round(peer.latencyMs)}ms
-                        </Text>
-                      )}
-                      {/* Sync status indicator */}
-                      {isConnected && <SyncIndicator syncStatus={peer.syncStatus} />}
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-        )}
       </View>
     </Card>
   );
@@ -611,7 +519,11 @@ const styles = StyleSheet.create({
   },
   serverStats: {
     alignItems: "flex-end",
-    minWidth: 80,
+    minWidth: 100,
+  },
+  dualPingContainer: {
+    alignItems: "flex-end",
+    gap: 4,
   },
   pingWithValue: {
     alignItems: "flex-end",

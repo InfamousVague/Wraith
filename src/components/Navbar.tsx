@@ -100,13 +100,15 @@ export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
         {/* Expandable Menu Content */}
         {menuOpen && (
           <ScrollView style={styles.mobileMenuExpanded} contentContainerStyle={styles.menuContent}>
-            {/* Market Filter - Always show */}
-            <View style={styles.menuSection}>
-              <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.menuSectionLabel}>
-                {t("navigation:marketFilter")}
-              </Text>
-              <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
-            </View>
+            {/* Market Filter - Only show on home page (when callback is provided) */}
+            {onAssetTypeChange && (
+              <View style={styles.menuSection}>
+                <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.menuSectionLabel}>
+                  {t("navigation:marketFilter")}
+                </Text>
+                <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
+              </View>
+            )}
 
             {/* Theme Toggle */}
             <View style={styles.menuSection}>
@@ -164,8 +166,12 @@ export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
         </Pressable>
       </div>
 
-      {/* Center: Market Filter */}
-      <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
+      {/* Center: Market Filter - Only show on home page (when callback is provided) */}
+      {onAssetTypeChange ? (
+        <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
+      ) : (
+        <View />
+      )}
 
       <View style={styles.rightSection}>
         {/* Theme Toggle */}

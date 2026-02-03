@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { View } from "react-native";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
+import { PreferenceSyncProvider } from "./context/PreferenceSyncContext";
 import { HintProvider } from "./context/HintContext";
 import { PerformanceProvider } from "./context/PerformanceContext";
 import { ApiServerProvider } from "./context/ApiServerContext";
@@ -45,17 +46,19 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <HintProvider>
-            <GhostThemeBridge>
-              <PerformanceProvider>
-                <ApiServerProvider>
-                  <HauntSocketProvider>
-                    <App />
-                  </HauntSocketProvider>
-                </ApiServerProvider>
-              </PerformanceProvider>
-            </GhostThemeBridge>
-          </HintProvider>
+          <PreferenceSyncProvider>
+            <HintProvider>
+              <GhostThemeBridge>
+                <PerformanceProvider>
+                  <ApiServerProvider>
+                    <HauntSocketProvider>
+                      <App />
+                    </HauntSocketProvider>
+                  </ApiServerProvider>
+                </PerformanceProvider>
+              </GhostThemeBridge>
+            </HintProvider>
+          </PreferenceSyncProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

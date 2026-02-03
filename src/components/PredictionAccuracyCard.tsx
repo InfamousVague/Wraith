@@ -5,7 +5,7 @@
  * with compact indicator cards showing green/red outcomes.
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { View, StyleSheet, TouchableOpacity, type ViewStyle } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -236,23 +236,141 @@ function CompactPredictionRow({
   );
 }
 
-/** Indicator group showing last 3 validated predictions */
+/** Get icon for outcome */
+function getOutcomeIcon(outcome: PredictionOutcome | undefined | null): { name: string; color: string } {
+  if (!outcome) return { name: "clock", color: Colors.text.muted };
+  switch (outcome) {
+    case "correct": return { name: "check", color: Colors.status.success };
+    case "incorrect": return { name: "x", color: Colors.status.danger };
+    case "neutral": return { name: "minus", color: Colors.text.muted };
+    default: return { name: "clock", color: Colors.text.muted };
+  }
+}
+
+/** Format countdown remaining */
+function formatCountdown(ms: number): string {
+  if (ms <= 0) return "Ready";
+  const totalSec = Math.floor(ms / 1000);
+  const hrs = Math.floor(totalSec / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  if (mins > 0) return `${mins}:${secs.toString().padStart(2, "0")}`;
+  return `0:${secs.toString().padStart(2, "0")}`;
+}
+
+/** Single timeframe row showing result, accuracy, and countdown */
+function TimeframeRow({
+  label,
+  outcome,
+  accuracy,
+  targetTime,
+}: {
+  label: string;
+  outcome: PredictionOutcome | undefined | null;
+  accuracy: number | null;
+  targetTime: number | null;
+}) {
+  const themeColors = useThemeColors();
+  const icon = getOutcomeIcon(outcome);
+  const [remaining, setRemaining] = useState(() => targetTime ? targetTime - Date.now() : 0);
+
+  useEffect(() => {
+    if (!targetTime) return;
+    setRemaining(targetTime - Date.now());
+    const interval = setInterval(() => {
+      setRemaining(targetTime - Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [targetTime]);
+
+  const showCountdown = targetTime && remaining > 0 && !outcome;
+  const isReady = targetTime && remaining <= 0 && !outcome;
+
+  return (
+    <View style={styles.timeframeRow}>
+      {/* Timeframe label */}
+      <View style={styles.timeframeLabelContainer}>
+        <Text size={Size.TwoXSmall} weight="semibold" style={{ color: themeColors.text.muted }}>
+          {label}
+        </Text>
+      </View>
+
+      {/* Outcome icon */}
+      <View style={[styles.outcomeIconSmall, { backgroundColor: `${icon.color}15` }]}>
+        <Icon name={icon.name as any} size={Size.TwoXSmall} color={icon.color} />
+      </View>
+
+      {/* Accuracy */}
+      <View style={styles.timeframeAccuracy}>
+        {accuracy !== null ? (
+          <Text
+            size={Size.TwoXSmall}
+            weight="medium"
+            style={{ color: accuracy >= 50 ? Colors.status.success : Colors.status.danger }}
+          >
+            {accuracy.toFixed(0)}%
+          </Text>
+        ) : (
+          <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>—</Text>
+        )}
+      </View>
+
+      {/* Countdown or status */}
+      <View style={styles.timeframeCountdown}>
+        {showCountdown ? (
+          <View style={styles.countdownBadge}>
+            <Icon name="clock" size={Size.TwoXSmall} color={Colors.data.blue} />
+            <Text size={Size.TwoXSmall} style={{ color: Colors.data.blue }}>
+              {formatCountdown(remaining)}
+            </Text>
+          </View>
+        ) : isReady ? (
+          <View style={[styles.countdownBadge, { backgroundColor: `${Colors.status.success}15` }]}>
+            <Icon name="zap" size={Size.TwoXSmall} color={Colors.status.success} />
+            <Text size={Size.TwoXSmall} style={{ color: Colors.status.success }}>
+              Ready
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+/** Unified indicator card showing accuracy and all timeframes */
 function IndicatorGroup({
   indicator,
   predictions,
-  accuracy,
+  pendingPrediction,
+  accuracyByTimeframe,
+  overallAccuracy,
   index,
 }: {
   indicator: string;
   predictions: SignalPrediction[];
-  accuracy: number | null;
+  pendingPrediction?: SignalPrediction;
+  accuracyByTimeframe: Record<string, number | null>;
+  overallAccuracy: number | null;
   index: number;
 }) {
   const themeColors = useThemeColors();
 
+  // Get latest prediction for each timeframe outcome
+  const latestPrediction = predictions[0];
+  const outcome5m = latestPrediction?.outcome5m;
+  const outcome1h = latestPrediction?.outcome1h;
+  const outcome4h = latestPrediction?.outcome4h;
+
+  // Calculate target times for pending predictions
+  const pendingTimestamp = pendingPrediction?.timestamp ?? latestPrediction?.timestamp;
+  const target5m = pendingTimestamp && !outcome5m ? pendingTimestamp + 300_000 : null;
+  const target1h = pendingTimestamp && !outcome1h ? pendingTimestamp + 3_600_000 : null;
+  const target4h = pendingTimestamp && !outcome4h ? pendingTimestamp + 14_400_000 : null;
+
   return (
     <View style={[styles.indicatorGroup, { borderColor: themeColors.border.subtle }]}>
-      {/* Indicator header with help tooltip */}
+      {/* Header: Indicator name + overall accuracy */}
       <View style={styles.indicatorHeader}>
         <View style={styles.indicatorNameRow}>
           <Text size={Size.Small} weight="semibold">
@@ -263,26 +381,56 @@ function IndicatorGroup({
             priority={20 + index}
           />
         </View>
-        {accuracy !== null && (
-          <Text
-            size={Size.TwoXSmall}
-            weight="medium"
-            style={{ color: accuracy >= 50 ? Colors.status.success : Colors.status.danger }}
-          >
-            {accuracy.toFixed(0)}%
-          </Text>
+        {overallAccuracy !== null && (
+          <View style={[styles.accuracyBadge, { backgroundColor: `${overallAccuracy >= 50 ? Colors.status.success : Colors.status.danger}15` }]}>
+            <Text
+              size={Size.TwoXSmall}
+              weight="bold"
+              style={{ color: overallAccuracy >= 50 ? Colors.status.success : Colors.status.danger }}
+            >
+              {overallAccuracy.toFixed(0)}%
+            </Text>
+          </View>
         )}
       </View>
 
-      {/* Predictions */}
-      <View style={styles.predictionsStack}>
-        {predictions.map((prediction, index) => (
-          <CompactPredictionRow
-            key={prediction.id}
-            prediction={prediction}
-            opacity={1 - index * 0.25}
-          />
-        ))}
+      {/* Direction badge if pending */}
+      {pendingPrediction && (
+        <View style={styles.directionRow}>
+          <Icon name="trending-up" size={Size.TwoXSmall} color={getDirectionColor(pendingPrediction.direction)} />
+          <Text
+            size={Size.TwoXSmall}
+            weight="bold"
+            style={{ color: getDirectionColor(pendingPrediction.direction) }}
+          >
+            {getDirectionLabel(pendingPrediction.direction)}
+          </Text>
+          <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+            {formatTimeAgo(pendingPrediction.timestamp)}
+          </Text>
+        </View>
+      )}
+
+      {/* Timeframe rows */}
+      <View style={styles.timeframesList}>
+        <TimeframeRow
+          label="5m"
+          outcome={outcome5m}
+          accuracy={accuracyByTimeframe["5m"]}
+          targetTime={target5m}
+        />
+        <TimeframeRow
+          label="1h"
+          outcome={outcome1h}
+          accuracy={accuracyByTimeframe["1h"]}
+          targetTime={target1h}
+        />
+        <TimeframeRow
+          label="4h"
+          outcome={outcome4h}
+          accuracy={accuracyByTimeframe["4h"]}
+          targetTime={target4h}
+        />
       </View>
     </View>
   );
@@ -424,7 +572,45 @@ export function PredictionAccuracyCard({
     return result;
   }, [accuracies]);
 
-  const indicators = Object.keys(groupedPredictions).sort();
+  // Get accuracy by timeframe for each indicator
+  const indicatorAccuraciesByTimeframe = useMemo(() => {
+    const result: Record<string, Record<string, number | null>> = {};
+
+    for (const acc of accuracies) {
+      if (!result[acc.indicator]) {
+        result[acc.indicator] = { "5m": null, "1h": null, "4h": null };
+      }
+      const total = acc.correctPredictions + acc.incorrectPredictions;
+      if (total > 0) {
+        result[acc.indicator][acc.timeframe] = (acc.correctPredictions / total) * 100;
+      }
+    }
+
+    return result;
+  }, [accuracies]);
+
+  // Map pending predictions by indicator
+  const pendingByIndicator = useMemo(() => {
+    const result: Record<string, SignalPrediction> = {};
+    if (pendingPredictions) {
+      for (const pred of pendingPredictions) {
+        // Keep the most recent pending prediction for each indicator
+        if (!result[pred.indicator] || pred.timestamp > result[pred.indicator].timestamp) {
+          result[pred.indicator] = pred;
+        }
+      }
+    }
+    return result;
+  }, [pendingPredictions]);
+
+  // Combine indicators from both validated and pending predictions
+  const indicators = useMemo(() => {
+    const allIndicators = new Set([
+      ...Object.keys(groupedPredictions),
+      ...Object.keys(pendingByIndicator),
+    ]);
+    return Array.from(allIndicators).sort();
+  }, [groupedPredictions, pendingByIndicator]);
 
   // Recommendation display
   const action = recommendation?.action ?? "hold";
@@ -539,41 +725,11 @@ export function PredictionAccuracyCard({
                   <IndicatorGroup
                     key={indicator}
                     indicator={indicator}
-                    predictions={groupedPredictions[indicator]}
-                    accuracy={indicatorAccuracies[indicator] ?? null}
+                    predictions={groupedPredictions[indicator] ?? []}
+                    pendingPrediction={pendingByIndicator[indicator]}
+                    accuracyByTimeframe={indicatorAccuraciesByTimeframe[indicator] ?? { "5m": null, "1h": null, "4h": null }}
+                    overallAccuracy={indicatorAccuracies[indicator] ?? null}
                     index={index}
-                  />
-                ))}
-              </View>
-            </View>
-          </>
-        )}
-
-        {/* Pending Predictions Section */}
-        {pendingPredictions && pendingPredictions.length > 0 && (
-          <>
-            <View
-              style={[
-                styles.divider,
-                { backgroundColor: themeColors.border.subtle },
-              ]}
-            />
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text size={Size.Medium} appearance={TextAppearance.Muted}>
-                  {t("components:prediction.pending.title")}
-                </Text>
-                <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-                  {t("components:prediction.pending.awaitingValidation")}
-                </Text>
-              </View>
-
-              <View style={styles.pendingGrid}>
-                {pendingPredictions.map((prediction) => (
-                  <PendingPredictionRow
-                    key={prediction.id}
-                    prediction={prediction}
                   />
                 ))}
               </View>
@@ -721,15 +877,15 @@ const styles = StyleSheet.create({
   indicatorGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
   },
   indicatorGroup: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    minWidth: 150,
+    borderRadius: 12,
+    padding: 12,
+    minWidth: 180,
     flex: 1,
-    maxWidth: 200,
+    maxWidth: 220,
   },
   indicatorHeader: {
     flexDirection: "row",
@@ -741,6 +897,55 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+  },
+  accuracyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  directionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
+  },
+  timeframesList: {
+    gap: 6,
+  },
+  timeframeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  timeframeLabelContainer: {
+    minWidth: 24,
+  },
+  outcomeIconSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timeframeAccuracy: {
+    minWidth: 32,
+    alignItems: "flex-end",
+  },
+  timeframeCountdown: {
+    flex: 1,
+    alignItems: "flex-end",
+  },
+  countdownBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: "rgba(59, 130, 246, 0.1)",
   },
   predictionsStack: {
     gap: 4,

@@ -59,4 +59,13 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    proxy: {
+      // Proxy also works in preview mode
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
+    },
+  },
 });
