@@ -58,6 +58,51 @@ vi.mock("../components/MetricsGrid", () => ({
   ),
 }));
 
+vi.mock("../components/AggregatedOrderBook", () => ({
+  AggregatedOrderBook: () => <div data-testid="order-book">Order Book</div>,
+}));
+
+vi.mock("../components/AssetSourceBreakdown", () => ({
+  AssetSourceBreakdown: () => <div data-testid="source-breakdown">Source Breakdown</div>,
+}));
+
+vi.mock("../components/SignalSummaryCard", () => ({
+  SignalSummaryCard: () => <div data-testid="signal-summary">Signal Summary</div>,
+}));
+
+vi.mock("../components/SignalIndicatorsPanel", () => ({
+  SignalIndicatorsPanel: () => <div data-testid="signal-indicators">Signal Indicators</div>,
+}));
+
+vi.mock("../components/PredictionAccuracyCard", () => ({
+  PredictionAccuracyCard: () => <div data-testid="prediction-accuracy">Prediction Accuracy</div>,
+}));
+
+vi.mock("../components/TimeframeSelector", () => ({
+  TimeframeSelector: () => <div data-testid="timeframe-selector">Timeframe Selector</div>,
+}));
+
+vi.mock("../components/CollapsibleSection", () => ({
+  CollapsibleSection: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible">{children}</div>,
+}));
+
+vi.mock("../hooks/useSignals", () => ({
+  useSignals: () => ({
+    signals: null,
+    accuracies: [],
+    predictions: [],
+    pendingPredictions: [],
+    recommendation: null,
+    loading: false,
+    generating: false,
+    generatePredictions: vi.fn(),
+  }),
+}));
+
+vi.mock("../hooks/useBreakpoint", () => ({
+  useBreakpoint: () => ({ isMobile: false, isNarrow: false }),
+}));
+
 // Mock Ghost components
 vi.mock("@wraith/ghost/components", () => ({
   Text: ({ children, appearance }: { children: React.ReactNode; appearance?: string }) => (
