@@ -1,10 +1,22 @@
 /**
- * CountdownTimer Component
+ * @file CountdownTimer.tsx
+ * @description Real-time countdown display for prediction validation times.
  *
- * Displays a real-time countdown to when a prediction will be validated.
- * Shows label (5m, 1h, 4h) and remaining time, updates every second.
+ * ## Features:
+ * - Updates every second for accurate countdown
+ * - Formats time as "Xh Xm" or "X:SS" based on remaining
+ * - Color-coded: active color while counting, success when complete
+ * - Fires onComplete callback when countdown reaches zero
+ *
+ * ## Props:
+ * - `targetTime`: Target timestamp in ms
+ * - `label`: Display label (e.g., "5m", "1h")
+ * - `activeColor`: Color while counting (default: blue)
+ * - `onComplete`: Callback when countdown finishes
+ *
+ * ## Helper Functions:
+ * - `formatRemaining(ms)`: Formats ms to human-readable string
  */
-
 import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";

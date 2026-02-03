@@ -1,3 +1,19 @@
+/**
+ * @file MarketStatusCard.tsx
+ * @description Card showing real-time market open/closed status with countdown timers.
+ *
+ * ## Features:
+ * - US Stocks (NYSE/NASDAQ): Shows open/closed status with countdown
+ * - Crypto: Always shows 24/7 open status
+ * - Updates every second for accurate countdown
+ * - Color-coded status badges (green=open, red=closed)
+ *
+ * ## Dependencies:
+ * - `../utils/marketHours`: Market status and time calculations
+ * - `isUSMarketOpen()` - Check if US market currently trading
+ * - `getTimeUntilMarketEvent()` - Get next open/close time
+ * - `formatDuration()` - Format ms to HH:MM:SS string
+ */
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { Card, Text, Icon } from "@wraith/ghost/components";

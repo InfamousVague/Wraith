@@ -1,3 +1,33 @@
+/**
+ * PriceFeedCard Component
+ *
+ * @fileoverview Live price update feed showing real-time cryptocurrency price
+ * changes from WebSocket with animated entries and statistics.
+ *
+ * @description
+ * Features:
+ * - **Live Price Feed**: Scrolling list of price updates via WebSocket
+ * - **Animated Entries**: Fade-out animation for aging events using pooled Animated.Value
+ * - **Statistics Display**: Updates tracked, TPS, uptime, symbols, and sources count
+ * - **Connection Status**: Visual indicator for WebSocket connection state
+ * - **Source Attribution**: Shows which exchange sourced each update
+ *
+ * Performance optimizations:
+ * - `animatedValuePool`: Reusable Animated.Value objects to prevent memory leaks
+ * - Memoized sub-components prevent unnecessary re-renders
+ * - Event cleanup releases animations back to pool
+ *
+ * Helper functions:
+ * - `formatSource`: Converts source ID to display name
+ * - `formatUptime`: Converts seconds to human-readable duration
+ * - `getAnimatedValue/releaseAnimatedValue`: Pool management
+ *
+ * @example
+ * <PriceFeedCard maxEvents={20} eventLifetime={30000} />
+ *
+ * @exports PriceFeedCard - Main component
+ */
+
 import React, { useState, useEffect, useCallback, useRef, memo, useMemo } from "react";
 import { View, StyleSheet, ScrollView, Animated } from "react-native";
 import { Card, Text, Currency, PercentChange, AnimatedNumber } from "@wraith/ghost/components";

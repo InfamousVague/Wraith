@@ -1,3 +1,20 @@
+/**
+ * @file AssetHeader.tsx
+ * @description Asset detail page header showing name, symbol, price, and 24h change.
+ *
+ * ## Features:
+ * - Responsive sizing (smaller on mobile, larger on desktop)
+ * - Optional back navigation button with chevron icon
+ * - Loading skeleton state when asset data is unavailable
+ * - Avatar with image or initials fallback
+ * - Price formatted with appropriate decimals (6 for <$1, 2 otherwise)
+ * - Color-coded percent change indicator
+ *
+ * ## Props:
+ * - `asset`: Asset object or null (shows skeleton if null/loading)
+ * - `loading`: Optional boolean to force loading state
+ * - `onBack`: Optional callback for back button navigation
+ */
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text, Avatar, PercentChange, Currency, Skeleton, Icon } from "@wraith/ghost/components";

@@ -1,3 +1,26 @@
+/**
+ * @file Dashboard.tsx
+ * @description Main dashboard page displaying asset list/grid with market overview.
+ *
+ * ## Features:
+ * - Displays assets in list or grid view mode (persisted preference)
+ * - Filters by asset type (crypto, stocks, all)
+ * - Sorts by various metrics (market cap, price, change)
+ * - Auto-switches to crypto when US stock market is closed
+ * - Responsive layout for mobile/tablet/desktop
+ * - Shows market metrics carousel at top
+ *
+ * ## State (persisted to localStorage):
+ * - viewMode: "list" | "grid" - Asset display mode
+ * - cardSize: number - Grid card size in pixels
+ * - filters: FilterState - Sort, filter, and asset type settings
+ *
+ * ## Data Flow:
+ * 1. useCryptoData fetches assets based on filters
+ * 2. Assets filtered by market status (hide closed markets unless toggled)
+ * 3. Rendered in AssetList (list mode) or ChartGrid (grid mode)
+ */
+
 import React, { useMemo } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Navbar } from "../components/Navbar";
@@ -11,7 +34,7 @@ import { usePersistedState } from "../hooks/usePersistedState";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getMarketStatus, isUSMarketOpen } from "../utils/marketHours";
 
-// Default to crypto when US market is closed, otherwise show all
+/** Returns default asset type based on US market status */
 const getDefaultAssetType = (): "all" | "crypto" => {
   return isUSMarketOpen() ? "all" : "crypto";
 };
@@ -34,7 +57,13 @@ const themes = {
   },
 };
 
+/**
+ * Main dashboard component displaying the asset list and market overview.
+ *
+ * @returns Dashboard page with navbar, metrics carousel, toolbar, and asset list/grid
+ */
 export function Dashboard() {
+  // Theme and responsive hooks
   const { isDark } = useTheme();
   const colors = isDark ? themes.dark : themes.light;
   const { isMobile, isNarrow } = useBreakpoint();

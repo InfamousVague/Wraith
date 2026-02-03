@@ -1,3 +1,42 @@
+/**
+ * ChartGrid Component
+ *
+ * @fileoverview Responsive grid of asset cards with mini charts, supporting
+ * virtualization for large datasets and responsive card sizing.
+ *
+ * @description
+ * Features:
+ * - **Responsive Grid**: CSS grid auto-fill layout adapts to container width
+ * - **Virtualized Rendering**: Uses react-window for 50+ assets to maintain performance
+ * - **Adjustable Card Size**: Slider-controlled card width (140-400px) with proportional chart height
+ * - **Compact Mode**: Simplified card layout when cardSize < 180px
+ * - **Search Highlighting**: HighlightedText shows search query matches in name/symbol
+ * - **Loading Skeletons**: Shows 20 placeholder cards while data loads
+ *
+ * Helper functions:
+ * - `getChartHeight(cardSize)`: Scales chart height from 40px to 120px based on card size
+ * - `isCompactSize(cardSize)`: Returns true when cardSize < 180 for compact layout
+ *
+ * Sub-components:
+ * - `ChartCard`: Memoized card showing avatar, price, change, and MiniChart
+ * - `LoadingCard`: Skeleton placeholder card matching ChartCard layout
+ *
+ * Virtualization:
+ * - Threshold: 50 assets triggers virtualization on web
+ * - Uses ResizeObserver to track container dimensions
+ * - react-window FixedSizeGrid with 2-row overscan
+ *
+ * @example
+ * <ChartGrid
+ *   assets={filteredAssets}
+ *   loading={isLoading}
+ *   searchQuery={query}
+ *   cardSize={220}
+ * />
+ *
+ * @exports ChartGrid - Main grid component
+ */
+
 import React, { useCallback, useMemo, useRef, useEffect, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Link } from "react-router-dom";

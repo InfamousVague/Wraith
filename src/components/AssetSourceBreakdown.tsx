@@ -1,3 +1,30 @@
+/**
+ * @file AssetSourceBreakdown.tsx
+ * @description Data quality card showing price source breakdown and confidence score.
+ *
+ * ## Features:
+ * - Half-circle gauge visualization of confidence score (0-100)
+ * - Color-coded score levels (excellent/good/fair/low/veryLow)
+ * - Stats row: source count, total updates, data points
+ * - Per-source progress bars showing update distribution
+ * - Exchange brand colors for visual source identification
+ * - Offline source detection with skull icon indicator
+ * - Auto-polling for real-time updates (default: 5 seconds)
+ * - Responsive mobile/desktop layouts
+ *
+ * ## Props:
+ * - `symbol`: Asset symbol to fetch source stats for
+ * - `loading`: Optional external loading state
+ * - `pollInterval`: Optional polling interval in ms (default: 5000)
+ *
+ * ## API Calls:
+ * - `hauntClient.getSymbolSourceStats(symbol)` - Source update counts
+ * - `hauntClient.getConfidence(symbol)` - Confidence score and data points
+ *
+ * ## Helper Functions:
+ * - `getScoreColor(score)` - Returns color based on confidence level
+ * - `getScoreLabelKey(score)` - Returns i18n key for score label
+ */
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";

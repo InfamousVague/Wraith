@@ -1,3 +1,18 @@
+/**
+ * @file HighlightedText.tsx
+ * @description Text component that highlights search query matches.
+ *
+ * ## Features:
+ * - Case-insensitive matching
+ * - Escapes special regex characters in search query
+ * - Highlights matching portions in accent color
+ * - Renders plain text when no match or empty query
+ *
+ * ## Props:
+ * - `text`: The full text to display
+ * - `highlight`: The search query to highlight
+ * - `style`: Optional TextStyle for the text
+ */
 import React from "react";
 import { Text as RNText, StyleSheet, type TextStyle } from "react-native";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";

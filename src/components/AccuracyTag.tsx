@@ -1,10 +1,20 @@
 /**
- * AccuracyTag Component
+ * @file AccuracyTag.tsx
+ * @description Badge displaying historical accuracy percentage for signal indicators.
  *
- * Displays historical accuracy percentage for a signal indicator.
- * Color coded based on accuracy level.
+ * ## Features:
+ * - Color-coded based on accuracy level (green >= 70%, yellow >= 55%, muted < 55%)
+ * - Shows "New" if sample size below minimum threshold
+ * - Rounded percentage display
+ *
+ * ## Props:
+ * - `accuracy`: Accuracy percentage (0-100)
+ * - `sampleSize`: Number of predictions in sample
+ * - `minSamples`: Minimum samples required (default: 10)
+ *
+ * ## Helper Functions:
+ * - `getAccuracyColor(accuracy)`: Returns color based on percentage
  */
-
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";

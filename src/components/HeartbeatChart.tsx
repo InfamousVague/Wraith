@@ -1,3 +1,43 @@
+/**
+ * HeartbeatChart Component
+ *
+ * @fileoverview Animated ECG-style heartbeat visualization for loading states.
+ * Provides visual feedback during chart data loading with a continuously
+ * scrolling heartbeat pattern.
+ *
+ * @description
+ * Features:
+ * - **ECG Pattern**: Realistic heartbeat waveform with P wave, QRS complex, and T wave
+ * - **Smooth Animation**: Continuous horizontal scrolling with pulse glow effect
+ * - **Banner Text**: Optional overlay message for loading context
+ * - **Platform-Optimized**: CSS animations on web, Animated API on native
+ * - **Grid Overlay**: Subtle grid lines for medical monitor aesthetic
+ *
+ * Animation system:
+ * - Scroll animation: Horizontal translation at configurable speed
+ * - Pulse animation: Opacity changes synchronized with heartbeat peaks
+ * - SVG glow filter: Soft glow effect on the heartbeat line
+ *
+ * Path generation:
+ * - `generateHeartbeatPath`: Creates SVG path for ECG waveform
+ * - 8 heartbeat cycles rendered for seamless looping
+ * - Each cycle includes: baseline, P wave dip, R spike, S dip, T bump
+ *
+ * @example
+ * // Basic loading indicator
+ * <HeartbeatChart />
+ *
+ * @example
+ * // With custom message
+ * <HeartbeatChart bannerText="Building chart data..." />
+ *
+ * @example
+ * // Compact size for inline use
+ * <HeartbeatChart height={40} width={100} animationDuration={1500} />
+ *
+ * @exports HeartbeatChart - Main component
+ */
+
 import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Animated, Platform, type ViewStyle } from "react-native";
 import { Text } from "@wraith/ghost/components";

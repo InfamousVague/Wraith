@@ -1,3 +1,25 @@
+/**
+ * @file ThemeContext.tsx
+ * @description Theme management for the application (dark/light mode).
+ *
+ * ## Features:
+ * - Persists theme preference to localStorage
+ * - Applies theme via `data-theme` attribute on document root
+ * - Provides `isDark` convenience boolean
+ *
+ * ## Usage:
+ * ```tsx
+ * const { theme, toggleTheme, isDark } = useTheme();
+ * ```
+ *
+ * ## Storage:
+ * - Key: `wraith-theme`
+ * - Values: `"dark"` | `"light"`
+ *
+ * ## Default:
+ * - Falls back to `"dark"` if no preference saved
+ */
+
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
 
 type Theme = "dark" | "light";

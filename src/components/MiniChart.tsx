@@ -1,3 +1,21 @@
+/**
+ * @file MiniChart.tsx
+ * @description Compact inline sparkline chart for asset rows.
+ *
+ * ## Features:
+ * - Converts number[] data to timestamped ChartDataPoint[]
+ * - Uses LightweightChart from Ghost for rendering
+ * - HeartbeatChart fallback when loading or insufficient data
+ * - Optional glow effect for visual emphasis
+ * - Custom React.memo comparator for optimized re-renders
+ *
+ * ## Props:
+ * - `data`: Array of numeric price values
+ * - `isPositive`: Green (true) or red (false) color scheme
+ * - `width/height`: Dimensions (width can be number or "100%")
+ * - `glow`: Enable glow effect (default false)
+ * - `loading`: Show HeartbeatChart loading animation
+ */
 import React, { useMemo, useRef } from "react";
 import { View, StyleSheet } from "react-native";
 import { LightweightChart, type ChartDataPoint } from "@wraith/ghost/components";

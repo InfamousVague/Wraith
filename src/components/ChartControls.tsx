@@ -1,3 +1,28 @@
+/**
+ * ChartControls Component
+ *
+ * @fileoverview Time range and chart type selector controls for trading charts.
+ * Provides two segmented controls for user chart configuration.
+ *
+ * @description
+ * Features:
+ * - **Time Range Selection**: 1H, 4H, 1D, 1W, 1M, 3M, 1Y, ALL options
+ * - **Chart Type Selection**: Line, Area, Candle options
+ * - **Responsive Layout**: Flexbox with wrap for smaller screens
+ *
+ * @example
+ * <ChartControls
+ *   timeRange="1D"
+ *   onTimeRangeChange={setTimeRange}
+ *   chartType="area"
+ *   onChartTypeChange={setChartType}
+ * />
+ *
+ * @exports ChartControls - Main component
+ * @exports TimeRange - Union type for time range values
+ * @exports ChartType - Union type for chart type values
+ */
+
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { SegmentedControl } from "@wraith/ghost/components";

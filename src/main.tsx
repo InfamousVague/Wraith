@@ -1,3 +1,37 @@
+/**
+ * @file main.tsx
+ * @description Application entry point and root component setup.
+ *
+ * This file bootstraps the Wraith application by:
+ * 1. Initializing i18n for internationalization
+ * 2. Setting up the React component tree with all required providers
+ * 3. Defining application routes
+ *
+ * ## Provider Nesting Order (outer to inner):
+ *
+ * 1. **React.StrictMode** - Development checks for deprecated patterns
+ * 2. **BrowserRouter** - Client-side routing (react-router-dom)
+ * 3. **ThemeProvider** - Dark/light theme state management
+ * 4. **AuthProvider** - Authentication state, login/logout, session tokens
+ * 5. **PreferenceSyncProvider** - Cross-server preference synchronization
+ * 6. **HintProvider** - Tutorial hints and onboarding state
+ * 7. **GhostThemeBridge** - Bridges Wraith theme to Ghost component library
+ * 8. **PerformanceProvider** - Performance mode settings (reduced animations)
+ * 9. **ApiServerProvider** - API server selection and health checking
+ * 10. **HauntSocketProvider** - WebSocket connection to Haunt backend
+ *
+ * The order matters because inner providers may depend on outer ones:
+ * - GhostThemeBridge needs ThemeProvider's theme value
+ * - PreferenceSyncProvider needs AuthProvider's session token
+ * - HauntSocketProvider needs ApiServerProvider's selected server
+ *
+ * ## Routes:
+ * - `/` - Dashboard (asset list, market overview)
+ * - `/asset/:id` - Asset detail page (charts, signals, predictions)
+ * - `/profile` - User profile management
+ * - `/settings` - Application settings
+ */
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./i18n";
@@ -17,7 +51,11 @@ import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
 import { PriceTicker } from "./components/PriceTicker";
 
-// Bridge component to connect Wraith's theme to Ghost's theme
+/**
+ * Bridge component that connects Wraith's theme context to Ghost's theme provider.
+ * This is necessary because Ghost is a separate component library with its own
+ * theme system. The bridge reads Wraith's theme and passes it to Ghost.
+ */
 function GhostThemeBridge({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
   return (
@@ -27,6 +65,15 @@ function GhostThemeBridge({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Root application component containing the main layout and routes.
+ *
+ * Layout structure:
+ * - PriceTicker: Scrolling price ticker at the top of every page
+ * - Routes: Page content based on current URL path
+ *
+ * @returns The main application UI wrapped in a flex container
+ */
 function App() {
   return (
     <View style={{ flex: 1 }}>

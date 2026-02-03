@@ -1,3 +1,29 @@
+/**
+ * @file AssetDetail.tsx
+ * @description Individual asset detail page with charts, signals, and predictions.
+ *
+ * ## URL Parameters:
+ * - `:id` - Asset ID (numeric) to display
+ *
+ * ## Features:
+ * - Real-time price updates via WebSocket subscription
+ * - Interactive TradingView-style chart
+ * - Aggregated order book from multiple exchanges
+ * - Technical indicators and trading signals
+ * - AI-generated price predictions with accuracy tracking
+ * - Responsive layout (desktop/tablet/mobile)
+ *
+ * ## Data Flow:
+ * 1. Fetch asset data from API on mount using asset ID
+ * 2. Subscribe to WebSocket for real-time price updates
+ * 3. Fetch trading signals based on selected timeframe
+ * 4. Display all data in organized sections
+ *
+ * ## WebSocket Notes:
+ * Only price and tradeDirection are updated from WebSocket.
+ * change24h and volume24h come from API (market-wide stats).
+ */
+
 import React, { useEffect, useState, useCallback } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { useParams, useNavigate } from "react-router-dom";
@@ -22,7 +48,7 @@ import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { Asset } from "../types/asset";
 import type { TradingTimeframe } from "../types/signals";
 
-// Theme colors
+/** Theme color definitions for dark/light mode */
 const themes = {
   dark: {
     background: "#050608",
@@ -32,9 +58,25 @@ const themes = {
   },
 };
 
+/**
+ * Asset detail page component showing comprehensive information about a single asset.
+ *
+ * Sections (top to bottom):
+ * 1. Asset Header - Name, symbol, price, 24h change
+ * 2. Metrics Grid - Key statistics (market cap, volume, etc.)
+ * 3. Chart + Order Book - Interactive chart with live order book
+ * 4. Timeframe Selector - Trading timeframe for signals
+ * 5. Signals + Predictions - AI signals and prediction accuracy
+ * 6. Technical Indicators - Full indicator panel
+ *
+ * @returns Asset detail page or error state
+ */
 export function AssetDetail() {
+  // URL params and navigation
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // Theme and responsive layout
   const { isDark } = useTheme();
   const colors = isDark ? themes.dark : themes.light;
   const { isMobile, isNarrow } = useBreakpoint();

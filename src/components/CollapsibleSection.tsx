@@ -1,3 +1,19 @@
+/**
+ * @file CollapsibleSection.tsx
+ * @description Expandable/collapsible content section with animated toggle.
+ *
+ * ## Features:
+ * - Click header to expand/collapse content
+ * - Chevron icon indicates open/closed state
+ * - Configurable default state (open/closed)
+ * - Minimum touch target size (44px) for accessibility
+ *
+ * ## Props:
+ * - `title`: Section header text
+ * - `defaultOpen`: Initial collapsed state (default: true)
+ * - `children`: Content to show when expanded
+ */
+
 import React, { useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Text, Icon } from "@wraith/ghost/components";

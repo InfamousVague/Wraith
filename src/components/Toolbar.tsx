@@ -1,3 +1,30 @@
+/**
+ * @file Toolbar.tsx
+ * @description Dashboard toolbar with filtering, sorting, and view controls.
+ *
+ * ## Features:
+ * - Sort by: market cap, price, volume, percent change (1h/24h/7d), name
+ * - Sort direction: ascending/descending
+ * - Filters: all, gainers, losers, most volatile, top volume
+ * - Asset type: all, crypto, stocks
+ * - Offline markets toggle (show closed markets)
+ * - View mode: list or charts
+ * - Card size slider (charts mode only)
+ *
+ * ## Props:
+ * - `viewMode`: "list" | "charts"
+ * - `onViewModeChange`: Callback for view mode changes
+ * - `cardSize`: Card width in pixels (charts mode)
+ * - `onCardSizeChange`: Callback for card size changes
+ * - `filters`: Current filter state
+ * - `onFiltersChange`: Callback for filter changes
+ * - `compact`: Show mobile-optimized compact mode
+ *
+ * ## Responsive:
+ * - Normal mode: Full controls with all options visible
+ * - Compact mode: Horizontally scrolling toolbar for mobile
+ */
+
 import React from "react";
 import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";

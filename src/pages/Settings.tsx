@@ -1,7 +1,21 @@
 /**
- * Settings Page
+ * @file Settings.tsx
+ * @description Application settings and preferences page.
  *
- * Application settings and preferences.
+ * ## Sections:
+ * 1. **Language** - Display language selection (English, Korean)
+ * 2. **App Settings** - Update speed/performance settings
+ * 3. **Servers** - Server selection, health status, mesh connectivity
+ *
+ * ## Features:
+ * - Language persisted via i18next
+ * - Speed settings affect real-time update frequency
+ * - Server card shows client ping, mesh ping, connection status
+ *
+ * ## State:
+ * - Language: Managed by i18next (localStorage)
+ * - Speed: Managed by SpeedSelector component
+ * - Servers: Managed by ApiServerContext
  */
 
 import React from "react";

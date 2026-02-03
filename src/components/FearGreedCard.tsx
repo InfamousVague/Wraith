@@ -1,3 +1,33 @@
+/**
+ * FearGreedCard Component
+ *
+ * @fileoverview Displays the Crypto Fear & Greed Index as a circular gauge
+ * with descriptive labels and sentiment interpretation.
+ *
+ * @description
+ * Features:
+ * - **Circular Gauge**: ProgressCircle showing 0-100 score
+ * - **Sentiment Labels**: Dynamic labels based on score ranges (Panic -> Manic)
+ * - **Color Coding**: Danger/Warning/Success appearance based on sentiment
+ * - **Helpful Hint**: Explains what the Fear & Greed Index measures
+ *
+ * Score ranges and labels:
+ * - 0-12: Extreme Fear (Panic) - Danger
+ * - 13-25: Extreme Fear (Fearful) - Danger
+ * - 26-37: Fear (Anxious) - Warning
+ * - 38-45: Fear (Cautious) - Warning
+ * - 46-55: Neutral (Balanced) - Muted
+ * - 56-65: Greed (Optimistic) - Success
+ * - 66-75: Greed (Greedy) - Success
+ * - 76-87: Extreme Greed (Euphoric) - Success
+ * - 88-100: Extreme Greed (Manic) - Success
+ *
+ * @example
+ * <FearGreedCard value={72} loading={false} />
+ *
+ * @exports FearGreedCard - Main component
+ */
+
 import React from "react";
 import { View, StyleSheet } from "react-native";
 import { useTranslation } from "react-i18next";

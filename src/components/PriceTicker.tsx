@@ -1,3 +1,21 @@
+/**
+ * @file PriceTicker.tsx
+ * @description Scrolling horizontal price ticker showing live crypto prices.
+ *
+ * ## Features:
+ * - Seamless infinite scroll animation (CSS-based on web)
+ * - Edge fade gradients for visual polish
+ * - Loading skeleton state during data fetch
+ * - Memoized items to prevent unnecessary re-renders
+ * - Duplicate items for seamless loop effect
+ *
+ * ## Props:
+ * None - fetches data internally via useCryptoData hook
+ *
+ * ## Platform Handling:
+ * - Web: CSS animation for ticker-track, linear-gradient edge fades
+ * - Native: Static ScrollView (no animation)
+ */
 import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Text, Currency, PercentChange, Skeleton } from "@wraith/ghost/components";

@@ -1,3 +1,19 @@
+/**
+ * @file useBreakpoint.ts
+ * @description Responsive breakpoint hook for React Native Web.
+ *
+ * ## Breakpoints:
+ * - phone: <= 480px
+ * - tablet: 481-768px
+ * - desktop: 769-1024px
+ * - wide: > 1024px
+ *
+ * ## Usage:
+ * ```tsx
+ * const { isMobile, isNarrow, breakpoint } = useBreakpoint();
+ * ```
+ */
+
 import { useWindowDimensions } from "react-native";
 import { useMemo } from "react";
 

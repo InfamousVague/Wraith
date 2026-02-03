@@ -1,3 +1,44 @@
+/**
+ * AdvancedChart Component
+ *
+ * @fileoverview Full-featured trading chart powered by TradingView Lightweight Charts.
+ * Displays price history with multiple visualization options and technical indicators.
+ *
+ * @description
+ * Core features:
+ * - **Chart Types**: Area, Line, and Candlestick visualizations
+ * - **Time Ranges**: 1H, 4H, 1D, 1W, 1M, 3M, 1Y, and ALL historical periods
+ * - **Technical Indicators**: SMA(20), EMA(20), Bollinger Bands(20,2), and Volume histogram
+ * - **Real-time Updates**: WebSocket subscription for live price updates
+ * - **API Integration**: Fetches OHLC data from backend with automatic seeding/polling
+ * - **Crosshair Legend**: Shows price, change, high, low, volume at cursor position
+ * - **Responsive Design**: Adapts controls and visibility for mobile/desktop
+ *
+ * Data flow:
+ * 1. Component fetches chart data from `/api/chart/:id/:range` endpoint
+ * 2. If data is empty, backend auto-triggers seeding; component polls until ready
+ * 3. Falls back to sparkline generation if API fails or times out (30s)
+ * 4. WebSocket updates the latest candle in real-time
+ *
+ * Helper functions:
+ * - `generateOHLCData`: Creates OHLC candles from sparkline array
+ * - `generateLineData`: Interpolates sparkline to chart data points
+ * - `calculateSMA/EMA/BollingerBands`: Technical indicator calculations
+ * - `removeWatermark`: Removes TradingView branding from chart
+ *
+ * @example
+ * <AdvancedChart
+ *   asset={selectedAsset}
+ *   loading={isLoading}
+ *   height={400}
+ * />
+ *
+ * @exports AdvancedChart - Main chart component
+ * @exports TimeRange - Union type of time range options
+ * @exports ChartType - Union type of chart visualization types
+ * @exports Indicator - Union type of technical indicator types
+ */
+
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import { View, StyleSheet, Pressable, Platform, type ViewStyle } from "react-native";
 import {

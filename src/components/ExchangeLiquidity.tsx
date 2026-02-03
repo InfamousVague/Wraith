@@ -1,3 +1,29 @@
+/**
+ * ExchangeLiquidity Component
+ *
+ * @fileoverview Displays real-time data source statistics and online/offline status
+ * for all connected exchange feeds.
+ *
+ * @description
+ * Features:
+ * - **Exchange List**: Shows all configured data sources with update counts
+ * - **Progress Bars**: Visual representation of relative update volume per exchange
+ * - **Online/Offline Status**: Color-coded indicators and skull icon for offline sources
+ * - **Auto-Refresh**: Polls `/api/market/exchanges` every 2 seconds (configurable)
+ * - **Brand Colors**: Exchange-specific colors for visual identification
+ *
+ * Sub-components:
+ * - `ExchangeRow`: Memoized row showing name, count, percentage, and progress bar
+ *
+ * Exchange configuration includes brand colors for: Binance, Coinbase, CMC,
+ * CoinGecko, CryptoCompare, Kraken, KuCoin, OKX, and Huobi.
+ *
+ * @example
+ * <ExchangeLiquidity pollInterval={5000} />
+ *
+ * @exports ExchangeLiquidity - Main component
+ */
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Card, Text, ProgressBar, AnimatedNumber, Icon } from "@wraith/ghost/components";

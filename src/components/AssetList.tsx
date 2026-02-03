@@ -1,3 +1,24 @@
+/**
+ * @file AssetList.tsx
+ * @description Virtualized asset list with responsive mobile/desktop layouts.
+ *
+ * ## Features:
+ * - Desktop: Full table view with columns (rank, asset, price, trade signal, 24h, 7d, market cap, volume, sparkline)
+ * - Mobile: Compact card rows with avatar, symbol, price, sparkline
+ * - IntersectionObserver-based infinite scroll loading
+ * - Client-side search filtering with highlighted matches
+ * - Market status filtering (show/hide offline markets)
+ * - Custom React.memo comparators for optimized re-renders
+ *
+ * ## Props:
+ * - `filters`: FilterState object with sort, filter, and asset type settings
+ * - `fullBleed`: Optional edge-to-edge cards on mobile
+ *
+ * ## Data Flow:
+ * - Uses `useCryptoData` hook for data fetching and pagination
+ * - Local search state filters via hook's `search` method
+ * - Market status checked via `getMarketStatus` utility
+ */
 import React, { useMemo, useEffect, useRef, useCallback, useState } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { Link } from "react-router-dom";

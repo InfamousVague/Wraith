@@ -1,7 +1,24 @@
 /**
- * Profile Page
+ * @file Profile.tsx
+ * @description User profile management and server connection page.
  *
- * User account management and server connection.
+ * ## Features:
+ * - View/manage local wallet (public key)
+ * - Create new account (generates Ed25519 keypair)
+ * - Import existing account via private key
+ * - Export/backup private key (copy or download)
+ * - Connect to/disconnect from Haunt backend
+ * - View server profile when connected
+ *
+ * ## Authentication Flow:
+ * - Local wallet stored in localStorage (encrypted private key)
+ * - Backend connection requires signing a challenge
+ * - Server connection enables preference sync and predictions
+ *
+ * ## Security Notes:
+ * - Private key never sent to server
+ * - Challenge-response authentication
+ * - Logout confirmation prevents accidental data loss
  */
 
 import React, { useState } from "react";

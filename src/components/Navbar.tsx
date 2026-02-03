@@ -1,3 +1,26 @@
+/**
+ * @file Navbar.tsx
+ * @description Top navigation bar component with responsive mobile/desktop layouts.
+ *
+ * ## Features:
+ * - Brand logo with navigation to home
+ * - Market filter toggle (crypto/stocks) - only on home page
+ * - Theme toggle (dark/light)
+ * - User profile section (authenticated/guest states)
+ * - Settings navigation
+ * - Mobile: Hamburger menu with expandable panel
+ * - Desktop: Horizontal layout with all controls visible
+ *
+ * ## Props:
+ * - `assetType`: Current market filter value
+ * - `onAssetTypeChange`: Callback for market filter changes (only provided on home page)
+ *
+ * ## Responsive Behavior:
+ * - Uses `useBreakpoint` to detect mobile vs desktop
+ * - Mobile: Full-screen expandable menu overlay
+ * - Desktop: Standard horizontal navigation bar
+ */
+
 import React, { useState } from "react";
 import { View, StyleSheet, Pressable, ScrollView, Animated } from "react-native";
 import { useNavigate } from "react-router-dom";

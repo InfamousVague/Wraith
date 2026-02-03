@@ -1,3 +1,33 @@
+/**
+ * TopMoversCard Component
+ *
+ * @fileoverview Displays top gaining and losing assets across configurable
+ * timeframes with real-time price updates via WebSocket.
+ *
+ * @description
+ * Features:
+ * - **Timeframe Selection**: 5m, 15m, 1H, 4H, 24H options
+ * - **Gainers/Losers Toggle**: Switch between top gainers and losers
+ * - **Real-time Updates**: WebSocket subscription for live prices
+ * - **Asset Images**: CMC ID mapping for avatar images (130+ coins)
+ * - **Ranked List**: Shows rank, symbol, price, and percent change
+ *
+ * Data flow:
+ * 1. Fetches movers from `/api/market/movers` endpoint
+ * 2. Subscribes to WebSocket for all displayed symbols
+ * 3. Updates prices in real-time without re-fetching
+ * 4. Auto-refreshes full list at configurable poll interval
+ *
+ * @example
+ * <TopMoversCard
+ *   timeframe="1h"
+ *   pollInterval={5000}
+ *   assetType="crypto"
+ * />
+ *
+ * @exports TopMoversCard - Main component
+ */
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { useTranslation } from "react-i18next";

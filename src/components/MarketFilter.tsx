@@ -1,3 +1,17 @@
+/**
+ * @file MarketFilter.tsx
+ * @description Market type filter buttons for switching between crypto/stocks/all.
+ *
+ * ## Features:
+ * - Toggle between "All", "Crypto", and "Stocks" asset types
+ * - Visual indication of selected filter (colored border and background)
+ * - Icon + text labels for each option
+ *
+ * ## Props:
+ * - `value`: Current selected asset type
+ * - `onChange`: Callback when selection changes
+ */
+
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { useTranslation } from "react-i18next";
