@@ -9,6 +9,7 @@ import { PriceFeedCard } from "./PriceFeedCard";
 import { ExchangeLiquidity } from "./ExchangeLiquidity";
 import { TopMoversCard } from "./TopMoversCard";
 import { ApiStatsCard } from "./ApiStatsCard";
+import { PeerStatusCard } from "./PeerStatusCard";
 import { MarketStatusCard } from "./MarketStatusCard";
 import type { AssetType } from "../services/haunt";
 
@@ -50,6 +51,7 @@ export function MetricsCarousel({ assetType = "all" }: MetricsCarouselProps) {
         <PriceFeedCard />
         <ExchangeLiquidity />
         <ApiStatsCard />
+        <PeerStatusCard />
       </ScrollView>
     </View>
   );

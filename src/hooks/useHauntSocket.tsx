@@ -70,12 +70,39 @@ export type MarketUpdate = {
   timestamp: string;
 };
 
+export type PeerConnectionStatus = "connected" | "connecting" | "disconnected" | "failed";
+
+export type PeerStatus = {
+  id: string;
+  region: string;
+  status: PeerConnectionStatus;
+  latencyMs?: number;
+  avgLatencyMs?: number;
+  minLatencyMs?: number;
+  maxLatencyMs?: number;
+  pingCount: number;
+  failedPings: number;
+  uptimePercent: number;
+  lastPingAt?: number;
+  lastAttemptAt?: number;
+};
+
+export type PeerUpdate = {
+  serverId: string;
+  serverRegion: string;
+  peers: PeerStatus[];
+  timestamp: number;
+};
+
 export type WSMessage =
   | { type: "price_update"; data: PriceUpdate }
   | { type: "market_update"; data: MarketUpdate }
+  | { type: "peer_update"; data: PeerUpdate }
   | { type: "subscribed"; assets: string[] }
   | { type: "unsubscribed"; assets: string[] }
   | { type: "throttle_set"; throttle_ms: number }
+  | { type: "peers_subscribed" }
+  | { type: "peers_unsubscribed" }
   | { type: "error"; error: string };
 
 type HauntSocketContextType = {
@@ -87,6 +114,10 @@ type HauntSocketContextType = {
   error: string | null;
   onPriceUpdate: (callback: (update: PriceUpdate) => void) => () => void;
   onMarketUpdate: (callback: (update: MarketUpdate) => void) => () => void;
+  onPeerUpdate: (callback: (update: PeerUpdate) => void) => () => void;
+  subscribePeers: () => void;
+  unsubscribePeers: () => void;
+  peersSubscribed: boolean;
   updateCount: number;
 };
 
@@ -111,6 +142,7 @@ export function HauntSocketProvider({
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
+  const [peersSubscribed, setPeersSubscribed] = useState(false);
 
   // Get performance/throttle settings
   const { throttleMs } = usePerformance();
@@ -121,6 +153,7 @@ export function HauntSocketProvider({
   const updateCountRef = useRef(0);
   const initialCountLoadedRef = useRef(false);
   const currentThrottleMsRef = useRef(throttleMs);
+  const peerCallbacksRef = useRef<Set<(update: PeerUpdate) => void>>(new Set());
 
   // Compute WebSocket URL once
   const wsUrl = useMemo(() => getWebSocketUrl(), []);
@@ -208,6 +241,20 @@ export function HauntSocketProvider({
 
             case "throttle_set":
               logger.data("Haunt WS", { action: "throttle_set", throttle_ms: message.throttle_ms });
+              break;
+
+            case "peer_update":
+              peerCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "peers_subscribed":
+              setPeersSubscribed(true);
+              logger.data("Haunt WS", { action: "peers_subscribed" });
+              break;
+
+            case "peers_unsubscribed":
+              setPeersSubscribed(false);
+              logger.data("Haunt WS", { action: "peers_unsubscribed" });
               break;
 
             case "error":
@@ -306,6 +353,25 @@ export function HauntSocketProvider({
     };
   }, []);
 
+  const onPeerUpdate = useCallback((callback: (update: PeerUpdate) => void) => {
+    peerCallbacksRef.current.add(callback);
+    return () => {
+      peerCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
+  const subscribePeers = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "subscribe_peers" }));
+    }
+  }, []);
+
+  const unsubscribePeers = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "unsubscribe_peers" }));
+    }
+  }, []);
+
   // Memoize context value to prevent unnecessary re-renders of all consumers
   const value = useMemo<HauntSocketContextType>(() => ({
     connected,
@@ -316,8 +382,12 @@ export function HauntSocketProvider({
     error,
     onPriceUpdate,
     onMarketUpdate,
+    onPeerUpdate,
+    subscribePeers,
+    unsubscribePeers,
+    peersSubscribed,
     updateCount,
-  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, updateCount]);
+  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, onPeerUpdate, subscribePeers, unsubscribePeers, peersSubscribed, updateCount]);
 
   return (
     <HauntSocketContext.Provider value={value}>
@@ -336,6 +406,10 @@ const noopContext: HauntSocketContextType = {
   error: null,
   onPriceUpdate: () => () => {},
   onMarketUpdate: () => () => {},
+  onPeerUpdate: () => () => {},
+  subscribePeers: () => {},
+  unsubscribePeers: () => {},
+  peersSubscribed: false,
   updateCount: 0,
 };
 
@@ -408,4 +482,33 @@ export function useMarketSubscription(onUpdate?: (update: MarketUpdate) => void)
     if (!onUpdate) return;
     return onMarketUpdate(onUpdate);
   }, [onUpdate, onMarketUpdate]);
+}
+
+/**
+ * Hook to subscribe to peer mesh updates.
+ * Provides real-time latency and connectivity info for all peer servers.
+ */
+export function usePeerSubscription(onUpdate?: (update: PeerUpdate) => void) {
+  const { connected, subscribePeers, unsubscribePeers, onPeerUpdate, peersSubscribed } = useHauntSocket();
+
+  // Auto-subscribe when connected
+  useEffect(() => {
+    if (connected && !peersSubscribed) {
+      subscribePeers();
+    }
+
+    return () => {
+      if (peersSubscribed) {
+        unsubscribePeers();
+      }
+    };
+  }, [connected, peersSubscribed, subscribePeers, unsubscribePeers]);
+
+  // Register callback for peer updates
+  useEffect(() => {
+    if (!onUpdate) return;
+    return onPeerUpdate(onUpdate);
+  }, [onUpdate, onPeerUpdate]);
+
+  return { peersSubscribed };
 }

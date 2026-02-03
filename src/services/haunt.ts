@@ -176,6 +176,33 @@ export type ConfidenceResponse = {
   timestamp: number;
 };
 
+// Peer mesh types for multi-server connectivity
+export type PeerConnectionStatus = "connected" | "connecting" | "disconnected" | "failed";
+
+export type PeerStatus = {
+  id: string;
+  region: string;
+  status: PeerConnectionStatus;
+  latencyMs?: number;
+  avgLatencyMs?: number;
+  minLatencyMs?: number;
+  maxLatencyMs?: number;
+  pingCount: number;
+  failedPings: number;
+  uptimePercent: number;
+  lastPingAt?: number;
+  lastAttemptAt?: number;
+};
+
+export type PeerMeshResponse = {
+  serverId: string;
+  serverRegion: string;
+  peers: PeerStatus[];
+  connectedCount: number;
+  totalPeers: number;
+  timestamp: number;
+};
+
 // Auth types
 export type AuthChallenge = {
   challenge: string;
@@ -573,6 +600,23 @@ class HauntClient {
    */
   async getOrderBook(symbol: string, depth: number = 50): Promise<OrderBookResponse> {
     return this.fetch(`/api/orderbook/${symbol.toLowerCase()}?depth=${depth}`);
+  }
+
+  // ========== Peer Mesh API Methods ==========
+
+  /**
+   * Get the current peer mesh status
+   * Shows all connected servers and their latency info
+   */
+  async getPeers(): Promise<ApiResponse<PeerMeshResponse>> {
+    return this.fetch("/api/peers");
+  }
+
+  /**
+   * Get a specific peer's status
+   */
+  async getPeer(peerId: string): Promise<ApiResponse<PeerStatus | null>> {
+    return this.fetch(`/api/peers/${peerId}`);
   }
 }
 
