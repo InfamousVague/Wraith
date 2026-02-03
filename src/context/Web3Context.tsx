@@ -6,32 +6,35 @@
  * exposes connection state, address, and signing functions.
  */
 
-import React, { createContext, useContext, useCallback, type ReactNode } from "react";
-import { WagmiProvider, useAccount, useSignMessage, useDisconnect, createConfig, http } from "wagmi";
+import React, { createContext, useContext, useCallback, useState, useEffect, type ReactNode } from "react";
+import { WagmiProvider, useAccount, useSignMessage, useDisconnect } from "wagmi";
 import { mainnet, arbitrum, polygon, optimism, base } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   RainbowKitProvider,
   getDefaultConfig,
-  connectorsForWallets,
   darkTheme,
   lightTheme,
 } from "@rainbow-me/rainbowkit";
-import {
-  metaMaskWallet,
-  walletConnectWallet,
-  coinbaseWallet,
-  rainbowWallet,
-} from "@rainbow-me/rainbowkit/wallets";
 import "@rainbow-me/rainbowkit/styles.css";
 
-// Wagmi configuration with supported chains
-const config = getDefaultConfig({
-  appName: "Wraith",
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "wraith-local-dev",
-  chains: [mainnet, arbitrum, polygon, optimism, base],
-  ssr: false,
-});
+// Get WalletConnect project ID from env
+const WALLETCONNECT_PROJECT_ID = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+
+// Only create config if we have a valid project ID
+let wagmiConfig: ReturnType<typeof getDefaultConfig> | null = null;
+try {
+  if (WALLETCONNECT_PROJECT_ID && WALLETCONNECT_PROJECT_ID !== "wraith-local-dev") {
+    wagmiConfig = getDefaultConfig({
+      appName: "Wraith",
+      projectId: WALLETCONNECT_PROJECT_ID,
+      chains: [mainnet, arbitrum, polygon, optimism, base],
+      ssr: false,
+    });
+  }
+} catch (e) {
+  console.warn("Failed to initialize wagmi config:", e);
+}
 
 // Query client for react-query (required by wagmi v2)
 const queryClient = new QueryClient({
@@ -135,6 +138,7 @@ export type Web3ProviderProps = {
 /**
  * Web3 Provider component.
  * Wraps the app with wagmi, react-query, and RainbowKit providers.
+ * If WalletConnect is not configured, renders children without Web3 context.
  *
  * @example
  * ```tsx
@@ -144,8 +148,14 @@ export type Web3ProviderProps = {
  * ```
  */
 export function Web3Provider({ children, theme = "dark" }: Web3ProviderProps) {
+  // If wagmi config failed to initialize (no valid projectId), render without Web3
+  if (!wagmiConfig) {
+    console.warn("Web3Provider: WalletConnect not configured, Web3 features disabled");
+    return <>{children}</>;
+  }
+
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={theme === "dark" ? darkTheme() : lightTheme()}
