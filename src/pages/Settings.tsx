@@ -16,6 +16,7 @@ import { SpeedSelector } from "../components/SpeedToggle";
 import { Navbar } from "../components/Navbar";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "../i18n/types";
 import { useBreakpoint } from "../hooks/useBreakpoint";
+import { ServersCard } from "../components/ServersCard";
 
 // Theme colors
 const themes = {
@@ -109,6 +110,19 @@ export function Settings() {
               <SpeedSelector />
             </View>
           </Card>
+        </View>
+
+        {/* Servers Section */}
+        <View style={styles.section}>
+          <Text
+            size={Size.Medium}
+            appearance={TextAppearance.Muted}
+            style={styles.sectionTitle}
+          >
+            Servers
+          </Text>
+
+          <ServersCard />
         </View>
       </ScrollView>
     </View>

@@ -5,7 +5,8 @@ import { Card, Text, AnimatedNumber, Icon, ProgressBar } from "@wraith/ghost/com
 import { Size, TextAppearance, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
-import { hauntClient, type ApiStats } from "../services/haunt";
+import { useApiServer } from "../context/ApiServerContext";
+import { type ApiStats } from "../services/haunt";
 
 // Format uptime as human-readable string
 function formatUptime(seconds: number): string {
@@ -53,6 +54,7 @@ export function ApiStatsCard({
   pollInterval = 2000,
 }: ApiStatsCardProps) {
   const { t } = useTranslation("components");
+  const { hauntClient } = useApiServer();
   const [stats, setStats] = useState<ApiStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +74,7 @@ export function ApiStatsCard({
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [hauntClient]);
 
   useEffect(() => {
     fetchStats();

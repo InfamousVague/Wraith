@@ -1,32 +1,16 @@
 import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext, type ReactNode } from "react";
 import { logger } from "../utils/logger";
 import { usePerformance } from "../context/PerformanceContext";
+import { useApiServer } from "../context/ApiServerContext";
 
-// Derive WebSocket URL from current location (works with Vite proxy)
-function getWebSocketUrl(): string {
-  if (import.meta.env.VITE_HAUNT_WS_URL) {
-    return import.meta.env.VITE_HAUNT_WS_URL;
-  }
-
-  // In development, connect directly to Haunt server
-  // Vite proxy doesn't handle WebSocket upgrade well, so we go direct
-  if (import.meta.env.DEV) {
-    return "ws://localhost:3001/ws";
-  }
-
-  // In production, derive from current location
-  if (typeof window !== "undefined") {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/ws`;
-  }
-
-  return "ws://localhost:3001/ws";
-}
+// Default WebSocket URL when no active server
+const DEFAULT_WS_URL = import.meta.env.VITE_HAUNT_WS_URL || "ws://localhost:3001/ws";
 
 // Fetch initial update count from the API
-async function fetchInitialUpdateCount(): Promise<number> {
+async function fetchInitialUpdateCount(apiUrl: string): Promise<number> {
   try {
-    const response = await fetch("/api/market/stats");
+    const url = apiUrl ? `${apiUrl}/api/market/stats` : "/api/market/stats";
+    const response = await fetch(url);
     if (response.ok) {
       const json = await response.json();
       return json.data?.totalUpdates || 0;
@@ -144,6 +128,9 @@ export function HauntSocketProvider({
   const [updateCount, setUpdateCount] = useState(0);
   const [peersSubscribed, setPeersSubscribed] = useState(false);
 
+  // Get active server from context
+  const { activeServer } = useApiServer();
+
   // Get performance/throttle settings
   const { throttleMs } = usePerformance();
 
@@ -155,21 +142,26 @@ export function HauntSocketProvider({
   const currentThrottleMsRef = useRef(throttleMs);
   const peerCallbacksRef = useRef<Set<(update: PeerUpdate) => void>>(new Set());
 
-  // Compute WebSocket URL once
-  const wsUrl = useMemo(() => getWebSocketUrl(), []);
+  // Compute WebSocket URL from active server
+  const wsUrl = useMemo(() => {
+    if (activeServer?.wsUrl) {
+      return activeServer.wsUrl;
+    }
+    return DEFAULT_WS_URL;
+  }, [activeServer?.wsUrl]);
 
-  // Fetch initial update count from API on mount
+  // Get API URL for initial count fetch
+  const apiUrl = activeServer?.url || "";
+
+  // Fetch initial update count from API on mount or server change
   useEffect(() => {
-    if (initialCountLoadedRef.current) return;
-    initialCountLoadedRef.current = true;
-
-    fetchInitialUpdateCount().then((count) => {
+    fetchInitialUpdateCount(apiUrl).then((count) => {
       if (mountedRef.current) {
         updateCountRef.current = count;
         setUpdateCount(count);
       }
     });
-  }, []);
+  }, [apiUrl]);
 
   // Callback registries
   const priceCallbacksRef = useRef<Set<(update: PriceUpdate) => void>>(new Set());
@@ -291,8 +283,27 @@ export function HauntSocketProvider({
     }
   }, [autoReconnect, reconnectInterval, wsUrl]);
 
+  // Track previous wsUrl to detect server changes
+  const prevWsUrlRef = useRef(wsUrl);
+
   useEffect(() => {
     mountedRef.current = true;
+
+    // If wsUrl changed (server switch), close existing connection first
+    if (prevWsUrlRef.current !== wsUrl && socketRef.current) {
+      logger.data("Haunt WS", { action: "server_change", from: prevWsUrlRef.current, to: wsUrl });
+      socketRef.current.onopen = null;
+      socketRef.current.onclose = null;
+      socketRef.current.onerror = null;
+      socketRef.current.onmessage = null;
+      socketRef.current.close();
+      socketRef.current = null;
+      setConnected(false);
+      setPeersSubscribed(false);
+      setSubscriptions([]);
+    }
+    prevWsUrlRef.current = wsUrl;
+
     connect();
 
     return () => {
@@ -311,7 +322,7 @@ export function HauntSocketProvider({
         socketRef.current = null;
       }
     };
-  }, [connect]);
+  }, [connect, wsUrl]);
 
   const subscribe = useCallback((assets: string[]) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
