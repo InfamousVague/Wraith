@@ -173,7 +173,7 @@ export function Profile() {
 
           <Card style={styles.card} fullBleed={isMobile}>
             <View style={[styles.cardContent, isMobile && styles.cardContentMobile]}>
-              {isAuthenticated && user ? (
+              {isAuthenticated && user?.publicKey ? (
                 <>
                   {/* Logged in state - header with logout */}
                   <View style={[styles.accountHeader, isMobile && styles.accountHeaderMobile]}>

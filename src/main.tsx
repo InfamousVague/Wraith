@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { HintProvider } from "./context/HintContext";
 import { PerformanceProvider } from "./context/PerformanceContext";
+import { ApiServerProvider } from "./context/ApiServerContext";
 import { GhostThemeProvider } from "@wraith/ghost";
 import { HauntSocketProvider } from "./hooks/useHauntSocket";
 import { Dashboard } from "./pages/Dashboard";
@@ -47,9 +48,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <HintProvider>
             <GhostThemeBridge>
               <PerformanceProvider>
-                <HauntSocketProvider>
-                  <App />
-                </HauntSocketProvider>
+                <ApiServerProvider>
+                  <HauntSocketProvider>
+                    <App />
+                  </HauntSocketProvider>
+                </ApiServerProvider>
               </PerformanceProvider>
             </GhostThemeBridge>
           </HintProvider>

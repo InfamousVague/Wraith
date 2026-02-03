@@ -134,7 +134,7 @@ export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
               >
                 <Icon name="user" size={Size.Medium} color={themeColors.text.primary} />
                 <Text size={Size.Medium}>
-                  {isAuthenticated && user
+                  {isAuthenticated && user?.publicKey
                     ? `${user.publicKey.slice(0, 6)}...${user.publicKey.slice(-4)}`
                     : t("common:buttons.login")}
                 </Text>
@@ -180,7 +180,7 @@ export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
         </View>
 
         {/* Profile or Login button */}
-        {isAuthenticated && user ? (
+        {isAuthenticated && user?.publicKey ? (
           <Pressable
             onPress={handleProfileClick}
             style={[styles.profileButton, { backgroundColor: themeColors.background.raised }]}
