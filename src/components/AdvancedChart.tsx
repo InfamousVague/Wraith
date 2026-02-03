@@ -20,12 +20,6 @@
  * 3. Falls back to sparkline generation if API fails or times out (30s)
  * 4. WebSocket updates the latest candle in real-time
  *
- * Helper functions:
- * - `generateOHLCData`: Creates OHLC candles from sparkline array
- * - `generateLineData`: Interpolates sparkline to chart data points
- * - `calculateSMA/EMA/BollingerBands`: Technical indicator calculations
- * - `removeWatermark`: Removes TradingView branding from chart
- *
  * @example
  * <AdvancedChart
  *   asset={selectedAsset}
@@ -40,7 +34,7 @@
  */
 
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import { View, StyleSheet, Pressable, Platform, type ViewStyle } from "react-native";
+import { View, StyleSheet, Platform, type ViewStyle } from "react-native";
 import {
   createChart,
   AreaSeries,
@@ -59,287 +53,39 @@ import {
   type LineWidth,
   type Time,
 } from "lightweight-charts";
-import { Card, Skeleton, Text, Icon, SegmentedControl, FilterChip, Currency, PercentChange } from "@wraith/ghost/components";
+import { Card, Skeleton, Text, Icon, SegmentedControl, FilterChip } from "@wraith/ghost/components";
 import { Colors } from "@wraith/ghost/tokens";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
-import type { Asset } from "../types/asset";
 import { hauntClient, type OhlcPoint } from "../services/haunt";
 import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
 import { HeartbeatChart } from "./HeartbeatChart";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
-// Types
-export type TimeRange = "1H" | "4H" | "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";
-export type ChartType = "line" | "area" | "candle" | "baseline";
-export type Indicator = "sma" | "ema" | "bollinger" | "volume";
+// Import from modular structure
+import type {
+  TimeRange,
+  ChartType,
+  Indicator,
+  AdvancedChartProps,
+  ChartDataPoint,
+  OHLCData,
+  CrosshairData,
+} from "./advanced-chart/types";
+import { ChartLegend } from "./advanced-chart/ChartLegend";
+import { calculateSMA, calculateEMA, calculateBollingerBands } from "./advanced-chart/utils/chartIndicators";
+import { generateOHLCData, generateLineData } from "./advanced-chart/utils/dataGenerators";
+import {
+  CHART_TYPE_OPTIONS,
+  TIME_RANGE_OPTIONS,
+  INDICATORS,
+  API_RANGE_MAP,
+  getIntervalSecondsForRange,
+  removeWatermark,
+} from "./advanced-chart/utils/chartConfig";
 
-type AdvancedChartProps = {
-  asset: Asset | null;
-  loading?: boolean;
-  height?: number; // Optional - if not provided, flex to fill container
-};
-
-type ChartDataPoint = {
-  time: number;
-  value: number;
-};
-
-type OHLCData = {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume?: number;
-};
-
-// Chart type options with icons
-const CHART_TYPE_OPTIONS = [
-  { value: "area" as const, label: "Area", icon: "trending-up" as const },
-  { value: "line" as const, label: "Line", icon: "activity" as const },
-  { value: "candle" as const, label: "Candle", icon: "bar-chart-2" as const },
-];
-
-// Time range options
-const TIME_RANGE_OPTIONS = [
-  { value: "1H" as const, label: "1H" },
-  { value: "4H" as const, label: "4H" },
-  { value: "1D" as const, label: "1D" },
-  { value: "1W" as const, label: "1W" },
-  { value: "1M" as const, label: "1M" },
-  { value: "3M" as const, label: "3M" },
-  { value: "1Y" as const, label: "1Y" },
-  { value: "ALL" as const, label: "All" },
-];
-
-// Indicator definitions
-const INDICATORS = [
-  { id: "sma" as const, label: "SMA", color: Colors.data.blue },
-  { id: "ema" as const, label: "EMA", color: Colors.data.violet },
-  { id: "bollinger" as const, label: "BB", color: Colors.data.amber },
-  { id: "volume" as const, label: "Vol", color: Colors.text.muted },
-];
-
-// Generate OHLC data from sparkline
-function generateOHLCData(sparkline: number[], timeRange: TimeRange): OHLCData[] {
-  if (!sparkline || sparkline.length < 2) return [];
-
-  const pointCount = getPointCountForRange(timeRange);
-  const now = Math.floor(Date.now() / 1000);
-  const intervalSeconds = getIntervalSecondsForRange(timeRange);
-
-  const data: OHLCData[] = [];
-  const step = Math.max(1, Math.floor(sparkline.length / pointCount));
-
-  for (let i = 0; i < sparkline.length; i += step) {
-    const slice = sparkline.slice(i, Math.min(i + step, sparkline.length));
-    if (slice.length === 0) continue;
-
-    const open = slice[0];
-    const close = slice[slice.length - 1];
-    const high = Math.max(...slice) * (1 + Math.random() * 0.005);
-    const low = Math.min(...slice) * (1 - Math.random() * 0.005);
-    const baseVolume = Math.abs(close - open) * 1000000 + Math.random() * 500000;
-
-    data.push({
-      time: now - (sparkline.length - i) * (intervalSeconds / step),
-      open,
-      high,
-      low,
-      close,
-      volume: baseVolume,
-    });
-  }
-
-  return data;
-}
-
-// Generate line/area data from sparkline
-function generateLineData(sparkline: number[], timeRange: TimeRange): ChartDataPoint[] {
-  if (!sparkline || sparkline.length < 2) return [];
-
-  const pointCount = getPointCountForRange(timeRange);
-  const now = Math.floor(Date.now() / 1000);
-  const intervalSeconds = getIntervalSecondsForRange(timeRange);
-
-  const data: ChartDataPoint[] = [];
-  for (let i = 0; i < pointCount; i++) {
-    const sparklineIndex = (i / pointCount) * (sparkline.length - 1);
-    const lowerIndex = Math.floor(sparklineIndex);
-    const upperIndex = Math.ceil(sparklineIndex);
-    const fraction = sparklineIndex - lowerIndex;
-
-    const value =
-      lowerIndex === upperIndex
-        ? sparkline[lowerIndex]
-        : sparkline[lowerIndex] * (1 - fraction) + sparkline[upperIndex] * fraction;
-
-    const noise = (Math.random() - 0.5) * value * 0.001;
-
-    data.push({
-      time: now - (pointCount - 1 - i) * intervalSeconds,
-      value: value + noise,
-    });
-  }
-
-  return data;
-}
-
-// Calculate SMA
-function calculateSMA(data: ChartDataPoint[], period: number): ChartDataPoint[] {
-  const result: ChartDataPoint[] = [];
-  for (let i = period - 1; i < data.length; i++) {
-    const sum = data.slice(i - period + 1, i + 1).reduce((acc, d) => acc + d.value, 0);
-    result.push({ time: data[i].time, value: sum / period });
-  }
-  return result;
-}
-
-// Calculate EMA
-function calculateEMA(data: ChartDataPoint[], period: number): ChartDataPoint[] {
-  const result: ChartDataPoint[] = [];
-  const multiplier = 2 / (period + 1);
-
-  if (data.length === 0) return result;
-
-  // Start with SMA for first value
-  let ema = data.slice(0, period).reduce((acc, d) => acc + d.value, 0) / period;
-  result.push({ time: data[period - 1].time, value: ema });
-
-  for (let i = period; i < data.length; i++) {
-    ema = (data[i].value - ema) * multiplier + ema;
-    result.push({ time: data[i].time, value: ema });
-  }
-
-  return result;
-}
-
-// Calculate Bollinger Bands
-function calculateBollingerBands(
-  data: ChartDataPoint[],
-  period: number = 20,
-  stdDev: number = 2
-): { upper: ChartDataPoint[]; middle: ChartDataPoint[]; lower: ChartDataPoint[] } {
-  const upper: ChartDataPoint[] = [];
-  const middle: ChartDataPoint[] = [];
-  const lower: ChartDataPoint[] = [];
-
-  for (let i = period - 1; i < data.length; i++) {
-    const slice = data.slice(i - period + 1, i + 1);
-    const sma = slice.reduce((acc, d) => acc + d.value, 0) / period;
-    const variance = slice.reduce((acc, d) => acc + Math.pow(d.value - sma, 2), 0) / period;
-    const std = Math.sqrt(variance);
-
-    middle.push({ time: data[i].time, value: sma });
-    upper.push({ time: data[i].time, value: sma + stdDev * std });
-    lower.push({ time: data[i].time, value: sma - stdDev * std });
-  }
-
-  return { upper, middle, lower };
-}
-
-function getPointCountForRange(range: TimeRange): number {
-  switch (range) {
-    case "1H": return 60;
-    case "4H": return 48;
-    case "1D": return 288;  // 24 hours / 5 minutes = 288 points (matches backend 5-min buckets)
-    case "1W": return 168;
-    case "1M": return 30;
-    case "3M": return 90;
-    case "1Y": return 365;
-    case "ALL": return 500;
-    default: return 100;
-  }
-}
-
-function getIntervalSecondsForRange(range: TimeRange): number {
-  switch (range) {
-    case "1H": return 60;
-    case "4H": return 300;
-    case "1D": return 300;  // 5-minute intervals to match backend
-    case "1W": return 3600;
-    case "1M": return 86400;
-    case "3M": return 86400;
-    case "1Y": return 86400;
-    case "ALL": return 604800;
-    default: return 3600;
-  }
-}
-
-// Remove TradingView watermark
-function removeWatermark(container: HTMLElement) {
-  const targets = container.querySelectorAll('[title*="TradingView"]');
-  targets.forEach((node) => {
-    const removable = node.closest("a") ?? node.closest("svg") ?? node;
-    removable.remove();
-  });
-  const svgTitles = container.querySelectorAll("svg title");
-  svgTitles.forEach((titleNode) => {
-    if (titleNode.textContent?.includes("TradingView")) {
-      const removable = titleNode.closest("a") ?? titleNode.closest("svg") ?? titleNode;
-      removable.remove();
-    }
-  });
-}
-
-// Chart Legend component
-function ChartLegend({
-  price,
-  change,
-  high,
-  low,
-  volume,
-}: {
-  price?: number;
-  change?: number;
-  high?: number;
-  low?: number;
-  volume?: number;
-}) {
-  return (
-    <View style={styles.legend}>
-      <View style={styles.legendItem}>
-        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Price</Text>
-        {price !== undefined ? (
-          <Currency value={price} size={Size.Medium} weight="semibold" decimals={price < 1 ? 6 : 2} mono />
-        ) : (
-          <Text size={Size.Medium} weight="semibold">—</Text>
-        )}
-      </View>
-      <View style={styles.legendItem}>
-        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Change</Text>
-        {change !== undefined && Number.isFinite(change) ? (
-          <PercentChange value={change} size={Size.Medium} weight="semibold" />
-        ) : (
-          <Text size={Size.Medium} weight="semibold">—</Text>
-        )}
-      </View>
-      <View style={styles.legendItem}>
-        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>High</Text>
-        {high !== undefined ? (
-          <Currency value={high} size={Size.Medium} weight="semibold" decimals={high < 1 ? 6 : 2} mono />
-        ) : (
-          <Text size={Size.Medium} weight="semibold">—</Text>
-        )}
-      </View>
-      <View style={styles.legendItem}>
-        <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Low</Text>
-        {low !== undefined ? (
-          <Currency value={low} size={Size.Medium} weight="semibold" decimals={low < 1 ? 6 : 2} mono />
-        ) : (
-          <Text size={Size.Medium} weight="semibold">—</Text>
-        )}
-      </View>
-      {volume !== undefined && (
-        <View style={styles.legendItem}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Volume</Text>
-          <Currency value={volume} size={Size.Medium} weight="semibold" compact mono />
-        </View>
-      )}
-    </View>
-  );
-}
+// Re-export types for backward compatibility
+export type { TimeRange, ChartType, Indicator } from "./advanced-chart/types";
 
 export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   const themeColors = useThemeColors();
@@ -512,17 +258,6 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   useEffect(() => {
     if (!asset?.id) return;
 
-    const rangeMap: Record<TimeRange, string> = {
-      "1H": "1h",
-      "4H": "4h",
-      "1D": "1d",
-      "1W": "1w",
-      "1M": "1m",
-      "3M": "1m", // Use 1m for 3M, we'll filter client-side
-      "1Y": "1m",  // Use 1m for 1Y
-      "ALL": "1m", // Use 1m for ALL
-    };
-
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
     let isFirstFetch = true;
 
@@ -533,7 +268,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
 
     const fetchData = async () => {
       try {
-        const response = await hauntClient.getChart(asset.id, rangeMap[timeRange]);
+        const response = await hauntClient.getChart(asset.id, API_RANGE_MAP[timeRange]);
         const data = response.data.data || [];
         setApiChartData(data);
         setIsSeeding(response.data.seeding || false);
