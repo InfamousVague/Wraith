@@ -1,8 +1,9 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
-import { Text, Avatar, PercentChange, Currency, Skeleton, Button } from "@wraith/ghost/components";
-import { Size, TextAppearance, Appearance } from "@wraith/ghost/enums";
+import { View, StyleSheet, Pressable } from "react-native";
+import { Text, Avatar, PercentChange, Currency, Skeleton, Icon } from "@wraith/ghost/components";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import type { Asset } from "../types/asset";
 
 type AssetHeaderProps = {
@@ -13,43 +14,46 @@ type AssetHeaderProps = {
 
 export function AssetHeader({ asset, loading, onBack }: AssetHeaderProps) {
   const themeColors = useThemeColors();
+  const { isMobile } = useBreakpoint();
+
+  // Responsive sizes
+  const avatarSize = isMobile ? Size.Medium : Size.Large;
+  const nameSize = isMobile ? Size.Large : Size.ExtraLarge;
+  const priceSize = isMobile ? Size.Large : Size.ExtraLarge;
 
   if (loading || !asset) {
     return (
-      <View style={styles.container}>
-        <View style={styles.leftSection}>
-          <Skeleton width={32} height={32} borderRadius={16} />
+      <View style={[styles.container, isMobile && styles.containerMobile]}>
+        <View style={[styles.leftSection, isMobile && styles.leftSectionMobile]}>
+          <Skeleton width={isMobile ? 28 : 32} height={isMobile ? 28 : 32} borderRadius={16} />
           <View style={styles.info}>
-            <Skeleton width={120} height={20} />
-            <Skeleton width={60} height={14} style={{ marginTop: 4 }} />
+            <Skeleton width={100} height={18} />
+            <Skeleton width={50} height={12} style={{ marginTop: 4 }} />
           </View>
         </View>
         <View style={styles.rightSection}>
-          <Skeleton width={100} height={24} />
-          <Skeleton width={60} height={16} style={{ marginTop: 4 }} />
+          <Skeleton width={80} height={20} />
+          <Skeleton width={50} height={14} style={{ marginTop: 4 }} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.leftSection}>
+    <View style={[styles.container, isMobile && styles.containerMobile]}>
+      <View style={[styles.leftSection, isMobile && styles.leftSectionMobile]}>
         {onBack && (
-          <Button
-            iconLeft="chevron-left"
-            appearance={Appearance.Ghost}
-            onPress={onBack}
-            size={Size.Large}
-          />
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Icon name="chevron-left" size={Size.Large} color={themeColors.text.secondary} />
+          </Pressable>
         )}
         <Avatar
           uri={asset.image}
           initials={asset.symbol.slice(0, 2)}
-          size={Size.Large}
+          size={avatarSize}
         />
         <View style={styles.info}>
-          <Text size={Size.ExtraLarge} weight="bold">
+          <Text size={nameSize} weight="bold">
             {asset.name}
           </Text>
           <Text size={Size.Small} appearance={TextAppearance.Muted}>
@@ -60,11 +64,11 @@ export function AssetHeader({ asset, loading, onBack }: AssetHeaderProps) {
       <View style={styles.rightSection}>
         <Currency
           value={asset.price}
-          size={Size.ExtraLarge}
+          size={priceSize}
           weight="bold"
           decimals={asset.price < 1 ? 6 : 2}
         />
-        <PercentChange value={asset.change24h} size={Size.Medium} />
+        <PercentChange value={asset.change24h} size={isMobile ? Size.Small : Size.Medium} />
       </View>
     </View>
   );
@@ -75,20 +79,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 24,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  containerMobile: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   leftSection: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    gap: 12,
+  },
+  leftSectionMobile: {
+    gap: 8,
+  },
+  backButton: {
+    padding: 8,
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: "center",
+    alignItems: "center",
   },
   info: {
-    gap: 4,
+    gap: 2,
   },
   rightSection: {
     alignItems: "flex-end",
-    gap: 4,
+    gap: 2,
   },
 });
