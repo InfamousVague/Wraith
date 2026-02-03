@@ -169,6 +169,23 @@ export function Web3Provider({ children, theme = "dark" }: Web3ProviderProps) {
 }
 
 /**
- * Export the RainbowKit ConnectButton for use in UI.
+ * Whether Web3/WalletConnect is configured and available.
  */
-export { ConnectButton } from "@rainbow-me/rainbowkit";
+export const isWeb3Available = wagmiConfig !== null;
+
+// Only import ConnectButton if wagmi is configured
+// This prevents the hook error when used outside WagmiProvider
+import { ConnectButton as RainbowConnectButton } from "@rainbow-me/rainbowkit";
+
+/**
+ * Safe ConnectButton wrapper that only renders when Web3 is available.
+ * Shows nothing when WalletConnect is not configured.
+ */
+export function ConnectButton(props: React.ComponentProps<typeof RainbowConnectButton>) {
+  // Don't render if Web3 is not configured - this avoids the hook error
+  if (!isWeb3Available) {
+    return null;
+  }
+
+  return <RainbowConnectButton {...props} />;
+}

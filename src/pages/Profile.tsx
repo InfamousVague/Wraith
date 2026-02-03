@@ -15,7 +15,7 @@ import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth, type AuthMode } from "../context/AuthContext";
-import { useWeb3Safe, ConnectButton } from "../context/Web3Context";
+import { useWeb3Safe, ConnectButton, isWeb3Available } from "../context/Web3Context";
 import { Navbar } from "../components/Navbar";
 import { LoginProgress } from "../components/LoginProgress";
 import { LogoutConfirmModal } from "../components/LogoutConfirmModal";
@@ -407,17 +407,25 @@ export function Profile() {
                         <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.authOptionDesc}>
                           Use MetaMask, WalletConnect, or other wallets. Most secure option.
                         </Text>
-                        <View style={styles.walletConnectWrapper}>
-                          <ConnectButton />
-                        </View>
-                        {web3?.isConnected && (
-                          <Button
-                            label="Use Connected Wallet"
-                            onPress={handleConnectWallet}
-                            size={Size.Small}
-                            shape={Shape.Rounded}
-                            style={styles.authOptionButton}
-                          />
+                        {isWeb3Available ? (
+                          <>
+                            <View style={styles.walletConnectWrapper}>
+                              <ConnectButton />
+                            </View>
+                            {web3?.isConnected && (
+                              <Button
+                                label="Use Connected Wallet"
+                                onPress={handleConnectWallet}
+                                size={Size.Small}
+                                shape={Shape.Rounded}
+                                style={styles.authOptionButton}
+                              />
+                            )}
+                          </>
+                        ) : (
+                          <Text size={Size.Small} appearance={TextAppearance.Muted}>
+                            WalletConnect not configured
+                          </Text>
                         )}
                       </View>
 
