@@ -10,7 +10,6 @@ import { ExchangeLiquidity } from "./ExchangeLiquidity";
 import { TopMoversCard } from "./TopMoversCard";
 import { MarketStatusCard } from "./MarketStatusCard";
 import { ApiStatsCard } from "./ApiStatsCard";
-import { ServerConnectionTile } from "./ServerConnectionTile";
 import type { AssetType } from "../services/haunt";
 
 type MetricsCarouselProps = {
@@ -39,7 +38,6 @@ export function MetricsCarousel({ assetType = "all" }: MetricsCarouselProps) {
       >
         <TopMoversCard assetType={assetType} />
         <MarketStatusCard />
-        <ApiStatsCard />
         <FearGreedCard
           value={fearGreedData?.value ?? 0}
           loading={showFearGreedLoading}
@@ -51,7 +49,7 @@ export function MetricsCarousel({ assetType = "all" }: MetricsCarouselProps) {
         />
         <PriceFeedCard />
         <ExchangeLiquidity />
-        <ServerConnectionTile />
+        <ApiStatsCard />
       </ScrollView>
     </View>
   );

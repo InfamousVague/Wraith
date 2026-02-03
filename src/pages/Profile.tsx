@@ -2,6 +2,7 @@
  * Profile Page
  *
  * User account management and server connection.
+ * Supports both Ethereum wallet authentication and local key management.
  */
 
 import React, { useState } from "react";
@@ -13,7 +14,8 @@ import { Size, TextAppearance, Shape, Appearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { useTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, type AuthMode } from "../context/AuthContext";
+import { useWeb3Safe, ConnectButton } from "../context/Web3Context";
 import { Navbar } from "../components/Navbar";
 import { LoginProgress } from "../components/LoginProgress";
 import { LogoutConfirmModal } from "../components/LogoutConfirmModal";
@@ -29,6 +31,13 @@ const themes = {
   },
 };
 
+// Auth mode labels for display
+const AUTH_MODE_LABELS: Record<AuthMode, string> = {
+  external_wallet: "External Wallet",
+  local_eth_key: "Local ETH Key",
+  legacy_key: "Legacy Key",
+};
+
 export function Profile() {
   const navigate = useNavigate();
   const { t } = useTranslation(["auth", "common"]);
@@ -41,7 +50,10 @@ export function Profile() {
   const {
     user,
     isAuthenticated,
+    authMode,
     createAccount,
+    createEthAccount,
+    connectExternalWallet,
     logout,
     exportPrivateKey,
     importPrivateKey,
@@ -54,6 +66,9 @@ export function Profile() {
     serverProfile,
   } = useAuth();
 
+  // Web3 context for wallet connection
+  const web3 = useWeb3Safe();
+
   const [importKey, setImportKey] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const [showPrivateKey, setShowPrivateKey] = useState(false);
@@ -61,6 +76,7 @@ export function Profile() {
   const [copied, setCopied] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [hasBackedUpKey, setHasBackedUpKey] = useState(false);
+  const [showAuthOptions, setShowAuthOptions] = useState(false);
 
   const handleRevealKey = () => {
     const key = exportPrivateKey();
@@ -78,8 +94,29 @@ export function Profile() {
   const handleCreateAccount = async () => {
     try {
       await createAccount();
+      setShowAuthOptions(false);
     } catch (e) {
       console.error("Failed to create account:", e);
+    }
+  };
+
+  const handleCreateEthAccount = async () => {
+    try {
+      await createEthAccount();
+      setShowAuthOptions(false);
+    } catch (e) {
+      console.error("Failed to create ETH account:", e);
+    }
+  };
+
+  const handleConnectWallet = async () => {
+    try {
+      if (web3?.isConnected) {
+        await connectExternalWallet();
+        setShowAuthOptions(false);
+      }
+    } catch (e) {
+      console.error("Failed to connect wallet:", e);
     }
   };
 
@@ -88,6 +125,7 @@ export function Profile() {
       setImportError(null);
       await importPrivateKey(importKey.trim());
       setImportKey("");
+      setShowAuthOptions(false);
     } catch (e) {
       setImportError(e instanceof Error ? e.message : "Failed to import key");
     }
@@ -103,17 +141,25 @@ export function Profile() {
     }
   };
 
+  const handleCopyAddress = () => {
+    if (user?.address) {
+      navigator.clipboard.writeText(user.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   const handleDownloadKey = () => {
     const key = exportPrivateKey();
     if (key && user) {
       const blob = new Blob(
-        [JSON.stringify({ publicKey: user.publicKey, privateKey: key }, null, 2)],
+        [JSON.stringify({ address: user.address, privateKey: key, authMode: user.authMode }, null, 2)],
         { type: "application/json" }
       );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `wraith-wallet-${user.publicKey.slice(0, 8)}.json`;
+      a.download = `wraith-wallet-${user.shortAddress}.json`;
       a.click();
       URL.revokeObjectURL(url);
       setHasBackedUpKey(true);
@@ -138,12 +184,15 @@ export function Profile() {
     handleDownloadKey();
   };
 
+  // Check if current auth mode uses a local key (exportable)
+  const hasLocalKey = authMode === "local_eth_key" || authMode === "legacy_key";
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Logout confirmation modal */}
       <LogoutConfirmModal
         visible={showLogoutModal}
-        hasBackedUpKey={hasBackedUpKey}
+        hasBackedUpKey={hasBackedUpKey || authMode === "external_wallet"}
         onConfirm={handleLogoutConfirm}
         onCancel={handleLogoutCancel}
         onBackupKey={handleBackupFromModal}
@@ -178,13 +227,28 @@ export function Profile() {
                   {/* Logged in state - header with logout */}
                   <View style={[styles.accountHeader, isMobile && styles.accountHeaderMobile]}>
                     <View style={styles.accountInfo}>
+                      {/* Auth mode badge */}
+                      <View style={styles.authModeBadge}>
+                        <Icon
+                          name={authMode === "external_wallet" ? "lock" : "unlock"}
+                          size={Size.ExtraSmall}
+                          color={Colors.accent.primary}
+                        />
+                        <Text size={Size.TwoXSmall} style={{ color: Colors.accent.primary }}>
+                          {authMode ? AUTH_MODE_LABELS[authMode] : "Unknown"}
+                        </Text>
+                      </View>
+
                       <View style={styles.accountRow}>
                         <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                          {t("auth:profile.publicKeyLabel")}
+                          {user.address.startsWith("0x") ? "Address" : t("auth:profile.publicKeyLabel")}
                         </Text>
-                        <Text size={Size.Medium} weight="medium" style={styles.keyText}>
-                          {user.publicKey.slice(0, 16)}...{user.publicKey.slice(-16)}
-                        </Text>
+                        <Pressable onPress={handleCopyAddress} style={styles.addressRow}>
+                          <Text size={Size.Medium} weight="medium" style={styles.keyText}>
+                            {user.shortAddress}
+                          </Text>
+                          <Icon name="copy" size={Size.ExtraSmall} color={themeColors.text.muted} />
+                        </Pressable>
                       </View>
 
                       <View style={styles.accountRow}>
@@ -205,82 +269,110 @@ export function Profile() {
                     </Pressable>
                   </View>
 
-                  <View
-                    style={[
-                      styles.divider,
-                      { backgroundColor: themeColors.border.subtle },
-                    ]}
-                  />
+                  {/* Private Key Management - only for local keys */}
+                  {hasLocalKey && (
+                    <>
+                      <View
+                        style={[
+                          styles.divider,
+                          { backgroundColor: themeColors.border.subtle },
+                        ]}
+                      />
 
-                  {/* Private Key Management */}
-                  <View style={styles.keySection}>
-                    <Text size={Size.Medium} weight="semibold" style={styles.keyTitle}>
-                      {t("auth:profile.privateKey")}
-                    </Text>
-                    <Text
-                      size={Size.Small}
-                      appearance={TextAppearance.Muted}
-                      style={styles.keyWarning}
-                    >
-                      {t("auth:profile.privateKeyWarning")}
-                    </Text>
+                      <View style={styles.keySection}>
+                        <Text size={Size.Medium} weight="semibold" style={styles.keyTitle}>
+                          {t("auth:profile.privateKey")}
+                        </Text>
+                        <Text
+                          size={Size.Small}
+                          appearance={TextAppearance.Muted}
+                          style={styles.keyWarning}
+                        >
+                          {t("auth:profile.privateKeyWarning")}
+                        </Text>
 
-                    {showPrivateKey && revealedKey ? (
-                      <View style={styles.keyDisplay}>
-                        <View style={styles.keyTextContainer}>
-                          <Text
-                            size={Size.ExtraSmall}
-                            style={[styles.keyText, { color: themeColors.text.muted }]}
-                            numberOfLines={2}
-                          >
-                            {revealedKey}
+                        {showPrivateKey && revealedKey ? (
+                          <View style={styles.keyDisplay}>
+                            <View style={styles.keyTextContainer}>
+                              <Text
+                                size={Size.ExtraSmall}
+                                style={[styles.keyText, { color: themeColors.text.muted }]}
+                                numberOfLines={2}
+                              >
+                                {revealedKey}
+                              </Text>
+                            </View>
+                            <Pressable onPress={handleHideKey} style={styles.hideButton}>
+                              <Icon
+                                name="eye-off"
+                                size={Size.Small}
+                                color={themeColors.text.muted}
+                              />
+                            </Pressable>
+                          </View>
+                        ) : (
+                          <Button
+                            label={t("auth:profile.revealPrivateKey")}
+                            onPress={handleRevealKey}
+                            size={Size.Small}
+                            shape={Shape.Rounded}
+                            appearance={Appearance.Secondary}
+                            style={styles.button}
+                          />
+                        )}
+
+                        <View style={styles.keyActions}>
+                          <Button
+                            label={copied ? t("common:buttons.copied") : t("common:buttons.copy")}
+                            onPress={handleCopyPrivateKey}
+                            size={Size.Small}
+                            shape={Shape.Rounded}
+                            appearance={Appearance.Secondary}
+                            leadingIcon="copy"
+                          />
+                          <Button
+                            label={t("common:buttons.download")}
+                            onPress={handleDownloadKey}
+                            size={Size.Small}
+                            shape={Shape.Rounded}
+                            appearance={Appearance.Secondary}
+                            leadingIcon="download"
+                          />
+                        </View>
+                      </View>
+                    </>
+                  )}
+
+                  {/* External wallet info */}
+                  {authMode === "external_wallet" && (
+                    <>
+                      <View
+                        style={[
+                          styles.divider,
+                          { backgroundColor: themeColors.border.subtle },
+                        ]}
+                      />
+
+                      <View style={styles.walletInfo}>
+                        <Icon name="lock" size={Size.Large} color={Colors.status.success} />
+                        <View style={styles.walletInfoText}>
+                          <Text size={Size.Medium} weight="semibold">
+                            Secured by External Wallet
+                          </Text>
+                          <Text size={Size.Small} appearance={TextAppearance.Muted}>
+                            Your private key is stored securely in your wallet (MetaMask, etc.)
                           </Text>
                         </View>
-                        <Pressable onPress={handleHideKey} style={styles.hideButton}>
-                          <Icon
-                            name="eye-off"
-                            size={Size.Small}
-                            color={themeColors.text.muted}
-                          />
-                        </Pressable>
                       </View>
-                    ) : (
-                      <Button
-                        label={t("auth:profile.revealPrivateKey")}
-                        onPress={handleRevealKey}
-                        size={Size.Small}
-                        shape={Shape.Rounded}
-                        appearance={Appearance.Secondary}
-                        style={styles.button}
-                      />
-                    )}
-
-                    <View style={styles.keyActions}>
-                      <Button
-                        label={copied ? t("common:buttons.copied") : t("common:buttons.copy")}
-                        onPress={handleCopyPrivateKey}
-                        size={Size.Small}
-                        shape={Shape.Rounded}
-                        appearance={Appearance.Secondary}
-                        leadingIcon="copy"
-                      />
-                      <Button
-                        label={t("common:buttons.download")}
-                        onPress={handleDownloadKey}
-                        size={Size.Small}
-                        shape={Shape.Rounded}
-                        appearance={Appearance.Secondary}
-                        leadingIcon="download"
-                      />
-                    </View>
-                  </View>
+                    </>
+                  )}
                 </>
               ) : (
                 <>
                   {/* Not logged in state */}
                   <View style={styles.noAccount}>
                     <Icon
-                      name="wallet"
+                      name="user"
                       size={Size.ExtraLarge}
                       color={themeColors.text.muted}
                     />
@@ -296,57 +388,125 @@ export function Profile() {
                     </Text>
                   </View>
 
-                  <Button
-                    label={t("auth:profile.createNewAccount")}
-                    onPress={handleCreateAccount}
-                    size={Size.Small}
-                    shape={Shape.Rounded}
-                    style={styles.createButton}
-                  />
+                  {/* Auth options */}
+                  {showAuthOptions ? (
+                    <View style={styles.authOptions}>
+                      {/* External Wallet (RainbowKit) */}
+                      <View style={styles.authOption}>
+                        <View style={styles.authOptionHeader}>
+                          <Icon name="lock" size={Size.Medium} color={Colors.accent.primary} />
+                          <Text size={Size.Medium} weight="semibold">
+                            Connect Wallet
+                          </Text>
+                          <View style={[styles.recommendedBadge, { backgroundColor: `${Colors.status.success}20` }]}>
+                            <Text size={Size.TwoXSmall} style={{ color: Colors.status.success }}>
+                              Recommended
+                            </Text>
+                          </View>
+                        </View>
+                        <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.authOptionDesc}>
+                          Use MetaMask, WalletConnect, or other wallets. Most secure option.
+                        </Text>
+                        <View style={styles.walletConnectWrapper}>
+                          <ConnectButton />
+                        </View>
+                        {web3?.isConnected && (
+                          <Button
+                            label="Use Connected Wallet"
+                            onPress={handleConnectWallet}
+                            size={Size.Small}
+                            shape={Shape.Rounded}
+                            style={styles.authOptionButton}
+                          />
+                        )}
+                      </View>
 
-                  <View
-                    style={[
-                      styles.divider,
-                      { backgroundColor: themeColors.border.subtle },
-                    ]}
-                  />
+                      <View style={[styles.authDivider, { backgroundColor: themeColors.border.subtle }]}>
+                        <Text size={Size.Small} appearance={TextAppearance.Muted}>or</Text>
+                      </View>
 
-                  <Text
-                    size={Size.Small}
-                    appearance={TextAppearance.Muted}
-                    style={styles.importLabel}
-                  >
-                    {t("auth:profile.importLabel")}
-                  </Text>
+                      {/* Local ETH Key */}
+                      <View style={styles.authOption}>
+                        <View style={styles.authOptionHeader}>
+                          <Icon name="unlock" size={Size.Medium} color={themeColors.text.muted} />
+                          <Text size={Size.Medium} weight="semibold">
+                            Create Local Key
+                          </Text>
+                        </View>
+                        <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.authOptionDesc}>
+                          Generate an Ethereum-compatible key stored in your browser.
+                        </Text>
+                        <Button
+                          label="Create ETH Key"
+                          onPress={handleCreateEthAccount}
+                          size={Size.Small}
+                          shape={Shape.Rounded}
+                          appearance={Appearance.Secondary}
+                          style={styles.authOptionButton}
+                        />
+                      </View>
 
-                  <Input
-                    value={importKey}
-                    onChangeText={setImportKey}
-                    placeholder={t("auth:profile.importPlaceholder")}
-                    size={Size.Small}
-                    shape={Shape.Rounded}
-                    style={styles.importInput}
-                  />
+                      <View style={[styles.authDivider, { backgroundColor: themeColors.border.subtle }]}>
+                        <Text size={Size.Small} appearance={TextAppearance.Muted}>or</Text>
+                      </View>
 
-                  {importError && (
-                    <Text
-                      size={Size.Small}
-                      appearance={TextAppearance.Danger}
-                      style={styles.error}
-                    >
-                      {importError}
-                    </Text>
+                      {/* Import existing key */}
+                      <View style={styles.authOption}>
+                        <View style={styles.authOptionHeader}>
+                          <Icon name="upload" size={Size.Medium} color={themeColors.text.muted} />
+                          <Text size={Size.Medium} weight="semibold">
+                            Import Key
+                          </Text>
+                        </View>
+                        <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.authOptionDesc}>
+                          Import an existing private key (0x... for ETH or hex for legacy).
+                        </Text>
+                        <Input
+                          value={importKey}
+                          onChangeText={setImportKey}
+                          placeholder={t("auth:profile.importPlaceholder")}
+                          size={Size.Small}
+                          shape={Shape.Rounded}
+                          style={styles.importInput}
+                        />
+                        {importError && (
+                          <Text
+                            size={Size.Small}
+                            appearance={TextAppearance.Danger}
+                            style={styles.error}
+                          >
+                            {importError}
+                          </Text>
+                        )}
+                        <Button
+                          label={t("auth:profile.importPrivateKey")}
+                          onPress={handleImportKey}
+                          size={Size.Small}
+                          shape={Shape.Rounded}
+                          appearance={Appearance.Secondary}
+                          disabled={!importKey.trim()}
+                          style={styles.authOptionButton}
+                        />
+                      </View>
+
+                      <Pressable
+                        onPress={() => setShowAuthOptions(false)}
+                        style={styles.cancelButton}
+                      >
+                        <Text size={Size.Small} appearance={TextAppearance.Muted}>
+                          Cancel
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Button
+                      label="Get Started"
+                      onPress={() => setShowAuthOptions(true)}
+                      size={Size.Medium}
+                      shape={Shape.Rounded}
+                      style={styles.createButton}
+                    />
                   )}
-
-                  <Button
-                    label={t("auth:profile.importPrivateKey")}
-                    onPress={handleImportKey}
-                    size={Size.Small}
-                    shape={Shape.Rounded}
-                    appearance={Appearance.Secondary}
-                    disabled={!importKey.trim()}
-                    style={styles.importButton}
-                  />
                 </>
               )}
             </View>
@@ -498,10 +658,25 @@ const styles = StyleSheet.create({
   },
   accountInfo: {
     flex: 1,
-    gap: 16,
+    gap: 12,
+  },
+  authModeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    alignSelf: "flex-start",
   },
   accountRow: {
     gap: 4,
+  },
+  addressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   keyText: {
     fontFamily: "monospace",
@@ -550,6 +725,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: "transparent",
   },
+  walletInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    padding: 16,
+    backgroundColor: "rgba(0, 255, 0, 0.05)",
+    borderRadius: 12,
+  },
+  walletInfoText: {
+    flex: 1,
+    gap: 4,
+  },
   noAccount: {
     alignItems: "center",
     gap: 12,
@@ -563,8 +750,48 @@ const styles = StyleSheet.create({
     maxWidth: 400,
   },
   createButton: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
+    minWidth: 200,
+  },
+  authOptions: {
+    gap: 16,
+  },
+  authOption: {
+    padding: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: 12,
+    gap: 8,
+  },
+  authOptionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  recommendedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: "auto",
+  },
+  authOptionDesc: {
     marginBottom: 8,
+  },
+  authOptionButton: {
+    alignSelf: "flex-start",
+  },
+  walletConnectWrapper: {
+    marginVertical: 8,
+  },
+  authDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 1,
+    position: "relative",
+  },
+  cancelButton: {
+    alignSelf: "center",
+    padding: 12,
   },
   importLabel: {
     marginBottom: 8,

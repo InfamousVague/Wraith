@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, createContext, useCo
 import { logger } from "../utils/logger";
 import { usePerformance } from "../context/PerformanceContext";
 import { useApiServer } from "../context/ApiServerContext";
+import type { SyncStatus } from "../services/haunt";
 
 // Default WebSocket URL when no active server
 const DEFAULT_WS_URL = import.meta.env.VITE_HAUNT_WS_URL || "ws://localhost:3001/ws";
@@ -69,6 +70,7 @@ export type PeerStatus = {
   uptimePercent: number;
   lastPingAt?: number;
   lastAttemptAt?: number;
+  syncStatus?: SyncStatus;
 };
 
 export type PeerUpdate = {

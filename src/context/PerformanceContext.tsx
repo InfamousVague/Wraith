@@ -7,6 +7,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { usePreferenceSyncSafe } from "./PreferenceSyncContext";
 
 /**
  * Speed levels for update throttling.
@@ -90,6 +91,9 @@ export function PerformanceProvider({ children }: PerformanceProviderProps) {
     return "fast"; // Default to fast mode
   });
 
+  // Preference sync (may not be available during initial load)
+  const prefSync = usePreferenceSyncSafe();
+
   // Track last call times for throttled callbacks
   const lastCallTimes = useRef<Map<string, number>>(new Map());
   const pendingCalls = useRef<Map<string, { args: any[]; timeout: NodeJS.Timeout }>>(new Map());
@@ -108,7 +112,37 @@ export function PerformanceProvider({ children }: PerformanceProviderProps) {
     pendingCalls.current.forEach(({ timeout }) => clearTimeout(timeout));
     pendingCalls.current.clear();
     lastCallTimes.current.clear();
-  }, []);
+
+    // Sync to server if available
+    if (prefSync) {
+      prefSync.updatePreference("performanceLevel", level);
+    }
+  }, [prefSync]);
+
+  // Apply server preferences when they arrive
+  useEffect(() => {
+    if (prefSync?.serverPreferences?.performanceLevel) {
+      const serverLevel = prefSync.serverPreferences.performanceLevel as SpeedLevel;
+      if (isValidSpeedLevel(serverLevel)) {
+        // Check if server is newer than local
+        const localPrefs = localStorage.getItem("wraith_user_preferences");
+        if (localPrefs) {
+          try {
+            const parsed = JSON.parse(localPrefs);
+            const serverUpdatedAt = prefSync.serverPreferences.updatedAt || 0;
+            const localUpdatedAt = parsed.updatedAt || 0;
+            if (serverUpdatedAt > localUpdatedAt) {
+              setSpeedLevelState(serverLevel);
+            }
+          } catch {
+            setSpeedLevelState(serverLevel);
+          }
+        } else {
+          setSpeedLevelState(serverLevel);
+        }
+      }
+    }
+  }, [prefSync?.serverPreferences?.performanceLevel, prefSync?.serverPreferences?.updatedAt]);
 
   /**
    * Creates a throttled version of a callback that respects the current speed level.

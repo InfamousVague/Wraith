@@ -179,6 +179,22 @@ export type ConfidenceResponse = {
 // Peer mesh types for multi-server connectivity
 export type PeerConnectionStatus = "connected" | "connecting" | "disconnected" | "failed";
 
+/** Data sync status between servers */
+export type SyncStatus = {
+  /** Predictions we have that peer doesn't */
+  predictionsAhead: number;
+  /** Predictions peer has that we don't */
+  predictionsBehind: number;
+  /** Preferences we have that are newer */
+  preferencesAhead: number;
+  /** Preferences peer has that are newer */
+  preferencesBehind: number;
+  /** Last sync timestamp (ms) */
+  lastSyncAt: number;
+  /** Whether sync is in progress */
+  syncing: boolean;
+};
+
 export type PeerStatus = {
   id: string;
   region: string;
@@ -192,6 +208,8 @@ export type PeerStatus = {
   uptimePercent: number;
   lastPingAt?: number;
   lastAttemptAt?: number;
+  /** Data sync status relative to this peer */
+  syncStatus?: SyncStatus;
 };
 
 export type PeerMeshResponse = {
@@ -215,6 +233,7 @@ export type AuthRequest = {
   challenge: string;
   signature: string;
   timestamp: number;
+  signatureType?: "hmac" | "eth";
 };
 
 export type Profile = {
@@ -237,6 +256,23 @@ export type AuthResponse = {
   sessionToken: string;
   expiresAt: number;
   profile: Profile;
+};
+
+// User preferences types
+export type UserPreferences = {
+  theme: string;
+  language: string;
+  performanceLevel: string;
+  preferredServer: string | null;
+  autoFastest: boolean;
+  onboardingProgress: string[];
+  updatedAt: number;
+};
+
+export type PreferencesSyncResponse = {
+  preferences: UserPreferences;
+  serverUpdated: boolean;
+  clientShouldUpdate: boolean;
 };
 
 // Generate synthetic sparkline data based on price and percent change
@@ -588,6 +624,43 @@ class HauntClient {
   async logout(token: string): Promise<void> {
     await this.fetchWithAuth("/api/auth/logout", token, {
       method: "POST",
+    });
+  }
+
+  // ========== User Preferences API Methods ==========
+
+  /**
+   * Get user preferences
+   */
+  async getPreferences(token: string): Promise<ApiResponse<UserPreferences>> {
+    return this.fetchWithAuth("/api/user/preferences", token);
+  }
+
+  /**
+   * Update user preferences (partial update)
+   */
+  async updatePreferences(
+    token: string,
+    preferences: Partial<UserPreferences>
+  ): Promise<ApiResponse<UserPreferences>> {
+    return this.fetchWithAuth("/api/user/preferences", token, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(preferences),
+    });
+  }
+
+  /**
+   * Sync preferences with server (bidirectional)
+   */
+  async syncPreferences(
+    token: string,
+    preferences: UserPreferences
+  ): Promise<ApiResponse<PreferencesSyncResponse>> {
+    return this.fetchWithAuth("/api/user/preferences/sync", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preferences }),
     });
   }
 

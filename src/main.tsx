@@ -7,8 +7,12 @@ import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { HintProvider } from "./context/HintContext";
 import { PerformanceProvider } from "./context/PerformanceContext";
+import { ApiServerProvider } from "./context/ApiServerContext";
+import { PreferenceSyncProvider } from "./context/PreferenceSyncContext";
+import { Web3Provider } from "./context/Web3Context";
 import { GhostThemeProvider } from "@wraith/ghost";
 import { HauntSocketProvider } from "./hooks/useHauntSocket";
+import { useAutoLoginOnServerSwitch } from "./hooks/useAutoLoginOnServerSwitch";
 import { Dashboard } from "./pages/Dashboard";
 import { AssetDetail } from "./pages/AssetDetail";
 import { Profile } from "./pages/Profile";
@@ -23,6 +27,12 @@ function GhostThemeBridge({ children }: { children: React.ReactNode }) {
       {children}
     </GhostThemeProvider>
   );
+}
+
+// Component that handles auto-login on server switch
+function AutoLoginHandler({ children }: { children: React.ReactNode }) {
+  useAutoLoginOnServerSwitch();
+  return <>{children}</>;
 }
 
 function App() {
@@ -42,19 +52,27 @@ function App() {
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider>
-        <AuthProvider>
-          <HintProvider>
-            <GhostThemeBridge>
-              <PerformanceProvider>
-                <HauntSocketProvider>
-                  <App />
-                </HauntSocketProvider>
-              </PerformanceProvider>
-            </GhostThemeBridge>
-          </HintProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <Web3Provider>
+        <ThemeProvider>
+          <AuthProvider>
+            <HintProvider>
+              <GhostThemeBridge>
+                <PerformanceProvider>
+                  <ApiServerProvider>
+                    <PreferenceSyncProvider>
+                      <AutoLoginHandler>
+                        <HauntSocketProvider>
+                          <App />
+                        </HauntSocketProvider>
+                      </AutoLoginHandler>
+                    </PreferenceSyncProvider>
+                  </ApiServerProvider>
+                </PerformanceProvider>
+              </GhostThemeBridge>
+            </HintProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </Web3Provider>
     </BrowserRouter>
   </React.StrictMode>
 );
