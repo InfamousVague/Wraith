@@ -241,11 +241,11 @@ export function Profile() {
 
                       <View style={styles.accountRow}>
                         <Text size={Size.Small} appearance={TextAppearance.Muted}>
-                          {user.address.startsWith("0x") ? "Address" : t("auth:profile.publicKeyLabel")}
+                          {user.address?.startsWith("0x") ? "Address" : t("auth:profile.publicKeyLabel")}
                         </Text>
                         <Pressable onPress={handleCopyAddress} style={styles.addressRow}>
                           <Text size={Size.Medium} weight="medium" style={styles.keyText}>
-                            {user.shortAddress}
+                            {user.shortAddress || "—"}
                           </Text>
                           <Icon name="copy" size={Size.ExtraSmall} color={themeColors.text.muted} />
                         </Pressable>
@@ -256,7 +256,7 @@ export function Profile() {
                           {t("auth:profile.accountCreated")}
                         </Text>
                         <Text size={Size.Medium}>
-                          {new Date(user.createdAt).toLocaleDateString()}
+                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
                         </Text>
                       </View>
                     </View>
