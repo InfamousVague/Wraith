@@ -26,11 +26,10 @@ import { Card, Text, Icon, Select, Divider } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { useTheme } from "../context/ThemeContext";
-import { SpeedSelector } from "../components/SpeedToggle";
-import { Navbar } from "../components/Navbar";
+import { SpeedSelector, Navbar } from "../components/ui";
+import { ServersCard } from "../components/server";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "../i18n/types";
 import { useBreakpoint } from "../hooks/useBreakpoint";
-import { ServersCard } from "../components/ServersCard";
 
 // Theme colors
 const themes = {

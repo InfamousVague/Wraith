@@ -1,0 +1,743 @@
+/**
+ * @file TradeSandbox.tsx
+ * @description Paper trading terminal inspired by Hyperliquid and Binance.
+ *
+ * ## Layout:
+ * Wide Desktop (>=1200px, 3-column grid):
+ * - Left: Order Book (AggregatedOrderBook)
+ * - Center: Price Chart (AdvancedChart)
+ * - Right: Order Form
+ * - Bottom: Positions/Orders/History tabs
+ * - Draggable resizers between panels
+ *
+ * Medium screens (<1200px, 2-column with toggle):
+ * - Toggle between Chart and Order Book (center panel)
+ * - Right: Order Form
+ * - Bottom: Positions tabs
+ *
+ * Mobile (<=480px, stacked):
+ * - Chart
+ * - Order Book (below chart)
+ * - Order Form
+ * - Positions tabs
+ *
+ * ## Features:
+ * - Paper trading with mock/real API integration
+ * - Real-time price updates via WebSocket
+ * - Order placement with Market/Limit/Stop Loss/Take Profit
+ * - Position and order management
+ * - P&L tracking
+ * - Resizable panels via drag handles
+ * - Contextual help tooltips throughout
+ *
+ * Portfolio overview is at /trade route.
+ */
+
+import React, { useState, useCallback } from "react";
+import { View, StyleSheet, ScrollView } from "react-native";
+import { Card, SegmentedControl, Text } from "@wraith/ghost/components";
+import { Colors } from "@wraith/ghost/tokens";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
+import { useBreakpoint } from "../hooks/useBreakpoint";
+import { useCryptoData } from "../hooks/useCryptoData";
+import { usePortfolio } from "../hooks/usePortfolio";
+import { usePositions } from "../hooks/usePositions";
+import { useOrders } from "../hooks/useOrders";
+import { useTrades } from "../hooks/useTrades";
+import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
+import {
+  Navbar,
+  HintIndicator,
+  TooltipContainer,
+  TooltipSection,
+  TooltipText,
+  TooltipListItem,
+  TooltipDivider,
+  PanelResizer,
+} from "../components/ui";
+import { AdvancedChart } from "../components/chart";
+import { AggregatedOrderBook } from "../components/market/aggregated-order-book";
+import {
+  OrderForm,
+  PositionsTable,
+  OrdersTable,
+  TradeHistoryTable,
+  OrderConfirmModal,
+  TradeReceiptModal,
+  ClosePositionModal,
+  ModifyPositionModal,
+} from "../components/trade";
+import type { Position, ModifyPositionRequest, AssetClass, OrderType } from "../services/haunt";
+import { spacing } from "../styles/tokens";
+import {
+  MOCK_PORTFOLIO,
+  MOCK_POSITIONS as INITIAL_MOCK_POSITIONS,
+  MOCK_ORDERS as INITIAL_MOCK_ORDERS,
+  MOCK_TRADES,
+} from "../data/mockPortfolio";
+import type { Asset } from "../types/asset";
+import type { OrderFormState } from "../components/trade/order-form/types";
+import type { OrderUpdate } from "../hooks/useHauntSocket";
+
+type TabId = "positions" | "orders" | "history";
+type ChartViewId = "chart" | "orderbook";
+
+const TAB_OPTIONS = [
+  { value: "positions", label: "Positions", icon: "briefcase" },
+  { value: "orders", label: "Orders", icon: "clock" },
+  { value: "history", label: "History", icon: "list" },
+];
+
+const CHART_VIEW_OPTIONS = [
+  { value: "chart", label: "Chart" },
+  { value: "orderbook", label: "Order Book" },
+];
+
+const themes = {
+  dark: {
+    background: "#050608",
+  },
+  light: {
+    background: "#f8fafc",
+  },
+};
+
+// Minimum width needed for 3-column layout (Order Book + Chart + Order Form)
+const THREE_COLUMN_MIN_WIDTH = 1200;
+
+// Panel size constraints
+const MIN_PANEL_WIDTH = 200;
+const MAX_PANEL_WIDTH = 500;
+const DEFAULT_ORDER_BOOK_WIDTH = MIN_PANEL_WIDTH;
+const DEFAULT_ORDER_FORM_WIDTH = 320;
+
+/**
+ * Paper trading sandbox page with full trading interface.
+ */
+export function TradeSandbox() {
+  const { isDark } = useTheme();
+  const { isAuthenticated } = useAuth();
+  const colors = isDark ? themes.dark : themes.light;
+  const { isMobile, width } = useBreakpoint();
+
+  // Use toggle layout when width is below threshold for 3-column layout
+  const showToggleLayout = !isMobile && width < THREE_COLUMN_MIN_WIDTH;
+
+  // Selected asset state
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>("positions");
+  const [chartView, setChartView] = useState<ChartViewId>("chart");
+
+  // Resizable panel widths
+  const [orderBookWidth, setOrderBookWidth] = useState(DEFAULT_ORDER_BOOK_WIDTH);
+  const [orderFormWidth, setOrderFormWidth] = useState(DEFAULT_ORDER_FORM_WIDTH);
+
+  // Local mock state for demo mode (when not authenticated or no real data)
+  const [mockPositions, setMockPositions] = useState(INITIAL_MOCK_POSITIONS);
+  const [mockOrders, setMockOrders] = useState(INITIAL_MOCK_ORDERS);
+
+  // Modal state
+  const [pendingOrder, setPendingOrder] = useState<OrderFormState | null>(null);
+  const [showOrderConfirm, setShowOrderConfirm] = useState(false);
+  const [showTradeReceipt, setShowTradeReceipt] = useState(false);
+  const [positionToClose, setPositionToClose] = useState<Position | null>(null);
+  const [positionToModify, setPositionToModify] = useState<Position | null>(null);
+  const [orderSubmitting, setOrderSubmitting] = useState(false);
+  const [positionClosing, setPositionClosing] = useState(false);
+  const [positionModifying, setPositionModifying] = useState(false);
+
+  // Fetch real data when authenticated (with polling + WebSocket)
+  const { portfolio: apiPortfolio, portfolioId, loading: portfolioLoading } = usePortfolio();
+  const {
+    positions: apiPositions,
+    closePosition,
+    modifyPosition,
+    loading: positionsLoading,
+    refetch: refetchPositions,
+    updatedPositionIds,
+  } = usePositions(portfolioId);
+  const {
+    orders: apiOrders,
+    cancelOrder,
+    placeOrder,
+    cancelAllOrders,
+    loading: ordersLoading,
+    refetch: refetchOrders,
+    lastOrderUpdate,
+  } = useOrders(portfolioId);
+  const { trades: apiTrades, loading: tradesLoading } = useTrades(portfolioId, 20);
+
+  // Track last order update for trade receipt modal
+  const [lastFilledOrder, setLastFilledOrder] = useState<OrderUpdate | null>(null);
+
+  // Show trade receipt when order is filled
+  React.useEffect(() => {
+    if (lastOrderUpdate?.event === "filled" && lastOrderUpdate.status === "filled") {
+      setLastFilledOrder(lastOrderUpdate);
+      setShowTradeReceipt(true);
+    }
+  }, [lastOrderUpdate]);
+
+  // Determine data source based on authentication
+  // Authenticated users ALWAYS see real data (even if empty) - no mock fallback
+  // Unauthenticated users see mock data for demo purposes
+  const usingRealData = isAuthenticated;
+
+  // Use real data if authenticated, otherwise fall back to mock for demo
+  // Note: API returns cashBalance, we also provide balance alias for compatibility
+  const portfolio = usingRealData
+    ? (apiPortfolio ? { ...apiPortfolio, balance: apiPortfolio.cashBalance } : { balance: 0, cashBalance: 0, marginUsed: 0, marginAvailable: 0, unrealizedPnl: 0, realizedPnl: 0, totalValue: 0 })
+    : MOCK_PORTFOLIO;
+  const positions = usingRealData ? apiPositions : mockPositions;
+  const orders = usingRealData ? apiOrders : mockOrders;
+  const trades = usingRealData ? apiTrades : MOCK_TRADES;
+
+  // Fetch top crypto assets for selection
+  const { assets, loading: assetsLoading } = useCryptoData({
+    limit: 10,
+    sort: "market_cap",
+    sortDir: "desc",
+    assetType: "crypto",
+  });
+
+  // Set default asset when loaded
+  React.useEffect(() => {
+    if (!selectedAsset && assets.length > 0) {
+      setSelectedAsset(assets[0]);
+    }
+  }, [assets, selectedAsset]);
+
+  // Handle real-time price updates
+  const handlePriceUpdate = useCallback((update: PriceUpdate) => {
+    setSelectedAsset((prev) => {
+      if (!prev || prev.symbol.toLowerCase() !== update.symbol.toLowerCase()) return prev;
+      const tradeDirection = update.tradeDirection
+        ?? (update.price > prev.price ? "up" as const
+          : update.price < prev.price ? "down" as const
+          : prev.tradeDirection);
+      return { ...prev, price: update.price, tradeDirection };
+    });
+  }, []);
+
+  // Subscribe to price updates for selected asset
+  useAssetSubscription(
+    selectedAsset ? [selectedAsset.symbol] : [],
+    handlePriceUpdate
+  );
+
+  // Handle order submission - shows confirmation modal first
+  const handleOrderSubmit = useCallback((order: OrderFormState) => {
+    // Add symbol to order state
+    const orderWithSymbol = {
+      ...order,
+      symbol: selectedAsset?.symbol || "BTC",
+    };
+    setPendingOrder(orderWithSymbol);
+    setShowOrderConfirm(true);
+  }, [selectedAsset?.symbol]);
+
+  // Map frontend asset type to backend AssetClass (snake_case)
+  const getAssetClass = (asset: Asset | null): AssetClass => {
+    if (!asset?.assetType || asset.assetType === "crypto") return "crypto_spot";
+    if (asset.assetType === "stock") return "stock";
+    if (asset.assetType === "etf") return "etf";
+    return "crypto_spot";
+  };
+
+  // Map frontend order type to backend OrderType (snake_case)
+  const getOrderType = (type: string): OrderType => {
+    switch (type) {
+      case "market": return "market";
+      case "limit": return "limit";
+      case "stop_loss": return "stop_loss";
+      case "take_profit": return "take_profit";
+      default: return "market";
+    }
+  };
+
+  // Confirm and execute order
+  const handleOrderConfirm = useCallback(async () => {
+    if (!pendingOrder) return;
+
+    setOrderSubmitting(true);
+
+    const quantity = parseFloat(pendingOrder.size) || 0;
+    const priceNum = pendingOrder.orderType === "limit" ? parseFloat(pendingOrder.price) : undefined;
+    const symbol = pendingOrder.symbol || selectedAsset?.symbol || "BTC";
+
+    if (isAuthenticated && portfolioId) {
+      try {
+        const order = await placeOrder({
+          portfolioId,
+          symbol,
+          assetClass: getAssetClass(selectedAsset),
+          side: pendingOrder.side === "buy" ? "buy" : "sell",
+          orderType: getOrderType(pendingOrder.orderType),
+          quantity,
+          price: priceNum,
+          leverage: pendingOrder.leverage,
+          stopLoss: pendingOrder.stopLoss ? parseFloat(pendingOrder.stopLoss) : undefined,
+          takeProfit: pendingOrder.takeProfit ? parseFloat(pendingOrder.takeProfit) : undefined,
+        });
+        console.log("Order placed successfully:", order);
+        // Refetch data to show updated positions/orders
+        refetchPositions();
+        refetchOrders();
+      } catch (err) {
+        console.error("Failed to place order:", err);
+        // TODO: Show error toast to user
+      }
+    } else {
+      // Demo mode: create mock order or position
+      const mockId = `mock-${Date.now()}`;
+      const currentPrice = selectedAsset?.price || 0;
+
+      if (pendingOrder.orderType === "market") {
+        // Market order: creates a position immediately
+        const newPosition: Position = {
+          id: mockId,
+          symbol: symbol.toUpperCase(),
+          side: pendingOrder.side === "buy" ? "long" : "short",
+          size: quantity,
+          entryPrice: currentPrice,
+          markPrice: currentPrice,
+          leverage: pendingOrder.leverage,
+          marginMode: "isolated",
+          liquidationPrice: pendingOrder.side === "buy"
+            ? currentPrice * (1 - 1 / pendingOrder.leverage)
+            : currentPrice * (1 + 1 / pendingOrder.leverage),
+          unrealizedPnl: 0,
+          unrealizedPnlPercent: 0,
+          margin: (quantity * currentPrice) / pendingOrder.leverage,
+          roe: 0,
+          stopLoss: pendingOrder.stopLoss ? parseFloat(pendingOrder.stopLoss) : undefined,
+          takeProfit: pendingOrder.takeProfit ? parseFloat(pendingOrder.takeProfit) : undefined,
+          createdAt: Date.now(),
+        };
+        setMockPositions(prev => [newPosition, ...prev]);
+      } else {
+        // Limit/stop order: creates a pending order
+        const newOrder = {
+          id: mockId,
+          symbol: symbol.toUpperCase(),
+          type: pendingOrder.orderType,
+          side: pendingOrder.side,
+          price: priceNum,
+          size: quantity,
+          filledSize: 0,
+          status: "pending" as const,
+          createdAt: Date.now(),
+        };
+        setMockOrders(prev => [newOrder, ...prev]);
+      }
+    }
+
+    setOrderSubmitting(false);
+    setShowOrderConfirm(false);
+    setPendingOrder(null);
+  }, [isAuthenticated, pendingOrder, placeOrder, portfolioId, selectedAsset]);
+
+  // Cancel order confirmation
+  const handleOrderConfirmCancel = useCallback(() => {
+    setShowOrderConfirm(false);
+    setPendingOrder(null);
+  }, []);
+
+  // Handle position close - shows confirmation modal first
+  const handleClosePosition = useCallback((positionId: string) => {
+    const position = positions.find((p) => p.id === positionId);
+    if (position) {
+      setPositionToClose(position);
+    }
+  }, [positions]);
+
+  // Confirm and close position
+  const handleClosePositionConfirm = useCallback(async () => {
+    if (!positionToClose) return;
+
+    setPositionClosing(true);
+
+    // Check if this is a real position or mock
+    const isRealPosition = usingRealData && apiPositions.some(p => p.id === positionToClose.id);
+
+    if (isRealPosition) {
+      try {
+        await closePosition(positionToClose.id);
+        // Hook will auto-refetch
+      } catch (err) {
+        console.error("Failed to close position:", err);
+      }
+    } else {
+      // Demo mode: remove from local mock state
+      setMockPositions(prev => prev.filter(p => p.id !== positionToClose.id));
+    }
+
+    setPositionClosing(false);
+    setPositionToClose(null);
+  }, [usingRealData, apiPositions, closePosition, positionToClose]);
+
+  // Cancel position close
+  const handleClosePositionCancel = useCallback(() => {
+    setPositionToClose(null);
+  }, []);
+
+  // Handle position modify - open modify modal
+  const handleModifyPosition = useCallback((positionId: string) => {
+    const position = positions.find((p) => p.id === positionId);
+    if (position) {
+      setPositionToModify(position);
+    }
+  }, [positions]);
+
+  // Save position modifications
+  const handleModifyPositionSave = useCallback(async (changes: ModifyPositionRequest) => {
+    if (!positionToModify) return;
+
+    setPositionModifying(true);
+
+    // Check if this is a real position or mock
+    const isRealPosition = usingRealData && apiPositions.some(p => p.id === positionToModify.id);
+
+    if (isRealPosition) {
+      try {
+        await modifyPosition(positionToModify.id, changes);
+      } catch (err) {
+        console.error("Failed to modify position:", err);
+      }
+    } else {
+      // Demo mode: update local mock state
+      setMockPositions(prev => prev.map(p => {
+        if (p.id !== positionToModify.id) return p;
+        return {
+          ...p,
+          stopLoss: changes.stopLoss === null ? undefined : (changes.stopLoss ?? p.stopLoss),
+          takeProfit: changes.takeProfit === null ? undefined : (changes.takeProfit ?? p.takeProfit),
+          trailingStop: changes.trailingStop === null ? undefined : (changes.trailingStop ?? p.trailingStop),
+        };
+      }));
+    }
+
+    setPositionModifying(false);
+    setPositionToModify(null);
+  }, [usingRealData, apiPositions, modifyPosition, positionToModify]);
+
+  // Cancel position modification
+  const handleModifyPositionCancel = useCallback(() => {
+    setPositionToModify(null);
+  }, []);
+
+  // Handle order cancel
+  const handleCancelOrder = useCallback(async (orderId: string) => {
+    // Check if this is a real order or mock
+    const isRealOrder = usingRealData && apiOrders.some(o => o.id === orderId);
+
+    if (isRealOrder) {
+      try {
+        await cancelOrder(orderId);
+        // Hook will auto-refetch
+      } catch (err) {
+        console.error("Failed to cancel order:", err);
+      }
+    } else {
+      // Demo mode: remove from local mock state
+      setMockOrders(prev => prev.filter(o => o.id !== orderId));
+    }
+  }, [usingRealData, apiOrders, cancelOrder]);
+
+  // Handle cancel all orders
+  const handleCancelAllOrders = useCallback(async () => {
+    if (usingRealData) {
+      try {
+        const cancelled = await cancelAllOrders();
+        console.log(`Cancelled ${cancelled} orders`);
+      } catch (err) {
+        console.error("Failed to cancel all orders:", err);
+      }
+    } else {
+      // Demo mode: clear all mock orders
+      setMockOrders([]);
+    }
+  }, [usingRealData, cancelAllOrders]);
+
+  // Close trade receipt modal
+  const handleCloseTradeReceipt = useCallback(() => {
+    setShowTradeReceipt(false);
+    setLastFilledOrder(null);
+  }, []);
+
+  // Handle panel resize
+  const handleOrderBookResize = useCallback((delta: number) => {
+    setOrderBookWidth((prev) => Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, prev + delta)));
+  }, []);
+
+  const handleOrderFormResize = useCallback((delta: number) => {
+    // Negative delta because dragging left should increase form width
+    setOrderFormWidth((prev) => Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, prev - delta)));
+  }, []);
+
+  // Layout values
+  const contentPadding = isMobile ? spacing.xs : showToggleLayout ? spacing.sm : spacing.md;
+  const effectiveOrderFormWidth = isMobile ? "100%" : orderFormWidth;
+  const effectiveOrderBookWidth = isMobile ? "100%" : orderBookWidth;
+  // Show resizers on desktop (both 2-column and 3-column modes), never on mobile
+  const showResizers = !isMobile;
+  const showThreeColumnResizers = showResizers && !showToggleLayout;
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Navbar />
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Main Trading Grid */}
+        {/* Toggle between Chart and Order Book when not enough space for 3 columns */}
+        {showToggleLayout && (
+          <View style={[styles.chartViewToggle, { paddingHorizontal: contentPadding }]}>
+            <SegmentedControl
+              options={CHART_VIEW_OPTIONS}
+              value={chartView}
+              onChange={(val) => setChartView(val as ChartViewId)}
+              size={Size.Small}
+            />
+          </View>
+        )}
+
+        <View
+          style={[
+            styles.tradingGrid,
+            isMobile && styles.tradingGridMobile,
+            { paddingHorizontal: contentPadding },
+          ]}
+        >
+          {/* Order Book (left panel - wide desktop only) */}
+          {!isMobile && !showToggleLayout && (
+            <View style={[styles.orderBookPanel, { width: effectiveOrderBookWidth }]}>
+              <AggregatedOrderBook
+                symbol={selectedAsset?.symbol}
+                loading={assetsLoading}
+              />
+            </View>
+          )}
+
+          {/* Resizer between Order Book and Chart (3-column only) */}
+          {showThreeColumnResizers && (
+            <PanelResizer onResize={handleOrderBookResize} direction="horizontal" />
+          )}
+
+          {/* Toggle layout: Show either Chart or Order Book based on toggle */}
+          {showToggleLayout && chartView === "orderbook" && (
+            <View style={styles.chartPanel}>
+              <AggregatedOrderBook
+                symbol={selectedAsset?.symbol}
+                loading={assetsLoading}
+              />
+            </View>
+          )}
+
+          {/* Chart (center panel) - always show on wide, conditional on toggle layout */}
+          {(!showToggleLayout || isMobile || chartView === "chart") && (
+            <View style={styles.chartPanel}>
+              <AdvancedChart
+                asset={selectedAsset}
+                loading={assetsLoading}
+                height={isMobile ? 300 : showToggleLayout ? 400 : 500}
+              />
+            </View>
+          )}
+
+          {/* Mobile: Order Book below chart */}
+          {isMobile && (
+            <View style={styles.mobileOrderBook}>
+              <AggregatedOrderBook
+                symbol={selectedAsset?.symbol}
+                loading={assetsLoading}
+              />
+            </View>
+          )}
+
+          {/* Resizer between Chart and Order Form */}
+          {showResizers && (
+            <PanelResizer onResize={handleOrderFormResize} direction="horizontal" />
+          )}
+
+          {/* Order Form (right panel) */}
+          <View style={[styles.orderFormPanel, { width: effectiveOrderFormWidth }]}>
+            <OrderForm
+              symbol={selectedAsset?.symbol || "BTC"}
+              currentPrice={selectedAsset?.price}
+              availableMargin={portfolio.marginAvailable}
+              onSubmit={handleOrderSubmit}
+              loading={assetsLoading}
+              disabled={!isAuthenticated}
+              disabledMessage="Connect wallet to place orders"
+            />
+          </View>
+        </View>
+
+        {/* Positions & Orders Tabs */}
+        <View style={[styles.section, { paddingHorizontal: contentPadding }]}>
+          <Card style={styles.tabsCard}>
+            <View style={styles.tabsHeader}>
+              <View style={styles.tabsHeaderRow}>
+                <SegmentedControl
+                  options={TAB_OPTIONS}
+                  value={activeTab}
+                  onChange={(val) => setActiveTab(val as TabId)}
+                />
+                <HintIndicator
+                  id="trade-sandbox-positions-hint"
+                  title="Positions & Orders"
+                  icon="?"
+                  color={Colors.accent.primary}
+                  priority={52}
+                  width={400}
+                  inline
+                >
+                  <TooltipContainer>
+                    <TooltipSection title="Positions Tab">
+                      <TooltipText>
+                        Your active trades showing entry price, current P&L, and liquidation price. Close or modify positions here.
+                      </TooltipText>
+                      <TooltipListItem icon="target" color={Colors.status.success}>
+                        Green P&L means your position is profitable
+                      </TooltipListItem>
+                      <TooltipListItem icon="alert-triangle" color={Colors.status.danger}>
+                        Watch liquidation price to avoid forced closure
+                      </TooltipListItem>
+                    </TooltipSection>
+                    <TooltipDivider />
+                    <TooltipSection title="Open Orders Tab">
+                      <TooltipText>
+                        Pending limit and stop orders waiting to execute. Cancel orders before they fill if needed.
+                      </TooltipText>
+                    </TooltipSection>
+                    <TooltipDivider />
+                    <TooltipSection title="Trade History Tab">
+                      <TooltipText>
+                        Completed trades showing execution price, fees paid, and realized profit or loss.
+                      </TooltipText>
+                    </TooltipSection>
+                  </TooltipContainer>
+                </HintIndicator>
+              </View>
+            </View>
+            <View style={styles.tabContent}>
+              {activeTab === "positions" && (
+                <PositionsTable
+                  positions={positions}
+                  onClosePosition={handleClosePosition}
+                  onModifyPosition={handleModifyPosition}
+                  updatedPositionIds={updatedPositionIds}
+                />
+              )}
+              {activeTab === "orders" && (
+                <OrdersTable
+                  orders={orders}
+                  onCancelOrder={handleCancelOrder}
+                  onCancelAllOrders={handleCancelAllOrders}
+                />
+              )}
+              {activeTab === "history" && (
+                <TradeHistoryTable trades={trades} />
+              )}
+            </View>
+          </Card>
+        </View>
+      </ScrollView>
+
+      {/* Order Confirmation Modal */}
+      <OrderConfirmModal
+        visible={showOrderConfirm}
+        order={pendingOrder}
+        symbol={selectedAsset?.symbol || "BTC"}
+        currentPrice={selectedAsset?.price}
+        onConfirm={handleOrderConfirm}
+        onCancel={handleOrderConfirmCancel}
+        loading={orderSubmitting}
+      />
+
+      {/* Trade Receipt Modal */}
+      <TradeReceiptModal
+        visible={showTradeReceipt}
+        trade={lastFilledOrder}
+        onClose={handleCloseTradeReceipt}
+      />
+
+      {/* Close Position Modal */}
+      <ClosePositionModal
+        visible={positionToClose !== null}
+        position={positionToClose}
+        onConfirm={handleClosePositionConfirm}
+        onCancel={handleClosePositionCancel}
+        loading={positionClosing}
+      />
+
+      {/* Modify Position Modal */}
+      <ModifyPositionModal
+        visible={positionToModify !== null}
+        position={positionToModify}
+        onSave={handleModifyPositionSave}
+        onCancel={handleModifyPositionCancel}
+        loading={positionModifying}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
+  },
+  section: {
+    marginBottom: spacing.sm,
+  },
+  chartViewToggle: {
+    marginBottom: spacing.sm,
+  },
+  tradingGrid: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginBottom: spacing.sm,
+  },
+  tradingGridMobile: {
+    flexDirection: "column",
+    gap: spacing.sm,
+  },
+  orderFormPanel: {
+    flexShrink: 0,
+  },
+  chartPanel: {
+    flex: 1,
+    minWidth: 0,
+  },
+  orderBookPanel: {
+    flexShrink: 0,
+  },
+  mobileOrderBook: {
+    width: "100%",
+  },
+  tabsCard: {
+    overflow: "hidden",
+  },
+  tabsHeader: {
+    padding: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border.subtle,
+  },
+  tabsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  tabContent: {
+    minHeight: 200,
+  },
+});

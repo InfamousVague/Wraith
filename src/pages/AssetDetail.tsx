@@ -7,8 +7,7 @@
  *
  * ## Features:
  * - Real-time price updates via WebSocket subscription
- * - Interactive TradingView-style chart
- * - Aggregated order book from multiple exchanges
+ * - Interactive TradingView-style chart with key metrics panel
  * - Technical indicators and trading signals
  * - AI-generated price predictions with accuracy tracking
  * - Responsive layout (desktop/tablet/mobile)
@@ -30,17 +29,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Text } from "@wraith/ghost/components";
 import { TextAppearance } from "@wraith/ghost/enums";
 import { useTheme } from "../context/ThemeContext";
-import { Navbar } from "../components/Navbar";
-import { AssetHeader } from "../components/AssetHeader";
-import { AdvancedChart } from "../components/AdvancedChart";
-import { AggregatedOrderBook } from "../components/AggregatedOrderBook";
-import { MetricsGrid } from "../components/MetricsGrid";
-import { AssetSourceBreakdown } from "../components/AssetSourceBreakdown";
-import { SignalSummaryCard } from "../components/SignalSummaryCard";
-import { SignalIndicatorsPanel } from "../components/SignalIndicatorsPanel";
-import { PredictionAccuracyCard } from "../components/PredictionAccuracyCard";
-import { TimeframeSelector } from "../components/TimeframeSelector";
-import { CollapsibleSection } from "../components/CollapsibleSection";
+import { Navbar, TimeframeSelector } from "../components/ui";
+import { AssetHeader, AssetSourceBreakdown, KeyMetricsPanel } from "../components/asset";
+import { AdvancedChart } from "../components/chart";
+import { SignalSummaryCard, SignalIndicatorsPanel } from "../components/signal";
+import { PredictionAccuracyCard } from "../components/prediction";
 import { hauntClient } from "../services/haunt";
 import { useAssetSubscription, type PriceUpdate } from "../hooks/useHauntSocket";
 import { useSignals } from "../hooks/useSignals";
@@ -62,12 +55,11 @@ const themes = {
  * Asset detail page component showing comprehensive information about a single asset.
  *
  * Sections (top to bottom):
- * 1. Asset Header - Name, symbol, price, 24h change
- * 2. Metrics Grid - Key statistics (market cap, volume, etc.)
- * 3. Chart + Order Book - Interactive chart with live order book
- * 4. Timeframe Selector - Trading timeframe for signals
- * 5. Signals + Predictions - AI signals and prediction accuracy
- * 6. Technical Indicators - Full indicator panel
+ * 1. Asset Header - Name, symbol, price, 24h change, Trade button
+ * 2. Chart + Key Metrics Panel - Interactive chart with metrics sidebar
+ * 3. Timeframe Selector - Trading timeframe for signals
+ * 4. Signals + Predictions - AI signals and prediction accuracy
+ * 5. Technical Indicators - Full indicator panel
  *
  * @returns Asset detail page or error state
  */
@@ -88,8 +80,15 @@ export function AssetDetail() {
 
   // Responsive layout values
   const sectionPadding = isMobile ? 12 : isNarrow ? 16 : 24;
-  const showOrderBook = !isMobile;
-  const orderBookWidth = isNarrow ? 280 : 340;
+  const showMetricsPanel = !isMobile;
+  const metricsPanelWidth = isNarrow ? 280 : 320;
+
+  // Calculate chart height based on viewport
+  // Reserve space for navbar (~64px), header (~80px), metrics (~100px), and padding
+  const { height: viewportHeight } = useBreakpoint();
+  const chartHeight = isMobile
+    ? Math.max(350, viewportHeight - 300)  // Mobile: smaller minimum
+    : Math.max(500, viewportHeight - 350); // Desktop: larger chart
 
   // Fetch trading signals with timeframe
   const {
@@ -163,11 +162,15 @@ export function AssetDetail() {
     navigate("/");
   };
 
+  const handleTrade = () => {
+    navigate("/trade");
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Navbar />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        <AssetHeader asset={asset} loading={loading} onBack={handleBack} />
+        <AssetHeader asset={asset} loading={loading} onBack={handleBack} onTradePress={handleTrade} />
 
         {error ? (
           <View style={styles.errorContainer}>
@@ -177,32 +180,18 @@ export function AssetDetail() {
           </View>
         ) : (
           <>
-            {/* Key Details - above chart */}
-            <View style={[styles.section, { paddingHorizontal: isMobile ? 8 : sectionPadding }]}>
-              <MetricsGrid asset={asset} loading={loading} />
-            </View>
-
-            {/* Chart with Order Book */}
+            {/* Chart with Key Metrics Panel */}
             <View style={[styles.section, { paddingHorizontal: isMobile ? 0 : sectionPadding }]}>
               <View style={[styles.chartRow, isMobile && styles.chartRowStacked]}>
-                {showOrderBook && (
-                  <View style={[styles.orderBookColumn, { width: orderBookWidth }]} data-testid="order-book">
-                    <AggregatedOrderBook symbol={asset?.symbol} loading={loading} />
+                {showMetricsPanel && (
+                  <View style={[styles.metricsPanelColumn, { width: metricsPanelWidth }]} data-testid="key-metrics-panel">
+                    <KeyMetricsPanel asset={asset} signals={signals} loading={loading || signalsLoading} />
                   </View>
                 )}
                 <View style={[styles.chartColumn, isMobile && styles.chartColumnMobile]} data-testid="advanced-chart">
-                  <AdvancedChart asset={asset} loading={loading} />
+                  <AdvancedChart asset={asset} loading={loading} height={chartHeight} />
                 </View>
               </View>
-
-              {/* Mobile: Collapsible order book */}
-              {isMobile && (
-                <View style={[styles.collapsibleOrderBook, { paddingHorizontal: sectionPadding }]} data-testid="collapsible-order-book">
-                  <CollapsibleSection title="Order Book" defaultOpen={false}>
-                    <AggregatedOrderBook symbol={asset?.symbol} loading={loading} />
-                  </CollapsibleSection>
-                </View>
-              )}
             </View>
 
             {/* Trading Timeframe Selector */}
@@ -292,19 +281,15 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     gap: 16,
   },
-  orderBookColumn: {
+  metricsPanelColumn: {
     flexShrink: 0,
   },
   chartColumn: {
     flex: 1,
     display: "flex",
-    minHeight: 500, // Ensure chart has reasonable minimum height
   },
   chartColumnMobile: {
-    minHeight: 350, // Smaller minimum height on mobile
-  },
-  collapsibleOrderBook: {
-    marginTop: 16,
+    // Height controlled by chartHeight prop passed to AdvancedChart
   },
   errorContainer: {
     padding: 24,

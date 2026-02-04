@@ -14,6 +14,11 @@ export const Circle = forwardRef<SVGCircleElement, SVGProps<SVGCircleElement>>(
 );
 Circle.displayName = "Circle";
 
+export const Ellipse = forwardRef<SVGEllipseElement, SVGProps<SVGEllipseElement>>(
+  (props, ref) => <ellipse ref={ref} {...props} />
+);
+Ellipse.displayName = "Ellipse";
+
 export const Rect = forwardRef<SVGRectElement, SVGProps<SVGRectElement>>(
   (props, ref) => <rect ref={ref} {...props} />
 );

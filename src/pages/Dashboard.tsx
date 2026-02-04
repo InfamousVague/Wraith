@@ -23,11 +23,11 @@
 
 import React, { useMemo } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import { Navbar } from "../components/Navbar";
-import { MetricsCarousel } from "../components/MetricsCarousel";
-import { AssetList } from "../components/AssetList";
-import { ChartGrid } from "../components/ChartGrid";
-import { Toolbar, type ViewMode, type FilterState } from "../components/Toolbar";
+import { Navbar, Toolbar } from "../components/ui";
+import { MetricsCarousel } from "../components/metrics";
+import { AssetList } from "../components/asset";
+import { ChartGrid } from "../components/chart";
+import type { ViewMode, FilterState } from "../components/ui/toolbar";
 import { useTheme } from "../context/ThemeContext";
 import { useCryptoData } from "../hooks/useCryptoData";
 import { usePersistedState } from "../hooks/usePersistedState";

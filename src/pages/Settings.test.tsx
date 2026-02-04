@@ -70,15 +70,15 @@ vi.mock("@wraith/ghost/tokens", () => ({
 }));
 
 // Mock components
-vi.mock("../components/Navbar", () => ({
+vi.mock("../components/navbar", () => ({
   Navbar: () => <nav data-testid="navbar">Navbar</nav>,
 }));
 
-vi.mock("../components/SpeedToggle", () => ({
+vi.mock("../components/speed-toggle", () => ({
   SpeedSelector: () => <div data-testid="speed-selector">Speed Selector</div>,
 }));
 
-vi.mock("../components/ServersCard", () => ({
+vi.mock("../components/servers", () => ({
   ServersCard: () => <div data-testid="servers-card">Servers Card</div>,
 }));
 

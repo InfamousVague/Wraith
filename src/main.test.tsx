@@ -60,7 +60,7 @@ vi.mock("./pages/Settings", () => ({
   Settings: () => <div data-testid="settings-page">Settings</div>,
 }));
 
-vi.mock("./components/PriceTicker", () => ({
+vi.mock("./components/price-ticker", () => ({
   PriceTicker: () => <div data-testid="price-ticker">Price Ticker</div>,
 }));
 
@@ -77,7 +77,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { AssetDetail } from "./pages/AssetDetail";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
-import { PriceTicker } from "./components/PriceTicker";
+import { PriceTicker } from "./components/price-ticker";
 
 // Recreate components from main.tsx for testing
 function GhostThemeBridge({ children }: { children: React.ReactNode }) {

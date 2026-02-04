@@ -78,15 +78,72 @@ export type PeerUpdate = {
   timestamp: number;
 };
 
+// Trading update types
+export type PortfolioUpdate = {
+  balance: number;
+  marginUsed: number;
+  marginAvailable: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  totalValue: number;
+  timestamp: number;
+};
+
+export type PositionUpdate = {
+  id: string;
+  symbol: string;
+  side: "long" | "short";
+  size: number;
+  entryPrice: number;
+  markPrice: number;
+  unrealizedPnl: number;
+  unrealizedPnlPercent: number;
+  liquidationPrice: number;
+  event: "opened" | "updated" | "closed" | "liquidated";
+  timestamp: number;
+};
+
+export type OrderUpdate = {
+  id: string;
+  symbol: string;
+  type: "market" | "limit" | "stop_loss" | "take_profit";
+  side: "buy" | "sell";
+  price?: number;
+  size: number;
+  filledSize: number;
+  status: "pending" | "partial" | "filled" | "cancelled" | "rejected";
+  event: "created" | "filled" | "partial" | "cancelled" | "rejected";
+  executionPrice?: number;
+  fee?: number;
+  pnl?: number;
+  timestamp: number;
+};
+
+export type AlertUpdate = {
+  id: string;
+  symbol: string;
+  condition: "above" | "below";
+  targetPrice: number;
+  currentPrice: number;
+  triggered: boolean;
+  timestamp: number;
+};
+
 export type WSMessage =
   | { type: "price_update"; data: PriceUpdate }
   | { type: "market_update"; data: MarketUpdate }
   | { type: "peer_update"; data: PeerUpdate }
+  | { type: "portfolio_update"; data: PortfolioUpdate }
+  | { type: "position_update"; data: PositionUpdate }
+  | { type: "order_update"; data: OrderUpdate }
+  | { type: "alert_triggered"; data: AlertUpdate }
   | { type: "subscribed"; assets: string[] }
   | { type: "unsubscribed"; assets: string[] }
   | { type: "throttle_set"; throttle_ms: number }
   | { type: "peers_subscribed" }
   | { type: "peers_unsubscribed" }
+  | { type: "portfolio_subscribed" }
+  | { type: "portfolio_unsubscribed" }
   | { type: "error"; error: string };
 
 type HauntSocketContextType = {
@@ -99,9 +156,16 @@ type HauntSocketContextType = {
   onPriceUpdate: (callback: (update: PriceUpdate) => void) => () => void;
   onMarketUpdate: (callback: (update: MarketUpdate) => void) => () => void;
   onPeerUpdate: (callback: (update: PeerUpdate) => void) => () => void;
+  onPortfolioUpdate: (callback: (update: PortfolioUpdate) => void) => () => void;
+  onPositionUpdate: (callback: (update: PositionUpdate) => void) => () => void;
+  onOrderUpdate: (callback: (update: OrderUpdate) => void) => () => void;
+  onAlertTriggered: (callback: (update: AlertUpdate) => void) => () => void;
   subscribePeers: () => void;
   unsubscribePeers: () => void;
+  subscribePortfolio: (token: string) => void;
+  unsubscribePortfolio: () => void;
   peersSubscribed: boolean;
+  portfolioSubscribed: boolean;
   updateCount: number;
 };
 
@@ -127,6 +191,7 @@ export function HauntSocketProvider({
   const [error, setError] = useState<string | null>(null);
   const [updateCount, setUpdateCount] = useState(0);
   const [peersSubscribed, setPeersSubscribed] = useState(false);
+  const [portfolioSubscribed, setPortfolioSubscribed] = useState(false);
 
   // Get active server from context
   const { activeServer } = useApiServer();
@@ -166,6 +231,10 @@ export function HauntSocketProvider({
   // Callback registries
   const priceCallbacksRef = useRef<Set<(update: PriceUpdate) => void>>(new Set());
   const marketCallbacksRef = useRef<Set<(update: MarketUpdate) => void>>(new Set());
+  const portfolioCallbacksRef = useRef<Set<(update: PortfolioUpdate) => void>>(new Set());
+  const positionCallbacksRef = useRef<Set<(update: PositionUpdate) => void>>(new Set());
+  const orderCallbacksRef = useRef<Set<(update: OrderUpdate) => void>>(new Set());
+  const alertCallbacksRef = useRef<Set<(update: AlertUpdate) => void>>(new Set());
 
   const connect = useCallback(() => {
     // Don't connect if already open or connecting
@@ -239,6 +308,22 @@ export function HauntSocketProvider({
               peerCallbacksRef.current.forEach((cb) => cb(message.data));
               break;
 
+            case "portfolio_update":
+              portfolioCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "position_update":
+              positionCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "order_update":
+              orderCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "alert_triggered":
+              alertCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
             case "peers_subscribed":
               setPeersSubscribed(true);
               logger.data("Haunt WS", { action: "peers_subscribed" });
@@ -247,6 +332,16 @@ export function HauntSocketProvider({
             case "peers_unsubscribed":
               setPeersSubscribed(false);
               logger.data("Haunt WS", { action: "peers_unsubscribed" });
+              break;
+
+            case "portfolio_subscribed":
+              setPortfolioSubscribed(true);
+              logger.data("Haunt WS", { action: "portfolio_subscribed" });
+              break;
+
+            case "portfolio_unsubscribed":
+              setPortfolioSubscribed(false);
+              logger.data("Haunt WS", { action: "portfolio_unsubscribed" });
               break;
 
             case "error":
@@ -371,6 +466,34 @@ export function HauntSocketProvider({
     };
   }, []);
 
+  const onPortfolioUpdate = useCallback((callback: (update: PortfolioUpdate) => void) => {
+    portfolioCallbacksRef.current.add(callback);
+    return () => {
+      portfolioCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
+  const onPositionUpdate = useCallback((callback: (update: PositionUpdate) => void) => {
+    positionCallbacksRef.current.add(callback);
+    return () => {
+      positionCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
+  const onOrderUpdate = useCallback((callback: (update: OrderUpdate) => void) => {
+    orderCallbacksRef.current.add(callback);
+    return () => {
+      orderCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
+  const onAlertTriggered = useCallback((callback: (update: AlertUpdate) => void) => {
+    alertCallbacksRef.current.add(callback);
+    return () => {
+      alertCallbacksRef.current.delete(callback);
+    };
+  }, []);
+
   const subscribePeers = useCallback(() => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "subscribe_peers" }));
@@ -380,6 +503,18 @@ export function HauntSocketProvider({
   const unsubscribePeers = useCallback(() => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ type: "unsubscribe_peers" }));
+    }
+  }, []);
+
+  const subscribePortfolio = useCallback((token: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "subscribe_portfolio", token }));
+    }
+  }, []);
+
+  const unsubscribePortfolio = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "unsubscribe_portfolio" }));
     }
   }, []);
 
@@ -394,11 +529,18 @@ export function HauntSocketProvider({
     onPriceUpdate,
     onMarketUpdate,
     onPeerUpdate,
+    onPortfolioUpdate,
+    onPositionUpdate,
+    onOrderUpdate,
+    onAlertTriggered,
     subscribePeers,
     unsubscribePeers,
+    subscribePortfolio,
+    unsubscribePortfolio,
     peersSubscribed,
+    portfolioSubscribed,
     updateCount,
-  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, onPeerUpdate, subscribePeers, unsubscribePeers, peersSubscribed, updateCount]);
+  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, onPeerUpdate, onPortfolioUpdate, onPositionUpdate, onOrderUpdate, onAlertTriggered, subscribePeers, unsubscribePeers, subscribePortfolio, unsubscribePortfolio, peersSubscribed, portfolioSubscribed, updateCount]);
 
   return (
     <HauntSocketContext.Provider value={value}>
@@ -418,9 +560,16 @@ const noopContext: HauntSocketContextType = {
   onPriceUpdate: () => () => {},
   onMarketUpdate: () => () => {},
   onPeerUpdate: () => () => {},
+  onPortfolioUpdate: () => () => {},
+  onPositionUpdate: () => () => {},
+  onOrderUpdate: () => () => {},
+  onAlertTriggered: () => () => {},
   subscribePeers: () => {},
   unsubscribePeers: () => {},
+  subscribePortfolio: () => {},
+  unsubscribePortfolio: () => {},
   peersSubscribed: false,
+  portfolioSubscribed: false,
   updateCount: 0,
 };
 
@@ -522,4 +671,71 @@ export function usePeerSubscription(onUpdate?: (update: PeerUpdate) => void) {
   }, [onUpdate, onPeerUpdate]);
 
   return { peersSubscribed };
+}
+
+/**
+ * Hook to subscribe to portfolio/trading updates.
+ * Provides real-time portfolio, position, and order updates.
+ * Requires authentication token.
+ */
+export function useTradingSubscription(
+  token: string | null,
+  callbacks?: {
+    onPortfolioUpdate?: (update: PortfolioUpdate) => void;
+    onPositionUpdate?: (update: PositionUpdate) => void;
+    onOrderUpdate?: (update: OrderUpdate) => void;
+    onAlertTriggered?: (update: AlertUpdate) => void;
+  }
+) {
+  const {
+    connected,
+    subscribePortfolio,
+    unsubscribePortfolio,
+    onPortfolioUpdate,
+    onPositionUpdate,
+    onOrderUpdate,
+    onAlertTriggered,
+    portfolioSubscribed,
+  } = useHauntSocket();
+
+  // Use refs for callbacks to avoid re-registering
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
+
+  // Auto-subscribe when connected and token available
+  useEffect(() => {
+    if (connected && token && !portfolioSubscribed) {
+      subscribePortfolio(token);
+    }
+
+    return () => {
+      if (portfolioSubscribed) {
+        unsubscribePortfolio();
+      }
+    };
+  }, [connected, token, portfolioSubscribed, subscribePortfolio, unsubscribePortfolio]);
+
+  // Register callbacks
+  useEffect(() => {
+    const unsubscribers: (() => void)[] = [];
+
+    if (callbacksRef.current?.onPortfolioUpdate) {
+      unsubscribers.push(onPortfolioUpdate(callbacksRef.current.onPortfolioUpdate));
+    }
+    if (callbacksRef.current?.onPositionUpdate) {
+      unsubscribers.push(onPositionUpdate(callbacksRef.current.onPositionUpdate));
+    }
+    if (callbacksRef.current?.onOrderUpdate) {
+      unsubscribers.push(onOrderUpdate(callbacksRef.current.onOrderUpdate));
+    }
+    if (callbacksRef.current?.onAlertTriggered) {
+      unsubscribers.push(onAlertTriggered(callbacksRef.current.onAlertTriggered));
+    }
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
+  }, [onPortfolioUpdate, onPositionUpdate, onOrderUpdate, onAlertTriggered]);
+
+  return { portfolioSubscribed };
 }

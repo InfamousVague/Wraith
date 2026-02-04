@@ -105,6 +105,9 @@ type AuthContextType = {
   signRequest: (message: string) => Promise<string | null>;
   loginToBackend: () => Promise<void>;
   disconnectFromServer: () => void;
+  // Profile actions
+  updateUsername: (username: string) => Promise<void>;
+  updateLeaderboardVisibility: (show: boolean) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -258,6 +261,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [privateKey]);
 
   /**
+   * Update username on the server
+   */
+  const updateUsername = useCallback(async (username: string) => {
+    if (!sessionToken) {
+      throw new Error("Not connected to server");
+    }
+
+    const response = await hauntClient.updateUsername(sessionToken, username);
+    const updatedProfile = response.data;
+
+    // Update local state
+    localStorage.setItem(STORAGE_KEY_SERVER_PROFILE, JSON.stringify(updatedProfile));
+    setServerProfile(updatedProfile);
+  }, [sessionToken]);
+
+  /**
+   * Update leaderboard visibility on the server
+   * When opting in, signs a consent message
+   */
+  const updateLeaderboardVisibility = useCallback(async (show: boolean) => {
+    if (!sessionToken || !privateKey) {
+      throw new Error("Not connected to server");
+    }
+
+    let signature: string | undefined;
+    const timestamp = Date.now();
+
+    if (show) {
+      // Sign consent message when opting in
+      const message = `I consent to showing my trading performance on the Haunt leaderboard. Timestamp: ${timestamp}`;
+      signature = await signMessage(privateKey, message);
+    }
+
+    const response = await hauntClient.updateLeaderboardVisibility(
+      sessionToken,
+      show,
+      signature,
+      timestamp
+    );
+    const updatedProfile = response.data;
+
+    // Update local state
+    localStorage.setItem(STORAGE_KEY_SERVER_PROFILE, JSON.stringify(updatedProfile));
+    setServerProfile(updatedProfile);
+  }, [sessionToken, privateKey]);
+
+  /**
    * Login to the backend server.
    * Steps:
    * 1. Request challenge from server
@@ -377,6 +427,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signRequest,
         loginToBackend,
         disconnectFromServer,
+        // Profile actions
+        updateUsername,
+        updateLeaderboardVisibility,
       }}
     >
       {children}

@@ -28,6 +28,9 @@
  * ## Routes:
  * - `/` - Dashboard (asset list, market overview)
  * - `/asset/:id` - Asset detail page (charts, signals, predictions)
+ * - `/portfolio` - Portfolio overview (holdings, performance, P&L)
+ * - `/trade` - Paper trading terminal
+ * - `/leaderboard` - Trading leaderboard (top performers)
  * - `/profile` - User profile management
  * - `/settings` - Application settings
  */
@@ -35,21 +38,27 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./i18n";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { View } from "react-native";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import { AuthProvider } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { PreferenceSyncProvider } from "./context/PreferenceSyncContext";
 import { HintProvider } from "./context/HintContext";
 import { PerformanceProvider } from "./context/PerformanceContext";
 import { ApiServerProvider } from "./context/ApiServerContext";
 import { GhostThemeProvider } from "@wraith/ghost";
 import { HauntSocketProvider } from "./hooks/useHauntSocket";
+import { ToastProvider } from "./context/ToastContext";
 import { Dashboard } from "./pages/Dashboard";
 import { AssetDetail } from "./pages/AssetDetail";
+import { Portfolio } from "./pages/Portfolio";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
-import { PriceTicker } from "./components/PriceTicker";
+import { TradeSandbox as Trade } from "./pages/TradeSandbox";
+import { Leaderboard } from "./pages/Leaderboard";
+import { PriceTicker } from "./components/metrics";
+import { ErrorBoundary } from "./components/error";
+import { OfflineBanner } from "./components/ui";
 
 /**
  * Bridge component that connects Wraith's theme context to Ghost's theme provider.
@@ -66,9 +75,21 @@ function GhostThemeBridge({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Protected route wrapper that redirects to profile (login) if not authenticated.
+ */
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/profile" replace />;
+  }
+  return <>{children}</>;
+}
+
+/**
  * Root application component containing the main layout and routes.
  *
  * Layout structure:
+ * - OfflineBanner: Shows when network is disconnected
  * - PriceTicker: Scrolling price ticker at the top of every page
  * - Routes: Page content based on current URL path
  *
@@ -76,15 +97,21 @@ function GhostThemeBridge({ children }: { children: React.ReactNode }) {
  */
 function App() {
   return (
-    <View style={{ flex: 1 }}>
-      <PriceTicker />
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/asset/:id" element={<AssetDetail />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
-    </View>
+    <ErrorBoundary>
+      <View style={{ flex: 1 }}>
+        <OfflineBanner />
+        <PriceTicker />
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/asset/:id" element={<AssetDetail />} />
+          <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
+          <Route path="/trade" element={<Trade />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </View>
+    </ErrorBoundary>
   );
 }
 
@@ -99,7 +126,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 <PerformanceProvider>
                   <ApiServerProvider>
                     <HauntSocketProvider>
-                      <App />
+                      <ToastProvider>
+                        <App />
+                      </ToastProvider>
                     </HauntSocketProvider>
                   </ApiServerProvider>
                 </PerformanceProvider>

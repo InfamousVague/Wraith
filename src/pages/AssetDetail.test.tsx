@@ -29,11 +29,11 @@ vi.mock("../hooks/useHauntSocket", () => ({
 }));
 
 // Mock child components
-vi.mock("../components/Navbar", () => ({
+vi.mock("../components/navbar", () => ({
   Navbar: () => <div data-testid="navbar">Navbar</div>,
 }));
 
-vi.mock("../components/AssetHeader", () => ({
+vi.mock("../components/asset-header", () => ({
   AssetHeader: ({ asset, loading, onBack }: { asset: unknown; loading: boolean; onBack: () => void }) => (
     <div data-testid="asset-header" data-loading={loading}>
       {loading ? "Loading..." : asset ? "Asset Header" : "No Asset"}
@@ -42,7 +42,7 @@ vi.mock("../components/AssetHeader", () => ({
   ),
 }));
 
-vi.mock("../components/AdvancedChart", () => ({
+vi.mock("../components/advanced-chart", () => ({
   AdvancedChart: ({ asset, loading }: { asset: unknown; loading: boolean }) => (
     <div data-testid="advanced-chart" data-loading={loading}>
       {loading ? "Loading Chart..." : asset ? "Chart" : "No Chart"}
@@ -50,7 +50,7 @@ vi.mock("../components/AdvancedChart", () => ({
   ),
 }));
 
-vi.mock("../components/MetricsGrid", () => ({
+vi.mock("../components/metrics-grid", () => ({
   MetricsGrid: ({ asset, loading }: { asset: unknown; loading: boolean }) => (
     <div data-testid="metrics-grid" data-loading={loading}>
       {loading ? "Loading Metrics..." : asset ? "Metrics" : "No Metrics"}
@@ -58,31 +58,31 @@ vi.mock("../components/MetricsGrid", () => ({
   ),
 }));
 
-vi.mock("../components/AggregatedOrderBook", () => ({
+vi.mock("../components/aggregated-order-book", () => ({
   AggregatedOrderBook: () => <div data-testid="order-book">Order Book</div>,
 }));
 
-vi.mock("../components/AssetSourceBreakdown", () => ({
+vi.mock("../components/asset-source-breakdown", () => ({
   AssetSourceBreakdown: () => <div data-testid="source-breakdown">Source Breakdown</div>,
 }));
 
-vi.mock("../components/SignalSummaryCard", () => ({
+vi.mock("../components/signal-summary", () => ({
   SignalSummaryCard: () => <div data-testid="signal-summary">Signal Summary</div>,
 }));
 
-vi.mock("../components/SignalIndicatorsPanel", () => ({
+vi.mock("../components/signal-indicators", () => ({
   SignalIndicatorsPanel: () => <div data-testid="signal-indicators">Signal Indicators</div>,
 }));
 
-vi.mock("../components/PredictionAccuracyCard", () => ({
+vi.mock("../components/prediction-accuracy", () => ({
   PredictionAccuracyCard: () => <div data-testid="prediction-accuracy">Prediction Accuracy</div>,
 }));
 
-vi.mock("../components/TimeframeSelector", () => ({
+vi.mock("../components/timeframe-selector", () => ({
   TimeframeSelector: () => <div data-testid="timeframe-selector">Timeframe Selector</div>,
 }));
 
-vi.mock("../components/CollapsibleSection", () => ({
+vi.mock("../components/collapsible-section", () => ({
   CollapsibleSection: ({ children }: { children: React.ReactNode }) => <div data-testid="collapsible">{children}</div>,
 }));
 

@@ -1,0 +1,1 @@
+export { AltcoinSeasonCard } from "./AltcoinSeasonCard";

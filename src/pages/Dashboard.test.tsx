@@ -46,7 +46,7 @@ vi.mock("../utils/marketHours", () => ({
   getMarketStatus: () => "24/7",
 }));
 
-vi.mock("../components/Navbar", () => ({
+vi.mock("../components/navbar", () => ({
   Navbar: ({ assetType, onAssetTypeChange }: { assetType: string; onAssetTypeChange: (type: string) => void }) => (
     <div data-testid="navbar" data-asset-type={assetType}>
       <button data-testid="change-asset-type" onClick={() => onAssetTypeChange("crypto")}>
@@ -56,25 +56,25 @@ vi.mock("../components/Navbar", () => ({
   ),
 }));
 
-vi.mock("../components/MetricsCarousel", () => ({
+vi.mock("../components/metrics-carousel", () => ({
   MetricsCarousel: ({ assetType }: { assetType: string }) => (
     <div data-testid="metrics-carousel" data-asset-type={assetType}>Metrics</div>
   ),
 }));
 
-vi.mock("../components/AssetList", () => ({
+vi.mock("../components/asset-list", () => ({
   AssetList: ({ filters }: { filters: { assetType: string } }) => (
     <div data-testid="asset-list" data-asset-type={filters.assetType}>Asset List</div>
   ),
 }));
 
-vi.mock("../components/ChartGrid", () => ({
+vi.mock("../components/chart-grid", () => ({
   ChartGrid: ({ assets, loading }: { assets: unknown[]; loading: boolean }) => (
     <div data-testid="chart-grid" data-loading={loading} data-count={assets.length}>Chart Grid</div>
   ),
 }));
 
-vi.mock("../components/Toolbar", () => ({
+vi.mock("../components/toolbar", () => ({
   Toolbar: ({ viewMode, onViewModeChange, filters, onFiltersChange }: {
     viewMode: string;
     onViewModeChange: (mode: string) => void;

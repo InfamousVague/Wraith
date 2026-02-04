@@ -12,5 +12,8 @@
   },
   "theme": "Theme",
   "home": "Home",
+  "portfolio": "Portfolio",
+  "trade": "Trade",
+  "leaderboard": "Leaderboard",
   "settings": "Settings"
 }

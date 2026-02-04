@@ -31,9 +31,7 @@ import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { Navbar } from "../components/Navbar";
-import { LoginProgress } from "../components/LoginProgress";
-import { LogoutConfirmModal } from "../components/LogoutConfirmModal";
+import { Navbar, LoginProgress, LogoutConfirmModal } from "../components/ui";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 // Theme colors
@@ -69,6 +67,7 @@ export function Profile() {
     loginToBackend,
     disconnectFromServer,
     serverProfile,
+    updateLeaderboardVisibility,
   } = useAuth();
 
   const [importKey, setImportKey] = useState("");
@@ -78,6 +77,10 @@ export function Profile() {
   const [copied, setCopied] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [hasBackedUpKey, setHasBackedUpKey] = useState(false);
+
+  // Leaderboard opt-in state
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   const handleRevealKey = () => {
     const key = exportPrivateKey();
@@ -153,6 +156,19 @@ export function Profile() {
 
   const handleBackupFromModal = () => {
     handleDownloadKey();
+  };
+
+  const handleToggleLeaderboard = async () => {
+    const newValue = !serverProfile?.showOnLeaderboard;
+    try {
+      setLeaderboardLoading(true);
+      setLeaderboardError(null);
+      await updateLeaderboardVisibility(newValue);
+    } catch (e) {
+      setLeaderboardError(e instanceof Error ? e.message : "Failed to update leaderboard setting");
+    } finally {
+      setLeaderboardLoading(false);
+    }
   };
 
   return (
@@ -297,7 +313,7 @@ export function Profile() {
                   {/* Not logged in state */}
                   <View style={styles.noAccount}>
                     <Icon
-                      name="wallet"
+                      name="user"
                       size={Size.ExtraLarge}
                       color={themeColors.text.muted}
                     />
@@ -421,6 +437,80 @@ export function Profile() {
                           </Text>
                         </View>
                       </View>
+                    )}
+
+                    {/* Profile Settings */}
+                    {serverProfile && (
+                      <>
+                        <View
+                          style={[
+                            styles.divider,
+                            { backgroundColor: themeColors.border.subtle },
+                          ]}
+                        />
+
+                        {/* Username Section */}
+                        <View style={styles.profileSetting}>
+                          <Text size={Size.Medium} weight="semibold">
+                            {t("auth:profile.username")}
+                          </Text>
+                          <Text size={Size.Medium}>{serverProfile.username}</Text>
+                        </View>
+
+                        {/* Leaderboard Opt-in Section */}
+                        <View style={styles.profileSetting}>
+                          <View style={styles.leaderboardHeader}>
+                            <View style={styles.leaderboardInfo}>
+                              <Text size={Size.Medium} weight="semibold">
+                                {t("auth:profile.leaderboard")}
+                              </Text>
+                              <Text
+                                size={Size.Small}
+                                appearance={TextAppearance.Muted}
+                                style={styles.leaderboardDesc}
+                              >
+                                {t("auth:profile.leaderboardDesc")}
+                              </Text>
+                            </View>
+                            <Pressable
+                              onPress={handleToggleLeaderboard}
+                              disabled={leaderboardLoading}
+                              style={[
+                                styles.toggle,
+                                serverProfile.showOnLeaderboard && styles.toggleActive,
+                                leaderboardLoading && styles.toggleDisabled,
+                              ]}
+                            >
+                              <View
+                                style={[
+                                  styles.toggleKnob,
+                                  serverProfile.showOnLeaderboard && styles.toggleKnobActive,
+                                ]}
+                              />
+                            </Pressable>
+                          </View>
+                          {serverProfile.showOnLeaderboard && serverProfile.leaderboardConsentAt && (
+                            <Text
+                              size={Size.ExtraSmall}
+                              appearance={TextAppearance.Muted}
+                              style={styles.consentInfo}
+                            >
+                              {t("auth:profile.leaderboardConsentAt", {
+                                date: new Date(serverProfile.leaderboardConsentAt).toLocaleDateString(),
+                              })}
+                            </Text>
+                          )}
+                          {leaderboardError && (
+                            <Text
+                              size={Size.Small}
+                              appearance={TextAppearance.Danger}
+                              style={styles.error}
+                            >
+                              {leaderboardError}
+                            </Text>
+                          )}
+                        </View>
+                      </>
                     )}
                   </>
                 ) : (
@@ -632,5 +722,49 @@ const styles = StyleSheet.create({
   connectButton: {
     alignSelf: "flex-start",
     marginTop: 8,
+  },
+  // Profile settings styles
+  profileSetting: {
+    marginTop: 16,
+    gap: 8,
+  },
+  leaderboardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  leaderboardInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  leaderboardDesc: {
+    marginTop: 4,
+    maxWidth: 400,
+  },
+  toggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    padding: 2,
+    justifyContent: "center",
+  },
+  toggleActive: {
+    backgroundColor: Colors.status.success,
+  },
+  toggleDisabled: {
+    opacity: 0.5,
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+  },
+  toggleKnobActive: {
+    alignSelf: "flex-end",
+  },
+  consentInfo: {
+    marginTop: 4,
   },
 });
