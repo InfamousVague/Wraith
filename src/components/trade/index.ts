@@ -31,7 +31,7 @@ export { TradeHistoryTable } from "./trade-history";
 export type { Trade, TradeHistoryTableProps } from "./trade-history";
 
 // Modals
-export { OrderConfirmModal, TradeReceiptModal, ClosePositionModal, ModifyPositionModal } from "./modals";
+export { OrderConfirmModal, TradeReceiptModal, ClosePositionModal, ModifyPositionModal, DrawdownWarningModal } from "./modals";
 export type { OrderConfirmModalProps, TradeReceiptModalProps, ClosePositionModalProps, ModifyPositionModalProps } from "./modals";
 
 // Alerts

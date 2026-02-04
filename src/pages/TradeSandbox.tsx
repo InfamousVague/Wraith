@@ -34,7 +34,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { View, StyleSheet, ScrollView, Pressable, Text as RNText } from "react-native";
+import { View, StyleSheet, ScrollView } from "react-native";
 import { useParams } from "react-router-dom";
 import { Card, SegmentedControl, Text } from "@wraith/ghost/components";
 import { Colors } from "@wraith/ghost/tokens";
@@ -71,6 +71,7 @@ import {
   TradeReceiptModal,
   ClosePositionModal,
   ModifyPositionModal,
+  DrawdownWarningModal,
 } from "../components/trade";
 import type { Position, ModifyPositionRequest, AssetClass, OrderType } from "../services/haunt";
 import { spacing, radii } from "../styles/tokens";
@@ -153,6 +154,8 @@ export function TradeSandbox() {
   const [positionClosing, setPositionClosing] = useState(false);
   const [positionModifying, setPositionModifying] = useState(false);
   const [portfolioResetting, setPortfolioResetting] = useState(false);
+  const [showDrawdownModal, setShowDrawdownModal] = useState(false);
+  const [bypassDrawdown, setBypassDrawdown] = useState(false);
 
   // Fetch real data when authenticated (with polling + WebSocket)
   const { portfolio: apiPortfolio, portfolioId, loading: portfolioLoading, clearAndRefetch: clearPortfolio, resetPortfolio } = usePortfolio();
@@ -338,7 +341,10 @@ export function TradeSandbox() {
           leverage: pendingOrder.leverage,
           stopLoss: pendingOrder.stopLoss ? parseFloat(pendingOrder.stopLoss) : undefined,
           takeProfit: pendingOrder.takeProfit ? parseFloat(pendingOrder.takeProfit) : undefined,
+          bypassDrawdown,
         });
+        // Reset bypass flag after successful order
+        setBypassDrawdown(false);
         console.log("Order placed successfully:", order);
         showSuccess("Order Placed", `${pendingOrder.side.toUpperCase()} ${symbol} order submitted`);
         // Refetch data to show updated positions/orders
@@ -350,8 +356,8 @@ export function TradeSandbox() {
 
         // Handle specific error cases
         if (errorMessage.includes("stopped due to drawdown") || errorMessage.includes("PORTFOLIO_STOPPED")) {
-          console.log("Portfolio stopped due to drawdown");
-          showError("Portfolio Stopped", "Your portfolio has been stopped due to drawdown. Please reset your portfolio to continue trading.");
+          console.log("Portfolio stopped due to drawdown - showing modal");
+          setShowDrawdownModal(true);
         } else if (errorMessage.includes("access denied") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
           console.log("Portfolio access error, clearing and re-fetching...");
           clearPortfolio();
@@ -558,6 +564,28 @@ export function TradeSandbox() {
     }
   }, [isAuthenticated, resetPortfolio, refetchPositions, refetchOrders, showSuccess, showError]);
 
+  // Handle drawdown bypass for single trade
+  const handleBypassDrawdownOnce = useCallback(() => {
+    setBypassDrawdown(true);
+    setShowDrawdownModal(false);
+    // Re-submit the pending order with bypass flag
+    if (pendingOrder) {
+      setShowOrderConfirm(true);
+    }
+  }, [pendingOrder]);
+
+  // Handle drawdown modal cancel
+  const handleDrawdownCancel = useCallback(() => {
+    setShowDrawdownModal(false);
+    setBypassDrawdown(false);
+  }, []);
+
+  // Handle reset from drawdown modal
+  const handleDrawdownReset = useCallback(async () => {
+    await handleResetPortfolio();
+    setShowDrawdownModal(false);
+  }, [handleResetPortfolio]);
+
   // Handle panel resize
   const handleOrderBookResize = useCallback((delta: number) => {
     setOrderBookWidth((prev) => Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, prev + delta)));
@@ -676,21 +704,6 @@ export function TradeSandbox() {
                   value={activeTab}
                   onChange={(val) => setActiveTab(val as TabId)}
                 />
-                {isAuthenticated && (
-                  <Pressable
-                    onPress={handleResetPortfolio}
-                    disabled={portfolioResetting}
-                    style={({ pressed }) => [
-                      styles.resetButton,
-                      pressed && styles.resetButtonPressed,
-                      portfolioResetting && styles.resetButtonDisabled,
-                    ]}
-                  >
-                    <RNText style={styles.resetButtonText}>
-                      {portfolioResetting ? "Resetting..." : "Reset Portfolio"}
-                    </RNText>
-                  </Pressable>
-                )}
                 <HintIndicator
                   id="trade-sandbox-positions-hint"
                   title="Positions & Orders"
@@ -787,6 +800,15 @@ export function TradeSandbox() {
         onCancel={handleModifyPositionCancel}
         loading={positionModifying}
       />
+
+      {/* Drawdown Warning Modal */}
+      <DrawdownWarningModal
+        visible={showDrawdownModal}
+        onBypassOnce={handleBypassDrawdownOnce}
+        onResetPortfolio={handleDrawdownReset}
+        onCancel={handleDrawdownCancel}
+        loading={portfolioResetting}
+      />
     </View>
   );
 }
@@ -845,22 +867,5 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     minHeight: 200,
-  },
-  resetButton: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: Colors.status.warning,
-    borderRadius: radii.sm,
-  },
-  resetButtonPressed: {
-    opacity: 0.8,
-  },
-  resetButtonDisabled: {
-    opacity: 0.5,
-  },
-  resetButtonText: {
-    color: Colors.text.primary,
-    fontSize: 12,
-    fontWeight: "600",
   },
 });

@@ -373,6 +373,8 @@ export type PlaceOrderRequest = {
   leverage?: number;
   stopLoss?: number;
   takeProfit?: number;
+  /** Bypass drawdown protection for this order */
+  bypassDrawdown?: boolean;
 };
 
 // Backend returns ApiResponse<Order> which wraps as { data: Order }
@@ -1051,6 +1053,7 @@ class HauntClient {
       leverage: order.leverage,
       stopLoss: order.stopLoss,
       takeProfit: order.takeProfit,
+      bypassDrawdown: order.bypassDrawdown,
     };
     return this.fetchWithAuth("/api/trading/orders", token, {
       method: "POST",
