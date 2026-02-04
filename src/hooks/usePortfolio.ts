@@ -17,6 +17,10 @@ export type UsePortfolioResult = {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  /** Clear portfolio cache and force re-fetch (useful after auth errors) */
+  clearAndRefetch: () => void;
+  /** Reset portfolio (restore balance, clear positions, unstop if stopped) */
+  resetPortfolio: () => Promise<void>;
 };
 
 const DEFAULT_POLL_INTERVAL = 30000; // 30 seconds
@@ -31,7 +35,9 @@ export function usePortfolio(pollInterval: number = DEFAULT_POLL_INTERVAL): UseP
   const initializingRef = useRef(false);
 
   const fetchPortfolio = useCallback(async () => {
-    if (!isAuthenticated || !sessionToken) {
+    // Require full authentication including server profile with publicKey
+    // Without publicKey, we can't properly filter portfolios by user
+    if (!isAuthenticated || !sessionToken || !serverProfile?.publicKey) {
       setPortfolio(null);
       setPortfolioId(null);
       return;
@@ -66,6 +72,7 @@ export function usePortfolio(pollInterval: number = DEFAULT_POLL_INTERVAL): UseP
       // Use the first portfolio as default
       // The listPortfolios response already includes all portfolio data (balance, margin, P&L)
       const defaultPortfolio = portfolios[0];
+      console.log("[usePortfolio] Using portfolio:", defaultPortfolio.id, "userId:", defaultPortfolio.userId, "serverProfile.publicKey:", serverProfile?.publicKey);
       setPortfolioId(defaultPortfolio.id);
       setPortfolio(defaultPortfolio);
     } catch (err) {
@@ -74,7 +81,7 @@ export function usePortfolio(pollInterval: number = DEFAULT_POLL_INTERVAL): UseP
     } finally {
       setLoading(false);
     }
-  }, [sessionToken, isAuthenticated, serverProfile?.id]);
+  }, [sessionToken, isAuthenticated, serverProfile?.publicKey]);
 
   // Initial fetch and polling
   useEffect(() => {
@@ -97,11 +104,44 @@ export function usePortfolio(pollInterval: number = DEFAULT_POLL_INTERVAL): UseP
     };
   }, [fetchPortfolio, pollInterval, isAuthenticated]);
 
+  // Clear portfolio cache and force re-fetch (useful after auth errors)
+  const clearAndRefetch = useCallback(() => {
+    setPortfolio(null);
+    setPortfolioId(null);
+    setError(null);
+    initializingRef.current = false; // Allow re-initialization
+    fetchPortfolio();
+  }, [fetchPortfolio]);
+
+  // Reset portfolio (restore balance, clear positions, unstop if stopped)
+  const resetPortfolio = useCallback(async () => {
+    if (!sessionToken || !portfolioId) {
+      throw new Error("Not authenticated or no portfolio");
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await hauntClient.resetPortfolio(sessionToken, portfolioId);
+      setPortfolio(response.data);
+      console.log("[usePortfolio] Portfolio reset successfully:", response.data);
+    } catch (err) {
+      console.error("Failed to reset portfolio:", err);
+      setError(err instanceof Error ? err.message : "Failed to reset portfolio");
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionToken, portfolioId]);
+
   return {
     portfolio,
     portfolioId,
     loading,
     error,
     refetch: fetchPortfolio,
+    clearAndRefetch,
+    resetPortfolio,
   };
 }

@@ -951,6 +951,15 @@ class HauntClient {
   }
 
   /**
+   * Reset a portfolio (restore balance, clear positions, unstop if stopped)
+   */
+  async resetPortfolio(token: string, portfolioId: string): Promise<ApiResponse<Portfolio>> {
+    return this.fetchWithAuth(`/api/trading/portfolios/${portfolioId}/reset`, token, {
+      method: "POST",
+    });
+  }
+
+  /**
    * Get portfolio holdings breakdown
    * Shows all assets held with allocation percentages
    */

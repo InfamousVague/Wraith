@@ -33,15 +33,18 @@
  * Portfolio overview is at /trade route.
  */
 
-import React, { useState, useCallback } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { View, StyleSheet, ScrollView, Pressable, Text as RNText } from "react-native";
+import { useParams } from "react-router-dom";
 import { Card, SegmentedControl, Text } from "@wraith/ghost/components";
 import { Colors } from "@wraith/ghost/tokens";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useCryptoData } from "../hooks/useCryptoData";
+import { hauntClient } from "../services/haunt";
 import { usePortfolio } from "../hooks/usePortfolio";
 import { usePositions } from "../hooks/usePositions";
 import { useOrders } from "../hooks/useOrders";
@@ -70,7 +73,7 @@ import {
   ModifyPositionModal,
 } from "../components/trade";
 import type { Position, ModifyPositionRequest, AssetClass, OrderType } from "../services/haunt";
-import { spacing } from "../styles/tokens";
+import { spacing, radii } from "../styles/tokens";
 import {
   MOCK_PORTFOLIO,
   MOCK_POSITIONS as INITIAL_MOCK_POSITIONS,
@@ -117,8 +120,10 @@ const DEFAULT_ORDER_FORM_WIDTH = 320;
  * Paper trading sandbox page with full trading interface.
  */
 export function TradeSandbox() {
+  const { symbol: urlSymbol } = useParams<{ symbol?: string }>();
   const { isDark } = useTheme();
   const { isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
   const colors = isDark ? themes.dark : themes.light;
   const { isMobile, width } = useBreakpoint();
 
@@ -147,9 +152,10 @@ export function TradeSandbox() {
   const [orderSubmitting, setOrderSubmitting] = useState(false);
   const [positionClosing, setPositionClosing] = useState(false);
   const [positionModifying, setPositionModifying] = useState(false);
+  const [portfolioResetting, setPortfolioResetting] = useState(false);
 
   // Fetch real data when authenticated (with polling + WebSocket)
-  const { portfolio: apiPortfolio, portfolioId, loading: portfolioLoading } = usePortfolio();
+  const { portfolio: apiPortfolio, portfolioId, loading: portfolioLoading, clearAndRefetch: clearPortfolio, resetPortfolio } = usePortfolio();
   const {
     positions: apiPositions,
     closePosition,
@@ -180,10 +186,9 @@ export function TradeSandbox() {
     }
   }, [lastOrderUpdate]);
 
-  // Determine data source based on authentication
-  // Authenticated users ALWAYS see real data (even if empty) - no mock fallback
-  // Unauthenticated users see mock data for demo purposes
-  const usingRealData = isAuthenticated;
+  // Determine data source based on authentication AND having a portfolio
+  // Users with a portfolio see real data, others see mock data for demo
+  const usingRealData = isAuthenticated && !!portfolioId;
 
   // Use real data if authenticated, otherwise fall back to mock for demo
   // Note: API returns cashBalance, we also provide balance alias for compatibility
@@ -194,20 +199,73 @@ export function TradeSandbox() {
   const orders = usingRealData ? apiOrders : mockOrders;
   const trades = usingRealData ? apiTrades : MOCK_TRADES;
 
-  // Fetch top crypto assets for selection
+  // Fetch top assets for quick selection
   const { assets, loading: assetsLoading } = useCryptoData({
-    limit: 10,
+    limit: 20,
     sort: "market_cap",
     sortDir: "desc",
-    assetType: "crypto",
+    assetType: "all",
   });
 
-  // Set default asset when loaded
-  React.useEffect(() => {
-    if (!selectedAsset && assets.length > 0) {
+  // Track search state for assets not in the top list
+  const searchedSymbolRef = useRef<string | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // Set asset based on URL param or default to first asset
+  useEffect(() => {
+    // If we have a URL symbol, try to find or fetch it
+    if (urlSymbol) {
+      const symbolLower = urlSymbol.toLowerCase();
+
+      // Already have this asset selected
+      if (selectedAsset?.symbol.toLowerCase() === symbolLower) {
+        return;
+      }
+
+      // Try to find in loaded assets
+      const matchingAsset = assets.find(
+        (a) => a.symbol.toLowerCase() === symbolLower
+      );
+
+      if (matchingAsset) {
+        setSelectedAsset(matchingAsset);
+        return;
+      }
+
+      // Asset not found in list - search for it (only once per symbol)
+      if (assets.length > 0 && searchedSymbolRef.current !== urlSymbol) {
+        searchedSymbolRef.current = urlSymbol;
+        setSearchLoading(true);
+
+        hauntClient.search(urlSymbol, 5).then((response) => {
+          const results = response.data || [];
+          const exactMatch = results.find(
+            (a) => a.symbol.toLowerCase() === symbolLower
+          );
+          if (exactMatch) {
+            setSelectedAsset(exactMatch);
+          } else if (results.length > 0) {
+            setSelectedAsset(results[0]);
+          } else if (!selectedAsset) {
+            // No results, fall back to first loaded asset
+            setSelectedAsset(assets[0]);
+          }
+        }).catch(() => {
+          if (!selectedAsset && assets.length > 0) {
+            setSelectedAsset(assets[0]);
+          }
+        }).finally(() => {
+          setSearchLoading(false);
+        });
+      }
+    } else if (!selectedAsset && assets.length > 0) {
+      // No URL symbol - default to first asset
       setSelectedAsset(assets[0]);
     }
-  }, [assets, selectedAsset]);
+  }, [assets, urlSymbol]);
+
+  // Combined loading state
+  const isLoading = assetsLoading || searchLoading;
 
   // Handle real-time price updates
   const handlePriceUpdate = useCallback((update: PriceUpdate) => {
@@ -282,12 +340,25 @@ export function TradeSandbox() {
           takeProfit: pendingOrder.takeProfit ? parseFloat(pendingOrder.takeProfit) : undefined,
         });
         console.log("Order placed successfully:", order);
+        showSuccess("Order Placed", `${pendingOrder.side.toUpperCase()} ${symbol} order submitted`);
         // Refetch data to show updated positions/orders
         refetchPositions();
         refetchOrders();
       } catch (err) {
         console.error("Failed to place order:", err);
-        // TODO: Show error toast to user
+        const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+
+        // Handle specific error cases
+        if (errorMessage.includes("stopped due to drawdown") || errorMessage.includes("PORTFOLIO_STOPPED")) {
+          console.log("Portfolio stopped due to drawdown");
+          showError("Portfolio Stopped", "Your portfolio has been stopped due to drawdown. Please reset your portfolio to continue trading.");
+        } else if (errorMessage.includes("access denied") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
+          console.log("Portfolio access error, clearing and re-fetching...");
+          clearPortfolio();
+          showError("Order Failed", "Portfolio access error. Please try again.");
+        } else {
+          showError("Order Failed", errorMessage);
+        }
       }
     } else {
       // Demo mode: create mock order or position
@@ -332,12 +403,13 @@ export function TradeSandbox() {
         };
         setMockOrders(prev => [newOrder, ...prev]);
       }
+      showSuccess("Demo Order", `${pendingOrder.side.toUpperCase()} ${symbol} (demo mode)`);
     }
 
     setOrderSubmitting(false);
     setShowOrderConfirm(false);
     setPendingOrder(null);
-  }, [isAuthenticated, pendingOrder, placeOrder, portfolioId, selectedAsset]);
+  }, [isAuthenticated, pendingOrder, placeOrder, portfolioId, selectedAsset, showSuccess, showError]);
 
   // Cancel order confirmation
   const handleOrderConfirmCancel = useCallback(() => {
@@ -467,6 +539,25 @@ export function TradeSandbox() {
     setLastFilledOrder(null);
   }, []);
 
+  // Reset portfolio (restore balance, clear positions, unstop if stopped)
+  const handleResetPortfolio = useCallback(async () => {
+    if (!isAuthenticated) return;
+
+    setPortfolioResetting(true);
+    try {
+      await resetPortfolio();
+      showSuccess("Portfolio Reset", "Your portfolio has been reset to starting balance.");
+      refetchPositions();
+      refetchOrders();
+    } catch (err) {
+      console.error("Failed to reset portfolio:", err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to reset portfolio";
+      showError("Reset Failed", errorMessage);
+    } finally {
+      setPortfolioResetting(false);
+    }
+  }, [isAuthenticated, resetPortfolio, refetchPositions, refetchOrders, showSuccess, showError]);
+
   // Handle panel resize
   const handleOrderBookResize = useCallback((delta: number) => {
     setOrderBookWidth((prev) => Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, prev + delta)));
@@ -515,7 +606,7 @@ export function TradeSandbox() {
             <View style={[styles.orderBookPanel, { width: effectiveOrderBookWidth }]}>
               <AggregatedOrderBook
                 symbol={selectedAsset?.symbol}
-                loading={assetsLoading}
+                loading={isLoading}
               />
             </View>
           )}
@@ -530,7 +621,7 @@ export function TradeSandbox() {
             <View style={styles.chartPanel}>
               <AggregatedOrderBook
                 symbol={selectedAsset?.symbol}
-                loading={assetsLoading}
+                loading={isLoading}
               />
             </View>
           )}
@@ -540,7 +631,7 @@ export function TradeSandbox() {
             <View style={styles.chartPanel}>
               <AdvancedChart
                 asset={selectedAsset}
-                loading={assetsLoading}
+                loading={isLoading}
                 height={isMobile ? 300 : showToggleLayout ? 400 : 500}
               />
             </View>
@@ -551,7 +642,7 @@ export function TradeSandbox() {
             <View style={styles.mobileOrderBook}>
               <AggregatedOrderBook
                 symbol={selectedAsset?.symbol}
-                loading={assetsLoading}
+                loading={isLoading}
               />
             </View>
           )}
@@ -568,7 +659,7 @@ export function TradeSandbox() {
               currentPrice={selectedAsset?.price}
               availableMargin={portfolio.marginAvailable}
               onSubmit={handleOrderSubmit}
-              loading={assetsLoading}
+              loading={isLoading}
               disabled={!isAuthenticated}
               disabledMessage="Connect wallet to place orders"
             />
@@ -585,6 +676,21 @@ export function TradeSandbox() {
                   value={activeTab}
                   onChange={(val) => setActiveTab(val as TabId)}
                 />
+                {isAuthenticated && (
+                  <Pressable
+                    onPress={handleResetPortfolio}
+                    disabled={portfolioResetting}
+                    style={({ pressed }) => [
+                      styles.resetButton,
+                      pressed && styles.resetButtonPressed,
+                      portfolioResetting && styles.resetButtonDisabled,
+                    ]}
+                  >
+                    <RNText style={styles.resetButtonText}>
+                      {portfolioResetting ? "Resetting..." : "Reset Portfolio"}
+                    </RNText>
+                  </Pressable>
+                )}
                 <HintIndicator
                   id="trade-sandbox-positions-hint"
                   title="Positions & Orders"
@@ -739,5 +845,22 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     minHeight: 200,
+  },
+  resetButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: Colors.status.warning,
+    borderRadius: radii.sm,
+  },
+  resetButtonPressed: {
+    opacity: 0.8,
+  },
+  resetButtonDisabled: {
+    opacity: 0.5,
+  },
+  resetButtonText: {
+    color: Colors.text.primary,
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
