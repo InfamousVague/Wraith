@@ -653,7 +653,27 @@ class HauntClient {
     const response = await fetch(`${this.baseUrl}${endpoint}`, options);
 
     if (!response.ok) {
-      throw new Error(`Haunt API error: ${response.status} ${response.statusText}`);
+      // Try to parse error response for more details
+      let errorMessage = `Haunt API error: ${response.status} ${response.statusText}`;
+      try {
+        const errorBody = await response.json();
+        if (errorBody.error) {
+          errorMessage = errorBody.error;
+        } else if (errorBody.message) {
+          errorMessage = errorBody.message;
+        }
+      } catch {
+        // Couldn't parse JSON, use default message
+      }
+
+      // Add helpful context for common errors
+      if (response.status === 403) {
+        if (endpoint.includes("/orders") || endpoint.includes("/positions")) {
+          errorMessage = "Portfolio access denied. Please try logging out and back in.";
+        }
+      }
+
+      throw new Error(errorMessage);
     }
 
     return response.json();
@@ -1006,10 +1026,27 @@ class HauntClient {
    * Place an order
    */
   async placeOrder(token: string, order: PlaceOrderRequest): Promise<ApiResponse<PlaceOrderResponse>> {
+    // Backend expects camelCase field names
+    const requestBody = {
+      portfolioId: order.portfolioId,
+      symbol: order.symbol,
+      assetClass: order.assetClass,
+      side: order.side,
+      orderType: order.orderType,
+      quantity: order.quantity,
+      price: order.price,
+      stopPrice: order.stopPrice,
+      trailAmount: order.trailAmount,
+      trailPercent: order.trailPercent,
+      timeInForce: order.timeInForce,
+      leverage: order.leverage,
+      stopLoss: order.stopLoss,
+      takeProfit: order.takeProfit,
+    };
     return this.fetchWithAuth("/api/trading/orders", token, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(order),
+      body: JSON.stringify(requestBody),
     });
   }
 
