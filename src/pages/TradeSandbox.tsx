@@ -358,6 +358,10 @@ export function TradeSandbox() {
         if (errorMessage.includes("stopped due to drawdown") || errorMessage.includes("PORTFOLIO_STOPPED")) {
           console.log("Portfolio stopped due to drawdown - showing modal");
           setShowDrawdownModal(true);
+          // Don't clear pendingOrder - user may want to retry with bypass
+          setOrderSubmitting(false);
+          setShowOrderConfirm(false);
+          return; // Exit early to preserve pendingOrder
         } else if (errorMessage.includes("access denied") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
           console.log("Portfolio access error, clearing and re-fetching...");
           clearPortfolio();
