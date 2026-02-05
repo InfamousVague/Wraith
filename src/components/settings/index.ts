@@ -4,3 +4,4 @@
  */
 
 export { TradingSettingsSection } from "./TradingSettingsSection";
+export { DeveloperSettingsSection } from "./DeveloperSettingsSection";

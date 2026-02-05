@@ -113,6 +113,7 @@ const FALLBACK_SERVERS: Omit<ApiServer, "status" | "latencyMs" | "lastChecked">[
 const SERVERS_CACHE_KEY = "haunt_servers_v2"; // Changed to bust old HTTP URL cache
 const SERVERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const AUTO_FASTEST_KEY = "haunt_auto_fastest";
+const ACTIVE_SERVER_KEY = "haunt_active_server";
 
 type ApiServerContextType = {
   servers: ApiServer[];
@@ -168,6 +169,15 @@ export function ApiServerProvider({ children }: ApiServerProviderProps) {
     }));
   });
   const [activeServerId, setActiveServerId] = useState<string>(() => {
+    // Try to load from localStorage first
+    try {
+      const saved = localStorage.getItem(ACTIVE_SERVER_KEY);
+      if (saved) {
+        return saved;
+      }
+    } catch {
+      // Ignore storage errors
+    }
     // In production, default to osaka; in development, default to local
     return isProduction ? "osaka" : "local";
   });
@@ -439,6 +449,12 @@ export function ApiServerProvider({ children }: ApiServerProviderProps) {
         // Ignore storage errors
       }
     }
+    // Persist to localStorage for reload recovery
+    try {
+      localStorage.setItem(ACTIVE_SERVER_KEY, serverId);
+    } catch {
+      // Ignore storage errors
+    }
     // Sync preferred server to backend
     if (prefSync) {
       prefSync.updatePreference("preferredServer", serverId);
@@ -471,6 +487,12 @@ export function ApiServerProvider({ children }: ApiServerProviderProps) {
           const serverExists = servers.some((s) => s.id === serverPrefs.preferredServer);
           if (serverExists) {
             setActiveServerId(serverPrefs.preferredServer);
+            // Also persist to localStorage for reload recovery
+            try {
+              localStorage.setItem(ACTIVE_SERVER_KEY, serverPrefs.preferredServer);
+            } catch {
+              // Ignore storage errors
+            }
           }
         }
       }

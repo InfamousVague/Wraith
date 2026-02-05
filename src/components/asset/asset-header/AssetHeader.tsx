@@ -84,7 +84,7 @@ export function AssetHeader({ asset, loading, onBack, onTradePress }: AssetHeade
             label="Trade"
             appearance={Appearance.Primary}
             size={isMobile ? Size.Small : Size.Medium}
-            icon="trending-up"
+            iconLeft="trending-up"
             onPress={onTradePress}
           />
         )}

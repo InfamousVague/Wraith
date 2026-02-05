@@ -3,7 +3,7 @@
  */
 
 import type { IconName } from "@wraith/ghost/components";
-import type { AssetType } from "../../services/haunt";
+import type { AssetType } from "../../../services/haunt";
 
 export type { AssetType, IconName };
 

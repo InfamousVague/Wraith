@@ -332,7 +332,9 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
     indicatorSeriesRef.current.clear();
 
     // Measure the container's actual height (important for flex layouts)
-    const measuredContainerHeight = container.clientHeight || container.offsetHeight || 400;
+    // Use getBoundingClientRect for more accurate measurement in flex contexts
+    const rect = container.getBoundingClientRect();
+    const measuredContainerHeight = rect.height || container.clientHeight || container.offsetHeight || 400;
 
     // Use prop height if provided, otherwise use measured height
     // Note: Volume histogram is rendered inside the chart via scaleMargins, so no height reduction needed
@@ -588,7 +590,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   }, [stats]);
 
   // Flatten card styles for mobile
-  const cardStyle = StyleSheet.flatten([styles.card, isMobile && styles.cardMobile]) as ViewStyle;
+  const cardStyle = StyleSheet.flatten([styles.card, isMobile && styles.cardMobile]) as any;
 
   if (loading) {
     return (

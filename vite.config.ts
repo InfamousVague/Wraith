@@ -10,8 +10,13 @@ export default defineConfig({
       "@wraith/ghost": path.resolve(__dirname, "../ghost/src"),
       "react-native": path.resolve(__dirname, "node_modules/react-native-web"),
       "react-native-svg": path.resolve(__dirname, "./src/shims/react-native-svg.tsx"),
+      // Force all React imports to use Wraith's React (prevents duplicate React issue with Ghost)
+      "react": path.resolve(__dirname, "node_modules/react"),
+      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
     },
     extensions: [".web.tsx", ".web.ts", ".web.js", ".tsx", ".ts", ".js"],
+    // Dedupe React to prevent multiple instances
+    dedupe: ["react", "react-dom"],
   },
   define: {
     __DEV__: JSON.stringify(process.env.NODE_ENV !== "production"),

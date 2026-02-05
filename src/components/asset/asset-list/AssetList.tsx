@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
     minWidth: 240,
   },
   searchInputMobile: {
-    width: "100%",
+    flex: 1,
   },
   mobileRow: {
     flexDirection: "row",

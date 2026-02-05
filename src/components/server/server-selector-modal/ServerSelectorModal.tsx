@@ -24,8 +24,8 @@ export function ServerSelectorModal({ visible, onClose }: ServerSelectorModalPro
     servers,
     activeServer,
     setActiveServer,
-    autoSelectFastest,
-    setAutoSelectFastest,
+    useAutoFastest,
+    setUseAutoFastest,
     refreshServerStatus,
     isRefreshing,
     peerMesh,
@@ -37,11 +37,11 @@ export function ServerSelectorModal({ visible, onClose }: ServerSelectorModalPro
   }, [setActiveServer, onClose]);
 
   const handleAutoSelectToggle = useCallback((value: boolean) => {
-    setAutoSelectFastest(value);
+    setUseAutoFastest(value);
     if (value) {
       refreshServerStatus();
     }
-  }, [setAutoSelectFastest, refreshServerStatus]);
+  }, [setUseAutoFastest, refreshServerStatus]);
 
   // Calculate stats
   const onlineServers = servers.filter((s) => s.status === "online").length;
@@ -85,8 +85,8 @@ export function ServerSelectorModal({ visible, onClose }: ServerSelectorModalPro
               </Text>
             </View>
             <Toggle
-              value={autoSelectFastest}
-              onChange={handleAutoSelectToggle}
+              value={useAutoFastest}
+              onValueChange={handleAutoSelectToggle}
             />
           </View>
 

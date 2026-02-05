@@ -98,7 +98,7 @@ export function AssetSourceBreakdown({
   const score = confidence?.confidence.score ?? 0;
   const scoreColor = getScoreColor(score);
   const scoreLabelKey = getScoreLabelKey(score);
-  const scoreLabel = t(`dataQuality.levels.${scoreLabelKey}`);
+  const scoreLabel = t(`dataQuality.levels.${scoreLabelKey}` as any);
 
   return (
     <Card style={styles.card} loading={showLoading} fullBleed={isMobile}>
@@ -112,7 +112,7 @@ export function AssetSourceBreakdown({
             <HintIndicator
               id="data-quality-hint"
               title={t("dataQuality.hint.title")}
-              icon="?"
+              icon="i"
               color={Colors.accent.primary}
               priority={15}
               width={400}
@@ -173,7 +173,7 @@ export function AssetSourceBreakdown({
             </View>
 
             {/* Stats row */}
-            <View style={[styles.statsRow, { backgroundColor: themeColors.background.secondary }]}>
+            <View style={[styles.statsRow, { backgroundColor: themeColors.background.surface }]}>
               <View style={styles.statItem}>
                 <Text size={Size.Small} weight="semibold">
                   {sources.length}

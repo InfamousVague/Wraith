@@ -3,7 +3,7 @@
  */
 
 import type { Animated } from "react-native";
-import type { PriceSourceId } from "../../hooks/useHauntSocket";
+import type { PriceSourceId } from "../../../hooks/useHauntSocket";
 
 export type { PriceSourceId };
 

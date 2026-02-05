@@ -15,7 +15,7 @@
  * - Mobile: Single column stacked layout
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useNavigate } from "react-router-dom";
 import { Card, Text, Icon, Skeleton, Currency, PercentChange, Avatar, Button } from "@wraith/ghost/components";
@@ -30,7 +30,8 @@ import { usePerformance } from "../hooks/usePerformance";
 import { usePositions } from "../hooks/usePositions";
 import { useTrades } from "../hooks/useTrades";
 import { Navbar, HintIndicator } from "../components/ui";
-import { PortfolioSummary, TradeHistoryTable } from "../components/trade";
+import { PortfolioSummary, TradeHistoryTable, ClosePositionModal, ModifyPositionModal } from "../components/trade";
+import { PositionCard } from "../components/positions/PositionCard";
 import { spacing, radii } from "../styles/tokens";
 import {
   MOCK_PORTFOLIO,
@@ -557,8 +558,13 @@ export function Portfolio() {
   const { portfolio, portfolioId, loading: portfolioLoading } = usePortfolio();
   const { holdings: holdingsData, loading: holdingsLoading } = useHoldings(portfolioId);
   const { performance, loading: performanceLoading } = usePerformance(portfolioId, "1m");
-  const { positions, loading: positionsLoading } = usePositions(portfolioId);
+  const { positions, loading: positionsLoading, closePosition, modifyPosition, updatedPositionIds } = usePositions(portfolioId);
   const { trades, loading: tradesLoading } = useTrades(portfolioId, 10);
+
+  const [positionToClose, setPositionToClose] = useState<Position | null>(null);
+  const [positionToModify, setPositionToModify] = useState<Position | null>(null);
+  const [positionClosing, setPositionClosing] = useState(false);
+  const [positionModifying, setPositionModifying] = useState(false);
 
   const sectionPadding = isMobile ? 12 : isNarrow ? 16 : 24;
 
@@ -629,6 +635,32 @@ export function Portfolio() {
   const totalPnl = useMemo(() => {
     return displayHoldings.reduce((sum, h) => sum + h.pnl, 0);
   }, [displayHoldings]);
+
+  const handleConfirmClose = async () => {
+    if (!positionToClose) return;
+    setPositionClosing(true);
+    try {
+      await closePosition(positionToClose.id);
+      setPositionToClose(null);
+    } catch (err) {
+      console.error("[Portfolio] Failed to close position:", err);
+    } finally {
+      setPositionClosing(false);
+    }
+  };
+
+  const handleSaveModify = async (changes: { stopLoss?: number | null; takeProfit?: number | null; trailingStop?: number | null }) => {
+    if (!positionToModify) return;
+    setPositionModifying(true);
+    try {
+      await modifyPosition(positionToModify.id, changes);
+      setPositionToModify(null);
+    } catch (err) {
+      console.error("[Portfolio] Failed to modify position:", err);
+    } finally {
+      setPositionModifying(false);
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -780,63 +812,30 @@ export function Portfolio() {
                   </Text>
                 </View>
               </View>
+              {/* Column headers for row variant */}
+              <View style={styles.positionsHeaderRow}>
+                <View style={styles.positionsHeaderLeft}>
+                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>Asset</Text>
+                </View>
+                <View style={styles.positionsHeaderMiddle}>
+                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Size</Text>
+                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Entry</Text>
+                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Mark</Text>
+                </View>
+                <View style={styles.positionsHeaderRight}>
+                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>P&L</Text>
+                </View>
+              </View>
               <View style={styles.positionsList}>
                 {displayPositions.map((position) => (
-                  <View key={position.id} style={styles.positionRow}>
-                    <View style={styles.positionLeft}>
-                      <View
-                        style={[
-                          styles.positionSideBadge,
-                          {
-                            backgroundColor:
-                              position.side === "long"
-                                ? "rgba(47, 213, 117, 0.15)"
-                                : "rgba(255, 92, 122, 0.15)",
-                          },
-                        ]}
-                      >
-                        <Text
-                          size={Size.TwoXSmall}
-                          weight="semibold"
-                          style={{
-                            color:
-                              position.side === "long"
-                                ? Colors.status.success
-                                : Colors.status.danger,
-                          }}
-                        >
-                          {position.side.toUpperCase()}
-                        </Text>
-                      </View>
-                      <Text size={Size.Small} weight="semibold">
-                        {position.symbol}
-                      </Text>
-                      <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-                        {position.leverage}x
-                      </Text>
-                    </View>
-                    <View style={styles.positionRight}>
-                      <Text size={Size.Small}>
-                        {position.size} @ ${position.entryPrice.toLocaleString()}
-                      </Text>
-                      <View style={styles.positionPnl}>
-                        <Text
-                          size={Size.Small}
-                          weight="semibold"
-                          style={{
-                            color:
-                              position.unrealizedPnl >= 0
-                                ? Colors.status.success
-                                : Colors.status.danger,
-                          }}
-                        >
-                          {position.unrealizedPnl >= 0 ? "+" : ""}$
-                          {position.unrealizedPnl.toLocaleString()}
-                        </Text>
-                        <PercentChange value={position.unrealizedPnlPercent} size={Size.ExtraSmall} />
-                      </View>
-                    </View>
-                  </View>
+                  <PositionCard
+                    key={position.id}
+                    position={position}
+                    variant="row"
+                    isUpdated={usingRealData ? updatedPositionIds.has(position.id) : false}
+                    onClose={usingRealData ? () => setPositionToClose(position) : undefined}
+                    onEdit={usingRealData ? () => setPositionToModify(position) : undefined}
+                  />
                 ))}
               </View>
             </Card>
@@ -861,6 +860,22 @@ export function Portfolio() {
           </Card>
         </View>
       </ScrollView>
+
+      <ClosePositionModal
+        visible={!!positionToClose}
+        position={positionToClose}
+        onConfirm={handleConfirmClose}
+        onCancel={() => setPositionToClose(null)}
+        loading={positionClosing}
+      />
+
+      <ModifyPositionModal
+        visible={!!positionToModify}
+        position={positionToModify}
+        onSave={handleSaveModify}
+        onCancel={() => setPositionToModify(null)}
+        loading={positionModifying}
+      />
     </View>
   );
 }
@@ -983,8 +998,32 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radii.sm,
   },
+  positionsHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    gap: spacing.md,
+  },
+  positionsHeaderLeft: {
+    width: 90,
+  },
+  positionsHeaderMiddle: {
+    flex: 1,
+    flexDirection: "row",
+    gap: spacing.lg,
+  },
+  positionsHeaderRight: {
+    width: 100,
+    alignItems: "flex-end",
+  },
+  positionsHeaderCell: {
+    width: 60,
+  },
   positionsList: {
-    gap: spacing.xs,
+    gap: 0,
   },
   positionRow: {
     flexDirection: "row",

@@ -2,7 +2,7 @@
  * Types for AdvancedChart component
  */
 
-import type { Asset } from "../../types/asset";
+import type { Asset } from "../../../types/asset";
 
 // Time range options for chart display
 export type TimeRange = "1H" | "4H" | "1D" | "1W" | "1M" | "3M" | "1Y" | "ALL";

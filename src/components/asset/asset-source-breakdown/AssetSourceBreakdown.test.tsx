@@ -8,7 +8,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 // Mock the haunt client - use hoisted pattern
-vi.mock("../services/haunt", () => ({
+vi.mock("../../../services/haunt", () => ({
   hauntClient: {
     getSymbolSourceStats: vi.fn(),
     getConfidence: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("../services/haunt", () => ({
 }));
 
 // Import the mocked module after vi.mock
-import { hauntClient } from "../../services/haunt";
+import { hauntClient } from "../../../services/haunt";
 const mockGetSymbolSourceStats = vi.mocked(hauntClient.getSymbolSourceStats);
 const mockGetConfidence = vi.mocked(hauntClient.getConfidence);
 
@@ -115,19 +115,34 @@ describe("AssetSourceBreakdown", () => {
     // Default mock responses
     mockGetSymbolSourceStats.mockResolvedValue({
       data: {
+        symbol: "BTC",
         sources: [
           { source: "binance", updateCount: 100, updatePercent: 50, online: true },
           { source: "coinbase", updateCount: 80, updatePercent: 40, online: true },
           { source: "kraken", updateCount: 20, updatePercent: 10, online: false },
         ],
         totalUpdates: 200,
+        timestamp: Date.now(),
       },
     });
 
     mockGetConfidence.mockResolvedValue({
       data: {
-        confidence: { score: 85 },
+        symbol: "BTC",
+        confidence: {
+          score: 85,
+          sourceCount: 3,
+          onlineSources: 2,
+          totalUpdates: 200,
+          factors: {
+            sourceCountScore: 80,
+            uptimeScore: 90,
+            freshnessScore: 85,
+            spreadScore: 85,
+          },
+        },
         chartDataPoints: 1500,
+        timestamp: Date.now(),
       },
     });
   });
@@ -215,7 +230,7 @@ describe("AssetSourceBreakdown", () => {
   describe("Empty State", () => {
     it("renders empty state when no sources", async () => {
       mockGetSymbolSourceStats.mockResolvedValue({
-        data: { sources: [], totalUpdates: 0 },
+        data: { symbol: "BTC", sources: [], totalUpdates: 0, timestamp: Date.now() },
       });
 
       render(<AssetSourceBreakdown symbol="BTC" />);

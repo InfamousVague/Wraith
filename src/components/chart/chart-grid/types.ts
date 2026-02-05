@@ -2,7 +2,7 @@
  * Types for chart grid components
  */
 
-import type { Asset } from "../../types/asset";
+import type { Asset } from "../../../types/asset";
 import type { ThemeColors } from "@wraith/ghost/context/ThemeContext";
 
 export type { Asset, ThemeColors };

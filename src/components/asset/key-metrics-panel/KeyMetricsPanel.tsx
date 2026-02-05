@@ -14,7 +14,7 @@
 
 import React, { useMemo } from "react";
 import { View, StyleSheet, Platform } from "react-native";
-import { Text, Card, Icon, Skeleton, Currency } from "@wraith/ghost/components";
+import { Text, Card, Icon, Skeleton, Currency, type IconName } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { Colors } from "@wraith/ghost/tokens";
 import { HintIndicator } from "../../ui/hint-indicator";
@@ -143,7 +143,7 @@ function ProgressBar({ value, color }: { value: number; color: string }) {
 }
 
 type MetricRowProps = {
-  icon: string;
+  icon: IconName;
   label: string;
   hint?: { title: string; content: string };
   loading?: boolean;
@@ -183,7 +183,7 @@ const REGION_COLORS: Record<string, string> = {
   europe: Colors.data.violet,
   asia: Colors.data.amber,
   oceania: Colors.data.cyan,
-  africa: Colors.data.green,
+  africa: Colors.data.emerald,
 };
 
 function getRegionColor(region: string): string {

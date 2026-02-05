@@ -4,7 +4,8 @@
  *
  * ## Features:
  * - Brand logo with navigation to home
- * - Market filter toggle (crypto/stocks) - only on home page
+ * - Server indicator with latency (click to open server selector)
+ * - Market filter toggle (crypto/stocks) - always visible
  * - Theme toggle (dark/light)
  * - User profile section (authenticated/guest states)
  * - Settings navigation
@@ -17,34 +18,45 @@
  * - Desktop: Standard horizontal navigation bar
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { View, StyleSheet, Pressable, ScrollView } from "react-native";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Text, Toggle, Icon, Button } from "@wraith/ghost/components";
+import { Text, Icon, Button, Popover, BottomSheet } from "@wraith/ghost/components";
 import { Size, Shape, Appearance, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { spacing, radii } from "../../../styles/tokens";
-import { useTheme } from "../../../context/ThemeContext";
 import { useAuth } from "../../../context/AuthContext";
+import { useApiServer } from "../../../context/ApiServerContext";
+// Theme toggle removed - available in settings
 import { useBreakpoint } from "../../../hooks/useBreakpoint";
-import { MarketFilter } from "../../market/market-filter";
+import { ServersCard } from "../../server/servers";
 import { AnimatedHamburger } from "./AnimatedHamburger";
-import type { NavbarProps, AssetType } from "./types";
+import type { NavbarProps } from "./types";
 
-export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
+/** Get status color based on server status and latency */
+function getServerStatusColor(status: string, latencyMs: number | null): string {
+  if (status === "offline") return Colors.status.danger;
+  if (status === "checking") return Colors.status.warning;
+  if (latencyMs === null) return Colors.status.warning;
+  if (latencyMs < 100) return Colors.status.success;
+  if (latencyMs < 300) return Colors.status.warning;
+  return Colors.status.danger;
+}
+
+export function Navbar() {
   const navigate = useNavigate();
   const { t } = useTranslation(["navigation", "common"]);
-  const { toggleTheme, isDark } = useTheme();
   const themeColors = useThemeColors();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, serverProfile } = useAuth();
+  const { activeServer } = useApiServer();
   const { isMobile } = useBreakpoint();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [serverPopoverOpen, setServerPopoverOpen] = useState(false);
+  const serverIndicatorRef = useRef<View>(null);
 
-  const handleAssetTypeChange = (type: AssetType) => {
-    onAssetTypeChange?.(type);
-  };
+  const statusColor = getServerStatusColor(activeServer?.status ?? "checking", activeServer?.latencyMs ?? null);
 
   const handleProfileClick = () => {
     setMenuOpen(false);
@@ -74,189 +86,207 @@ export function Navbar({ assetType = "all", onAssetTypeChange }: NavbarProps) {
   // Mobile navbar with expandable menu
   if (isMobile) {
     return (
-      <View style={[
-        styles.mobileNavWrapper,
-        menuOpen && styles.mobileNavWrapperExpanded,
-        { backgroundColor: themeColors.background.canvas }
-      ]}>
-        {/* Header - always visible */}
-        <View style={[styles.container, styles.containerMobile, { borderBottomColor: themeColors.border.subtle }]}>
-          <div data-sherpa="navbar-logo">
-            <Pressable style={styles.logoSection} onPress={handleHomeClick}>
-              <Text size={Size.Large} weight="bold">{t("navigation:brand")}</Text>
-            </Pressable>
-          </div>
+      <>
+        <View style={[
+          styles.mobileNavWrapper,
+          menuOpen && styles.mobileNavWrapperExpanded,
+          { backgroundColor: themeColors.background.canvas }
+        ]}>
+          {/* Header - always visible */}
+          <View style={[styles.container, styles.containerMobile, { borderBottomColor: themeColors.border.subtle }]}>
+            <View style={styles.mobileLeftSection}>
+              <div data-sherpa="navbar-logo">
+                <Pressable style={styles.logoSection} onPress={handleHomeClick}>
+                  <Text size={Size.Large} weight="bold">{t("navigation:brand")}</Text>
+                </Pressable>
+              </div>
 
-          <Pressable
-            onPress={() => setMenuOpen(!menuOpen)}
-            style={styles.hamburgerButton}
-          >
-            <AnimatedHamburger isOpen={menuOpen} color={themeColors.text.primary} />
-          </Pressable>
-        </View>
-
-        {/* Expandable Menu Content */}
-        {menuOpen && (
-          <ScrollView style={styles.mobileMenuExpanded} contentContainerStyle={styles.menuContent}>
-            {/* Market Filter - Only show on home page (when callback is provided) */}
-            {onAssetTypeChange && (
-              <View style={styles.menuSection}>
-                <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.menuSectionLabel}>
-                  {t("navigation:marketFilter")}
+              {/* Server Indicator - Mobile */}
+              <Pressable
+                onPress={() => setServerPopoverOpen(true)}
+                style={[styles.serverIndicator, { backgroundColor: `${statusColor}15` }]}
+              >
+                <View
+                  style={[
+                    styles.serverStatusDot,
+                    { backgroundColor: statusColor }
+                  ]}
+                />
+                <Text size={Size.TwoXSmall} style={{ color: statusColor }} numberOfLines={1}>
+                  {activeServer?.name ?? "..."}
                 </Text>
-                <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
-              </View>
-            )}
-
-            {/* Theme Toggle */}
-            <View style={styles.menuSection}>
-              <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.menuSectionLabel}>
-                {t("navigation:theme")}
-              </Text>
-              <Toggle
-                value={isDark}
-                onValueChange={toggleTheme}
-                leftIcon="sun"
-                rightIcon="moon"
-                size={Size.Large}
-              />
+              </Pressable>
             </View>
 
-            {/* Divider */}
-            <View style={[styles.menuDivider, { backgroundColor: themeColors.border.subtle }]} />
+            <Pressable
+              onPress={() => setMenuOpen(!menuOpen)}
+              style={styles.hamburgerButton}
+            >
+              <AnimatedHamburger isOpen={menuOpen} color={themeColors.text.primary} />
+            </Pressable>
+          </View>
 
-            {/* Navigation Items */}
-            <View style={styles.menuNavItems}>
-              {/* Portfolio - only show when authenticated */}
-              {isAuthenticated && (
+          {/* Expandable Menu Content */}
+          {menuOpen && (
+            <ScrollView style={styles.mobileMenuExpanded} contentContainerStyle={styles.menuContent}>
+              {/* Navigation Items */}
+              <View style={styles.menuNavItems}>
+                {/* Portfolio - only show when authenticated */}
+                {isAuthenticated && (
+                  <Pressable
+                    onPress={handlePortfolioClick}
+                    style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
+                  >
+                    <Icon name="pie-chart" size={Size.Medium} color={themeColors.text.primary} />
+                    <Text size={Size.Medium}>{t("navigation:portfolio")}</Text>
+                  </Pressable>
+                )}
+
+                {/* Leaderboard - yellow crown */}
                 <Pressable
-                  onPress={handlePortfolioClick}
+                  onPress={handleLeaderboardClick}
                   style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
                 >
-                  <Icon name="pie-chart" size={Size.Medium} color={themeColors.text.primary} />
-                  <Text size={Size.Medium}>{t("navigation:portfolio")}</Text>
+                  <Icon name="crown" size={Size.Medium} color={Colors.status.warning} />
+                  <Text size={Size.Medium}>{t("navigation:leaderboard")}</Text>
                 </Pressable>
-              )}
 
-              {/* Leaderboard */}
-              <Pressable
-                onPress={handleLeaderboardClick}
-                style={[styles.menuNavItem, styles.leaderboardNavItem]}
-              >
-                <Text style={styles.crownIcon}>👑</Text>
-                <Text size={Size.Medium} style={{ color: Colors.status.warning }}>{t("navigation:leaderboard")}</Text>
-              </Pressable>
+                {/* Profile */}
+                <Pressable
+                  onPress={handleProfileClick}
+                  style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
+                >
+                  <Icon name="user" size={Size.Medium} color={themeColors.text.primary} />
+                  <Text size={Size.Medium}>
+                    {isAuthenticated && user?.publicKey
+                      ? `${user.publicKey.slice(0, 6)}...${user.publicKey.slice(-4)}`
+                      : t("common:buttons.login")}
+                  </Text>
+                </Pressable>
 
-              {/* Profile */}
-              <Pressable
-                onPress={handleProfileClick}
-                style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
-              >
-                <Icon name="user" size={Size.Medium} color={themeColors.text.primary} />
-                <Text size={Size.Medium}>
-                  {isAuthenticated && user?.publicKey
-                    ? `${user.publicKey.slice(0, 6)}...${user.publicKey.slice(-4)}`
-                    : t("common:buttons.login")}
-                </Text>
-              </Pressable>
+                {/* Settings */}
+                <Pressable
+                  onPress={handleSettingsClick}
+                  style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
+                >
+                  <Icon name="settings" size={Size.Medium} color={themeColors.text.primary} />
+                  <Text size={Size.Medium}>{t("navigation:settings")}</Text>
+                </Pressable>
+              </View>
+            </ScrollView>
+          )}
+        </View>
 
-              {/* Settings */}
-              <Pressable
-                onPress={handleSettingsClick}
-                style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
-              >
-                <Icon name="settings" size={Size.Medium} color={themeColors.text.primary} />
-                <Text size={Size.Medium}>{t("navigation:settings")}</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        )}
-      </View>
+        {/* Server Selector BottomSheet (mobile) */}
+        <BottomSheet
+          visible={serverPopoverOpen}
+          onClose={() => setServerPopoverOpen(false)}
+          title="Select Server"
+        >
+          <ServersCard />
+        </BottomSheet>
+      </>
     );
   }
 
   // Desktop navbar
   return (
-    <View style={[styles.container, { borderBottomColor: themeColors.border.subtle }]}>
-      <div data-sherpa="navbar-logo">
-        <Pressable style={styles.logoSection} onPress={() => navigate("/")}>
-          <Text size={Size.Large} weight="bold">{t("navigation:brand")}</Text>
-        </Pressable>
-      </div>
+    <>
+      <View style={[styles.container, { borderBottomColor: themeColors.border.subtle }]}>
+        <View style={styles.leftSection}>
+          <div data-sherpa="navbar-logo">
+            <Pressable style={styles.logoSection} onPress={() => navigate("/")}>
+              <Text size={Size.Large} weight="bold">{t("navigation:brand")}</Text>
+            </Pressable>
+          </div>
 
-      {/* Center: Market Filter - Only show on home page (when callback is provided) */}
-      {onAssetTypeChange ? (
-        <MarketFilter value={assetType} onChange={handleAssetTypeChange} />
-      ) : (
-        <View />
-      )}
-
-      <View style={styles.rightSection}>
-        {/* Leaderboard Button */}
-        <Pressable
-          onPress={handleLeaderboardClick}
-          style={[styles.leaderboardButton]}
-        >
-          <Text style={styles.crownIconSmall}>👑</Text>
-          <Text size={Size.Small} style={{ color: Colors.status.warning }}>
-            {t("navigation:leaderboard")}
-          </Text>
-        </Pressable>
-
-        {/* Theme Toggle */}
-        <View style={styles.themeToggle}>
-          <Toggle
-            value={isDark}
-            onValueChange={toggleTheme}
-            leftIcon="sun"
-            rightIcon="moon"
-            size={Size.Large}
-          />
+          {/* Server Indicator - Desktop */}
+          <View ref={serverIndicatorRef}>
+            <Pressable
+              onPress={() => setServerPopoverOpen(true)}
+              style={[styles.serverIndicatorDesktop, { backgroundColor: `${statusColor}15` }]}
+            >
+              <View
+                style={[
+                  styles.serverStatusDot,
+                  { backgroundColor: statusColor }
+                ]}
+              />
+              <Text size={Size.Small} style={{ color: statusColor }} numberOfLines={1}>
+                {activeServer?.name ?? "..."}
+              </Text>
+              {activeServer?.latencyMs !== null && activeServer?.latencyMs !== undefined && (
+                <Text
+                  size={Size.TwoXSmall}
+                  style={{ color: statusColor }}
+                >
+                  {activeServer.latencyMs}ms
+                </Text>
+              )}
+            </Pressable>
+          </View>
         </View>
 
-        {/* Profile or Login button */}
-        {isAuthenticated && user?.publicKey ? (
-          <Pressable
-            onPress={handleProfileClick}
-            style={[styles.profileButton, { backgroundColor: themeColors.background.raised }]}
-          >
-            <Icon name="user" size={Size.Medium} color={themeColors.text.muted} />
-            <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.accountId}>
-              {user.publicKey.slice(0, 3)}...{user.publicKey.slice(-3)}
-            </Text>
-          </Pressable>
-        ) : (
+        <View style={styles.rightSection}>
+          {/* Leaderboard button - dark yellow bg with bright yellow text */}
           <Button
-            label={t("common:buttons.login")}
-            onPress={handleProfileClick}
-            size={Size.Small}
+            label={t("navigation:leaderboard")}
+            onPress={handleLeaderboardClick}
+            size={Size.Medium}
             shape={Shape.Rounded}
-            appearance={Appearance.Secondary}
-            leadingIcon="log-in"
+            appearance={Appearance.Warning}
+            iconLeft="crown"
+            backgroundOpacity={0.15}
           />
-        )}
 
-        {/* Portfolio button - only show when authenticated */}
-        {isAuthenticated && (
+          {/* Portfolio button - only show when authenticated */}
+          {isAuthenticated && (
+            <Button
+              label={t("navigation:portfolio")}
+              onPress={handlePortfolioClick}
+              size={Size.Medium}
+              shape={Shape.Rounded}
+              appearance={Appearance.Secondary}
+              iconLeft="pie-chart"
+            />
+          )}
+
+          {/* Profile button with username or wallet ID */}
           <Button
-            label={t("navigation:portfolio")}
-            onPress={handlePortfolioClick}
-            size={Size.Small}
+            label={isAuthenticated
+              ? (serverProfile?.username || (user?.publicKey ? `${user.publicKey.slice(0, 4)}...${user.publicKey.slice(-4)}` : ""))
+              : t("common:buttons.login")}
+            onPress={handleProfileClick}
+            size={Size.Medium}
             shape={Shape.Rounded}
-            appearance={Appearance.Secondary}
-            leadingIcon="pie-chart"
+            appearance={Appearance.Neutral}
+            iconLeft="user"
           />
-        )}
 
-        {/* Settings cog */}
-        <Pressable
-          onPress={handleSettingsClick}
-          style={[styles.iconButton, { backgroundColor: themeColors.background.raised }]}
-        >
-          <Icon name="settings" size={Size.Medium} color={themeColors.text.muted} />
-        </Pressable>
+          {/* Settings button (icon-only) */}
+          <Button
+            label=""
+            onPress={handleSettingsClick}
+            size={Size.Medium}
+            shape={Shape.Rounded}
+            appearance={Appearance.Neutral}
+            iconLeft="settings"
+          />
+        </View>
       </View>
-    </View>
+
+      {/* Server Selector Popover (desktop) */}
+      <Popover
+        visible={serverPopoverOpen}
+        onClose={() => setServerPopoverOpen(false)}
+        anchorRef={serverIndicatorRef}
+        placement="bottom-start"
+        maxWidth={500}
+        maxHeight={600}
+      >
+        <ServersCard />
+      </Popover>
+    </>
   );
 }
 
@@ -272,10 +302,43 @@ const styles = StyleSheet.create({
   containerMobile: {
     paddingHorizontal: spacing.md,
   },
+  leftSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  mobileLeftSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    flex: 1,
+  },
   logoSection: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  serverIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.soft,
+    maxWidth: 100,
+  },
+  serverIndicatorDesktop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+  },
+  serverStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   logoText: {
     fontSize: 28,
@@ -287,48 +350,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-  },
-  navLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-  },
-  leaderboardButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: "rgba(245, 158, 11, 0.15)", // Dark yellow/amber background
-  },
-  crownIconSmall: {
-    fontSize: 14,
-  },
-  themeToggle: {
-    marginLeft: spacing.xs,
-  },
-  iconButton: {
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    minHeight: 44,
-    minWidth: 44,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-  },
-  accountId: {
-    fontFamily: "monospace",
   },
   // Mobile styles
   mobileNavWrapper: {
@@ -360,18 +381,6 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
     paddingBottom: spacing.xxxl,
   },
-  menuSection: {
-    gap: spacing.sm,
-  },
-  menuSectionLabel: {
-    marginBottom: spacing.xxs,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  menuDivider: {
-    height: 1,
-    marginVertical: spacing.xs,
-  },
   menuNavItems: {
     gap: spacing.sm,
   },
@@ -382,11 +391,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radii.lg,
     minHeight: 56,
-  },
-  leaderboardNavItem: {
-    backgroundColor: "rgba(245, 158, 11, 0.15)", // Dark yellow/amber background
-  },
-  crownIcon: {
-    fontSize: 18,
   },
 });

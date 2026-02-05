@@ -95,21 +95,24 @@ vi.mock("react-window", () => ({
 }));
 
 import { ChartGrid } from "./ChartGrid";
-import type { Asset } from "../../types/asset";
+import type { Asset } from "../../../types/asset";
 
-const createMockAsset = (id: string, overrides?: Partial<Asset>): Asset => ({
-  id,
-  symbol: id.toUpperCase(),
-  name: `${id.charAt(0).toUpperCase()}${id.slice(1)} Token`,
+let assetIdCounter = 1;
+const createMockAsset = (idStr: string, overrides?: Partial<Asset>): Asset => ({
+  id: assetIdCounter++,
+  symbol: idStr.toUpperCase(),
+  name: `${idStr.charAt(0).toUpperCase()}${idStr.slice(1)} Token`,
   price: 50000 + Math.random() * 10000,
+  change1h: (Math.random() - 0.5) * 5,
   change24h: (Math.random() - 0.5) * 10,
   change7d: (Math.random() - 0.5) * 20,
   marketCap: 1000000000000,
   volume24h: 50000000000,
   rank: 1,
+  circulatingSupply: 19000000,
   sparkline: Array.from({ length: 24 }, (_, i) => 48000 + Math.sin(i / 5) * 2000),
-  image: `https://example.com/${id}.png`,
-  type: "crypto",
+  image: `https://example.com/${idStr}.png`,
+  assetType: "crypto",
   ...overrides,
 });
 

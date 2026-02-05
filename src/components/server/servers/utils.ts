@@ -37,6 +37,24 @@ export function getLatencyColor(latencyMs: number | null | undefined): string {
 }
 
 /**
+ * Get icon name based on peer connection status
+ */
+export function getStatusIcon(status: PeerStatus["status"]): string {
+  switch (status) {
+    case "connected":
+      return "check-circle";
+    case "connecting":
+      return "loader";
+    case "disconnected":
+      return "minus-circle";
+    case "failed":
+      return "x-circle";
+    default:
+      return "circle";
+  }
+}
+
+/**
  * Threshold for removing offline servers from list (5 minutes)
  */
 export const OFFLINE_THRESHOLD_MS = 5 * 60 * 1000;

@@ -57,7 +57,7 @@ export function ErrorFallback({ error, onReset }: ErrorFallbackProps) {
         </Text>
 
         {error && (
-          <View style={[styles.errorDetails, { backgroundColor: themeColors.background.sunken }]}>
+          <View style={[styles.errorDetails, { backgroundColor: themeColors.background.surface }]}>
             <Text size={Size.ExtraSmall} style={{ fontFamily: "monospace", color: Colors.status.danger }}>
               {error.message}
             </Text>
@@ -69,13 +69,13 @@ export function ErrorFallback({ error, onReset }: ErrorFallbackProps) {
             label="Refresh Page"
             onPress={handleRefresh}
             appearance={Appearance.Primary}
-            leadingIcon="refresh-cw"
+            iconLeft="refresh-cw"
           />
           <Button
             label="Report Issue"
             onPress={handleReportIssue}
             appearance={Appearance.Secondary}
-            leadingIcon="github"
+            iconLeft="external-link"
           />
         </View>
       </View>

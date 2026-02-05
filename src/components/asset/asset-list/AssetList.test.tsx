@@ -20,7 +20,7 @@ vi.mock("@wraith/ghost/context/ThemeContext", () => ({
 }));
 
 // Mock breakpoint hook
-vi.mock("../../hooks/useBreakpoint", () => ({
+vi.mock("../../../hooks/useBreakpoint", () => ({
   useBreakpoint: () => ({ isMobile: false }),
 }));
 
@@ -201,7 +201,7 @@ describe("AssetList", () => {
   });
 
   it("renders loading state", async () => {
-    const { useCryptoData } = await import("../../hooks/useCryptoData");
+    const { useCryptoData } = await import("../../../hooks/useCryptoData");
     (useCryptoData as ReturnType<typeof vi.fn>).mockReturnValue({
       assets: [],
       loading: true,
@@ -223,7 +223,7 @@ describe("AssetList", () => {
   });
 
   it("renders error state", async () => {
-    const { useCryptoData } = await import("../../hooks/useCryptoData");
+    const { useCryptoData } = await import("../../../hooks/useCryptoData");
     (useCryptoData as ReturnType<typeof vi.fn>).mockReturnValue({
       assets: [],
       loading: false,
@@ -244,7 +244,7 @@ describe("AssetList", () => {
   });
 
   it("renders empty state", async () => {
-    const { useCryptoData } = await import("../../hooks/useCryptoData");
+    const { useCryptoData } = await import("../../../hooks/useCryptoData");
     (useCryptoData as ReturnType<typeof vi.fn>).mockReturnValue({
       assets: [],
       loading: false,
@@ -266,7 +266,7 @@ describe("AssetList", () => {
 
   it("displays trade direction badges", async () => {
     // Reset mock to default data
-    const { useCryptoData } = await import("../../hooks/useCryptoData");
+    const { useCryptoData } = await import("../../../hooks/useCryptoData");
     (useCryptoData as ReturnType<typeof vi.fn>).mockReturnValue({
       assets: mockAssets,
       loading: false,
@@ -308,7 +308,7 @@ describe("AssetList", () => {
 
   it("renders mini charts for each asset", async () => {
     // Reset mock to default data
-    const { useCryptoData } = await import("../../hooks/useCryptoData");
+    const { useCryptoData } = await import("../../../hooks/useCryptoData");
     (useCryptoData as ReturnType<typeof vi.fn>).mockReturnValue({
       assets: mockAssets,
       loading: false,
@@ -344,7 +344,7 @@ describe("AssetList", () => {
       mockAssets.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()))
     );
 
-    const { useCryptoData } = await import("../../hooks/useCryptoData");
+    const { useCryptoData } = await import("../../../hooks/useCryptoData");
     (useCryptoData as ReturnType<typeof vi.fn>).mockReturnValue({
       assets: mockAssets,
       loading: false,

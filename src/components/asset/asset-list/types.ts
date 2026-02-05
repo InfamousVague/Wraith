@@ -2,8 +2,8 @@
  * Types for AssetList component
  */
 
-import type { Asset } from "../../types/asset";
-import type { FilterState } from "../Toolbar";
+import type { Asset } from "../../../types/asset";
+import type { FilterState } from "../../ui/toolbar/types";
 
 export type AssetListProps = {
   filters: FilterState;

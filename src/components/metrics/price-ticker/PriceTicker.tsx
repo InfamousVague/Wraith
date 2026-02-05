@@ -17,7 +17,8 @@
  * - Native: Static ScrollView (no animation)
  */
 import React, { useMemo } from "react";
-import { View, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet, Platform, Pressable } from "react-native";
+import { useNavigate } from "react-router-dom";
 import { Text, Currency, PercentChange, Skeleton } from "@wraith/ghost/components";
 import { Size, Brightness } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
@@ -44,32 +45,110 @@ function EdgeFade({ side, color }: { side: "left" | "right"; color: string }) {
   return <div style={style} />;
 }
 
-// Memoized ticker item to prevent unnecessary re-renders
-const TickerItem = React.memo(function TickerItem({ symbol, price, change }: {
+// Get consistent decimal places for price display
+function getDecimals(price: number): number {
+  if (price >= 1000) return 2;
+  if (price >= 1) return 2;
+  if (price >= 0.01) return 4;
+  return 6;
+}
+
+// Web-specific clickable ticker item using native HTML events
+const WebTickerItem = React.memo(function WebTickerItem({ id, symbol, price, change, onPress }: {
+  id: string;
   symbol: string;
   price: number;
   change: number;
+  onPress: (id: string) => void;
 }) {
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onPress(id);
+  };
+
+  const decimals = getDecimals(price);
+
   return (
-    <View style={styles.tickerItem}>
+    <div
+      onClick={handleClick}
+      style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        flexShrink: 0,
+        paddingLeft: spacing.xs,
+        paddingRight: spacing.xs,
+        paddingTop: spacing.xxs,
+        paddingBottom: spacing.xxs,
+        borderRadius: 4,
+        cursor: "pointer",
+      }}
+      className="ticker-item"
+    >
       <Text size={Size.Small} weight="semibold" style={styles.symbol}>
         {symbol}
       </Text>
-      <Currency
-        value={price}
-        currency="USD"
-        decimals={price >= 1 ? 2 : 6}
-        size={Size.Small}
-        weight="medium"
-        brightness={Brightness.Soft}
-        mono
-      />
+      <span style={{ minWidth: 85, textAlign: "right", display: "inline-block" }}>
+        <Currency
+          value={price}
+          currency="USD"
+          decimals={decimals}
+          size={Size.Small}
+          weight="medium"
+          brightness={Brightness.Soft}
+          mono
+        />
+      </span>
       <PercentChange
         value={change}
         size={Size.ExtraSmall}
         weight="medium"
+        mono
       />
-    </View>
+    </div>
+  );
+});
+
+// Native ticker item using Pressable
+const NativeTickerItem = React.memo(function NativeTickerItem({ id, symbol, price, change, onPress }: {
+  id: string;
+  symbol: string;
+  price: number;
+  change: number;
+  onPress: (id: string) => void;
+}) {
+  const decimals = getDecimals(price);
+
+  return (
+    <Pressable
+      onPress={() => onPress(id)}
+      style={({ pressed }) => [
+        styles.tickerItem,
+        pressed && styles.tickerItemPressed,
+      ]}
+    >
+      <Text size={Size.Small} weight="semibold" style={styles.symbol}>
+        {symbol}
+      </Text>
+      <View style={styles.priceContainer}>
+        <Currency
+          value={price}
+          currency="USD"
+          decimals={decimals}
+          size={Size.Small}
+          weight="medium"
+          brightness={Brightness.Soft}
+          mono
+        />
+      </View>
+      <PercentChange
+        value={change}
+        size={Size.ExtraSmall}
+        weight="medium"
+        mono
+      />
+    </Pressable>
   );
 });
 
@@ -90,6 +169,12 @@ export const PriceTicker = React.memo(function PriceTicker() {
   const { assets, loading, error } = useCryptoData({ limit: 20, useMock: false });
   const showLoading = loading || (error !== null && assets.length === 0);
   const themeColors = useThemeColors();
+  const navigate = useNavigate();
+
+  // Navigate to asset detail page
+  const handleAssetPress = (id: string) => {
+    navigate(`/asset/${id}`);
+  };
 
   // Memoize container style
   const containerStyle = useMemo(() => [
@@ -134,11 +219,13 @@ export const PriceTicker = React.memo(function PriceTicker() {
         <EdgeFade side="right" color={themeColors.background.canvas} />
         <div className="ticker-track">
           {tickerItems.map((asset, index) => (
-            <TickerItem
+            <WebTickerItem
               key={`${asset.id}-${index}`}
+              id={asset.id}
               symbol={asset.symbol}
               price={asset.price}
               change={asset.change24h}
+              onPress={handleAssetPress}
             />
           ))}
         </div>
@@ -150,11 +237,13 @@ export const PriceTicker = React.memo(function PriceTicker() {
     <View style={containerStyle}>
       <View style={styles.scrollContent}>
         {assets.map((asset) => (
-          <TickerItem
+          <NativeTickerItem
             key={asset.id}
+            id={asset.id}
             symbol={asset.symbol}
             price={asset.price}
             change={asset.change24h}
+            onPress={handleAssetPress}
           />
         ))}
       </View>
@@ -184,7 +273,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     flexShrink: 0,
-    paddingHorizontal: spacing.xxs,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xxs,
+    borderRadius: 4,
+    cursor: "pointer",
+  },
+  tickerItemPressed: {
+    opacity: 0.7,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  priceContainer: {
+    minWidth: 85,
+    alignItems: "flex-end",
   },
   symbol: {
     fontFamily: "Plus Jakarta Sans, sans-serif",

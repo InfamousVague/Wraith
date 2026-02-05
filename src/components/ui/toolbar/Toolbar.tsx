@@ -33,6 +33,7 @@ import {
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { spacing } from "../../../styles/tokens";
+import { MarketFilter } from "../../market/market-filter";
 import { CARD_SIZE_MIN, CARD_SIZE_MAX, SORT_DIR_OPTIONS } from "./constants";
 import type {
   ViewMode,
@@ -82,11 +83,7 @@ export function Toolbar({
     { value: "top_volume", label: t("toolbar.filterOptions.topVolume"), appearance: "info" },
   ];
 
-  const ASSET_TYPE_OPTIONS: SelectOption<AssetType>[] = [
-    { value: "all", label: t("toolbar.assetType.all") },
-    { value: "crypto", label: t("toolbar.assetType.crypto") },
-    { value: "stock", label: t("toolbar.assetType.stocks") },
-  ];
+  // Asset type is now handled by MarketFilter component
 
   const handleSortChange = (sort: SortField) => {
     onFiltersChange({ ...filters, sort });
@@ -147,6 +144,12 @@ export function Toolbar({
             />
           ))}
         </View>
+
+        {/* Divider */}
+        <View style={[styles.compactDivider, { backgroundColor: themeColors.border.subtle }]} />
+
+        {/* Asset type filter (All/Crypto/Stocks) */}
+        <MarketFilter value={filters.assetType} onChange={handleAssetTypeChange} />
 
         {/* Divider */}
         <View style={[styles.compactDivider, { backgroundColor: themeColors.border.subtle }]} />
@@ -253,15 +256,8 @@ export function Toolbar({
         {/* Divider */}
         <View style={[styles.divider, { backgroundColor: themeColors.border.subtle }]} />
 
-        {/* Asset type dropdown */}
-        <Select
-          options={ASSET_TYPE_OPTIONS}
-          value={filters.assetType}
-          onChange={handleAssetTypeChange}
-          size={Size.Medium}
-          placeholder={t("toolbar.assetTypePlaceholder")}
-          style={styles.assetTypeSelect}
-        />
+        {/* Asset type filter (All/Crypto/Stocks) */}
+        <MarketFilter value={filters.assetType} onChange={handleAssetTypeChange} />
 
         {/* Divider */}
         <View style={[styles.divider, { backgroundColor: themeColors.border.subtle }]} />
@@ -372,9 +368,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-  },
-  assetTypeSelect: {
-    minWidth: 120,
   },
   divider: {
     width: 1,

@@ -78,7 +78,7 @@ export function SignalIndicatorsPanel({
             <HintIndicator
               id="technical-indicators-hint"
               title={t("indicators.hint.title")}
-              icon="?"
+              icon="i"
               color={Colors.accent.primary}
               priority={14}
               width={420}

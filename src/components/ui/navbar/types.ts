@@ -2,11 +2,5 @@
  * Types for navbar components
  */
 
-import type { AssetType } from "../../services/haunt";
-
-export type { AssetType };
-
-export type NavbarProps = {
-  assetType?: AssetType;
-  onAssetTypeChange?: (type: AssetType) => void;
-};
+// Navbar no longer needs props - market filter is now in Toolbar
+export type NavbarProps = Record<string, never>;

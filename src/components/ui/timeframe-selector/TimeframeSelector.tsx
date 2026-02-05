@@ -50,7 +50,7 @@ export function TimeframeSelector({
         <HintIndicator
           id="trading-style-hint"
           title={t("timeframe.hint.title")}
-          icon="?"
+          icon="i"
           color={Colors.accent.primary}
           priority={10}
           width={400}
@@ -67,7 +67,7 @@ export function TimeframeSelector({
               <TooltipMetric label="Investor" value="Weekly charts, long-term trends" valueColor={Colors.status.success} />
             </TooltipSection>
             <TooltipDivider />
-            <TooltipHighlight color={Colors.data.blue} icon="info">
+            <TooltipHighlight color={Colors.data.blue} icon="i">
               This affects how the composite signal score is calculated
             </TooltipHighlight>
           </TooltipContainer>

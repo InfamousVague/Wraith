@@ -105,7 +105,7 @@ export function OrderSummary({
         <HintIndicator
           id="order-summary-hint"
           title="Order Summary"
-          icon="?"
+          icon="i"
           color={Colors.accent.primary}
           priority={58}
           width={420}

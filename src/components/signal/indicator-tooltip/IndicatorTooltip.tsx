@@ -98,7 +98,7 @@ export function IndicatorTooltip({
     <HintIndicator
       id={`indicator-hint-${explanation.id}`}
       title={explanation.name}
-      icon="?"
+      icon="i"
       color={color}
       priority={priority}
       width={420}

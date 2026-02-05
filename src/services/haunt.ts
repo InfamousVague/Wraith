@@ -18,6 +18,7 @@ import type {
   Recommendation,
 } from "../types/signals";
 import type { AggregatedOrderBook, OrderBookResponse } from "../types/orderbook";
+import type { RatState, RatConfig, RatConfigUpdate } from "../types/rat";
 
 // Use relative path in dev (proxied by Vite), or direct URL in production
 const HAUNT_URL = import.meta.env.VITE_HAUNT_URL || "";
@@ -239,6 +240,30 @@ export type PeerMeshResponse = {
   timestamp: number;
 };
 
+// Sync monitoring types
+export type SyncHealthResponse = {
+  nodeId: string;
+  isPrimary: boolean;
+  syncEnabled: boolean;
+  lastFullSyncAt: number;
+  lastIncrementalSyncAt: number;
+  syncCursorPosition: number;
+  pendingSyncCount: number;
+  failedSyncCount: number;
+  totalSyncedEntities: number;
+  databaseSizeMb: number;
+  databaseRowCount: number;
+};
+
+// UI-oriented sync status used by Servers list.
+export type SyncStatus = {
+  predictionsAhead: number;
+  predictionsBehind: number;
+  preferencesAhead: number;
+  preferencesBehind: number;
+  syncing: boolean;
+};
+
 // Portfolio types - matches Haunt API response
 export type Portfolio = {
   id: string;
@@ -388,6 +413,12 @@ export type PlaceOrderRequest = {
   leverage?: number;
   stopLoss?: number;
   takeProfit?: number;
+  /** Reduce only - order can only reduce existing position, not increase it */
+  reduceOnly?: boolean;
+  /** Post only - order will only be placed if it adds liquidity (maker order) */
+  postOnly?: boolean;
+  /** Margin mode for the position */
+  marginMode?: "isolated" | "cross";
   /** Bypass drawdown protection for this order */
   bypassDrawdown?: boolean;
 };
@@ -1123,6 +1154,9 @@ class HauntClient {
       leverage: order.leverage,
       stopLoss: order.stopLoss,
       takeProfit: order.takeProfit,
+      reduceOnly: order.reduceOnly,
+      postOnly: order.postOnly,
+      marginMode: order.marginMode,
       bypassDrawdown: order.bypassDrawdown,
     };
     return this.fetchWithAuth("/api/trading/orders", token, {
@@ -1316,29 +1350,6 @@ class HauntClient {
   }
 
   /**
-   * Update leaderboard visibility (opt-in requires signing consent)
-   * @param showOnLeaderboard Whether to show on leaderboard
-   * @param signature Signature of consent message (required when opting in)
-   * @param timestamp Timestamp included in consent message
-   */
-  async updateLeaderboardVisibility(
-    token: string,
-    showOnLeaderboard: boolean,
-    signature?: string,
-    timestamp?: number
-  ): Promise<ApiResponse<Profile>> {
-    return this.fetchWithAuth("/api/auth/profile/leaderboard", token, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        showOnLeaderboard,
-        signature,
-        timestamp: timestamp ?? Date.now(),
-      }),
-    });
-  }
-
-  /**
    * Logout and invalidate the current session
    */
   async logout(token: string): Promise<void> {
@@ -1366,6 +1377,15 @@ class HauntClient {
    */
   async getPeers(): Promise<ApiResponse<PeerMeshResponse>> {
     return this.fetch("/api/peers");
+  }
+
+  // ========== Sync Monitoring API Methods ==========
+
+  /**
+   * Get node-local sync health status
+   */
+  async getSyncHealth(): Promise<SyncHealthResponse> {
+    return this.fetch("/api/sync/health");
   }
 
   /**
@@ -1403,6 +1423,29 @@ class HauntClient {
    */
   async getMyRank(token: string): Promise<ApiResponse<LeaderboardEntry & { rank: number }>> {
     return this.fetchWithAuth("/api/trading/leaderboard/me", token);
+  }
+
+  /**
+   * Update leaderboard visibility (opt-in requires signing consent)
+   * @param showOnLeaderboard Whether to show on leaderboard
+   * @param signature Signature of consent message (required when opting in)
+   * @param timestamp Timestamp included in consent message
+   */
+  async updateLeaderboardVisibility(
+    token: string,
+    showOnLeaderboard: boolean,
+    signature?: string,
+    timestamp?: number
+  ): Promise<ApiResponse<Profile>> {
+    return this.fetchWithAuth("/api/auth/profile/leaderboard", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        showOnLeaderboard,
+        signature,
+        timestamp: timestamp ?? Date.now(),
+      }),
+    });
   }
 
   // ========== Alerts API Methods ==========
@@ -1514,6 +1557,62 @@ class HauntClient {
     if (params?.offset) searchParams.set("offset", String(params.offset));
     const query = searchParams.toString();
     return this.fetchWithAuth(`/api/trades${query ? `?${query}` : ""}`, token);
+  }
+
+  // ========== Developer / RAT API Methods ==========
+
+  /**
+   * Start the Random Auto Trader for a portfolio
+   * @param portfolioId Portfolio to start RAT for
+   * @param config Optional initial configuration overrides
+   */
+  async startRat(
+    token: string,
+    portfolioId: string,
+    config?: RatConfigUpdate
+  ): Promise<ApiResponse<RatState>> {
+    return this.fetchWithAuth("/api/developer/rat/start", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ portfolioId, config }),
+    });
+  }
+
+  /**
+   * Stop the Random Auto Trader for a portfolio
+   * @param portfolioId Portfolio to stop RAT for
+   */
+  async stopRat(token: string, portfolioId: string): Promise<ApiResponse<RatState>> {
+    return this.fetchWithAuth("/api/developer/rat/stop", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ portfolioId }),
+    });
+  }
+
+  /**
+   * Get current RAT status for a portfolio
+   * @param portfolioId Portfolio to get RAT status for
+   */
+  async getRatStatus(token: string, portfolioId: string): Promise<ApiResponse<RatState>> {
+    return this.fetchWithAuth(`/api/developer/rat/status?portfolio_id=${portfolioId}`, token);
+  }
+
+  /**
+   * Update RAT configuration for a portfolio
+   * @param portfolioId Portfolio to update RAT config for
+   * @param config Configuration updates to apply
+   */
+  async updateRatConfig(
+    token: string,
+    portfolioId: string,
+    config: RatConfigUpdate
+  ): Promise<ApiResponse<RatConfig>> {
+    return this.fetchWithAuth("/api/developer/rat/config", token, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ portfolioId, config }),
+    });
   }
 }
 

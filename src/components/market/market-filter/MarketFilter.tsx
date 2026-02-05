@@ -53,7 +53,7 @@ export function MarketFilter({ value, onChange }: MarketFilterProps) {
               appearance={isActive ? TextAppearance.Primary : TextAppearance.Muted}
               weight={isActive ? "medium" : "regular"}
             >
-              {t(`marketFilterOptions.${option.labelKey}`)}
+              {t(`marketFilterOptions.${option.labelKey}` as any)}
             </Text>
           </Pressable>
         );

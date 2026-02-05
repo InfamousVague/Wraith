@@ -17,7 +17,7 @@ import { SpreadDisplay } from "./SpreadDisplay";
 import { ExchangeBreakdown } from "./ExchangeBreakdown";
 import type { AggregatedOrderBookProps } from "./types";
 
-export function AggregatedOrderBook({ symbol, loading: externalLoading }: AggregatedOrderBookProps) {
+export function AggregatedOrderBook({ symbol, loading: externalLoading, onPriceSelect }: AggregatedOrderBookProps) {
   const { orderBook, loading: hookLoading, error } = useOrderBook(symbol, { depth: 20 });
   const loading = externalLoading || hookLoading;
 
@@ -144,6 +144,7 @@ export function AggregatedOrderBook({ symbol, loading: externalLoading }: Aggreg
               side="ask"
               priceDecimals={priceDecimals}
               quantityDecimals={quantityDecimals}
+              onPriceSelect={onPriceSelect}
             />
           ))}
         </View>
@@ -177,6 +178,7 @@ export function AggregatedOrderBook({ symbol, loading: externalLoading }: Aggreg
               side="bid"
               priceDecimals={priceDecimals}
               quantityDecimals={quantityDecimals}
+              onPriceSelect={onPriceSelect}
             />
           ))}
         </View>

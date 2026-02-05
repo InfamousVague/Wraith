@@ -11,6 +11,7 @@ import { Colors } from "@wraith/ghost/tokens";
 import { spacing, radii } from "../../../styles/tokens";
 import { PingIndicator } from "../ping-indicator";
 import type { ServerRowProps } from "./types";
+import { SyncIndicator } from "./SyncIndicator";
 import { getStatusColor, getLatencyColor } from "./utils";
 
 export const ServerRow = React.memo(function ServerRow({
@@ -18,6 +19,7 @@ export const ServerRow = React.memo(function ServerRow({
   isActive,
   onSelect,
   peerStatus,
+  syncStatus,
   showPingIndicator = true,
 }: ServerRowProps) {
   const themeColors = useThemeColors();
@@ -95,6 +97,7 @@ export const ServerRow = React.memo(function ServerRow({
             <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
               Mesh {meshLatency !== null && meshLatency !== undefined ? `${Math.round(meshLatency)}ms` : "—"}
             </Text>
+            <SyncIndicator syncStatus={syncStatus} />
           </View>
         ) : (
           <Text size={Size.ExtraSmall} style={{ color: statusColor }}>

@@ -18,7 +18,7 @@ export function ExchangeBreakdown({ orderBook }: ExchangeBreakdownProps) {
         Sources ({orderBook.exchangeCount})
       </Text>
       <View style={styles.exchangeTags}>
-        {orderBook.exchanges.map((exchange) => (
+        {orderBook.exchanges.map((exchange: string) => (
           <View key={exchange} style={styles.exchangeTag}>
             <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
               {exchange}

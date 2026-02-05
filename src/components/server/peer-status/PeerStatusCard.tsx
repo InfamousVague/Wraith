@@ -8,7 +8,7 @@ import { Colors } from "@wraith/ghost/tokens";
 import { spacing, radii } from "../../../styles/tokens";
 import { usePeerSubscription, type PeerUpdate } from "../../../hooks/useHauntSocket";
 import { hauntClient, type PeerMeshResponse } from "../../../services/haunt";
-import { getLatencyColor } from "../server-mesh";
+import { getLatencyColor } from "../servers/utils";
 import { PeerRow } from "./PeerRow";
 import type { PeerStatusCardProps } from "./types";
 

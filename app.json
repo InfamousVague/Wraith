@@ -27,6 +27,21 @@
       "favicon": "./assets/wraith_appicon_large.png",
       "bundler": "metro"
     },
-    "scheme": "wraith"
+    "scheme": "wraith",
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD",
+      "url": "https://u.expo.dev/your-project-id"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id"
+      }
+    },
+    "owner": "wraith"
   }
 }

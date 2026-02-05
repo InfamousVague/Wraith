@@ -2,7 +2,7 @@
  * Types for asset source breakdown components
  */
 
-import type { SymbolSourceStat, ConfidenceResponse } from "../../services/haunt";
+import type { SymbolSourceStat, ConfidenceResponse } from "../../../services/haunt";
 
 export type { SymbolSourceStat, ConfidenceResponse };
 

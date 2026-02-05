@@ -21,6 +21,7 @@ import { Colors } from "@wraith/ghost/tokens";
 import { spacing, radii } from "../../../styles/tokens";
 import { useBreakpoint } from "../../../hooks/useBreakpoint";
 import type { PositionsTableProps, Position } from "./types";
+import { PositionCard } from "../../positions/PositionCard";
 
 export function PositionsTable({
   positions,
@@ -58,8 +59,9 @@ export function PositionsTable({
           <PositionCard
             key={position.id}
             position={position}
+            variant="compact"
             onClose={() => onClosePosition?.(position.id)}
-            onModify={() => onModifyPosition?.(position.id)}
+            onEdit={() => onModifyPosition?.(position.id)}
             isUpdated={updatedPositionIds.has(position.id)}
           />
         ))}
@@ -186,117 +188,24 @@ function PositionRow({ position, onClose, onModify, isUpdated = false }: Positio
             )}
           </View>
         )}
+
       </View>
-      <View style={[styles.cellActions, styles.actionsCell]}>
+
+      <View style={styles.actionsCell}>
         <Button
-          label="Close"
-          icon="x"
-          size={Size.ExtraSmall}
-          appearance={Appearance.Danger}
-          onPress={onClose}
-        />
-        <Button
-          label="Edit"
+          label="Modify"
           icon="edit-2"
-          size={Size.ExtraSmall}
+          size={Size.Small}
           appearance={Appearance.Secondary}
           onPress={onModify}
         />
-      </View>
-    </View>
-  );
-}
-
-// Mobile card layout
-function PositionCard({ position, onClose, onModify, isUpdated = false }: PositionRowProps) {
-  const sideColor = position.side === "long" ? Colors.status.success : Colors.status.danger;
-  const pnlColor = position.unrealizedPnl >= 0 ? Colors.status.success : Colors.status.danger;
-  const hasRiskControls = position.stopLoss || position.takeProfit;
-
-  return (
-    <View style={[styles.card, isUpdated && styles.cardUpdated]}>
-      <View style={styles.cardHeader}>
-        <View style={styles.cardHeaderLeft}>
-          <Text size={Size.Medium} style={styles.symbolCell}>
-            {position.symbol}
-          </Text>
-          <View style={[styles.sideBadge, { backgroundColor: sideColor }]}>
-            <Text size={Size.ExtraSmall} style={styles.sideBadgeText}>
-              {position.side.toUpperCase()} {position.leverage}x
-            </Text>
-          </View>
-        </View>
-        <View style={styles.cardHeaderRight}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text size={Size.Medium} style={{ color: pnlColor, fontWeight: "700" }}>
-              {position.unrealizedPnl >= 0 ? "+" : "-"}
-            </Text>
-            <Currency value={Math.abs(position.unrealizedPnl)} decimals={2} size={Size.Medium} color={pnlColor} />
-          </View>
-          <Text size={Size.Small} style={{ color: pnlColor }}>
-            ({position.unrealizedPnlPercent >= 0 ? "+" : ""}{position.unrealizedPnlPercent.toFixed(2)}%)
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.cardDetails}>
-        <View style={styles.cardDetailRow}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Size</Text>
-          <Text size={Size.Small}>{position.size}</Text>
-        </View>
-        <View style={styles.cardDetailRow}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Entry</Text>
-          <Currency value={position.entryPrice} decimals={2} size={Size.Small} />
-        </View>
-        <View style={styles.cardDetailRow}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Mark</Text>
-          <Currency value={position.markPrice} decimals={2} size={Size.Small} />
-        </View>
-        <View style={styles.cardDetailRow}>
-          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>Liq.</Text>
-          <Currency value={position.liquidationPrice} decimals={2} size={Size.Small} />
-        </View>
-      </View>
-
-      {/* Risk Controls */}
-      {hasRiskControls && (
-        <View style={styles.cardRiskControls}>
-          {position.stopLoss && (
-            <View style={styles.riskBadge}>
-              <Text size={Size.ExtraSmall} style={styles.riskText}>
-                SL: ${position.stopLoss.toFixed(0)}
-              </Text>
-            </View>
-          )}
-          {position.takeProfit && (
-            <View style={[styles.riskBadge, styles.tpBadge]}>
-              <Text size={Size.ExtraSmall} style={styles.riskText}>
-                TP: ${position.takeProfit.toFixed(0)}
-              </Text>
-            </View>
-          )}
-        </View>
-      )}
-
-      <View style={styles.cardActions}>
-        <View style={styles.cardButton}>
-          <Button
-            label="Edit"
-            icon="edit-2"
-            size={Size.Small}
-            appearance={Appearance.Secondary}
-            onPress={onModify}
-          />
-        </View>
-        <View style={styles.cardButton}>
-          <Button
-            label="Close"
-            icon="x"
-            size={Size.Small}
-            appearance={Appearance.Danger}
-            onPress={onClose}
-          />
-        </View>
+        <Button
+          label="Close"
+          icon="x"
+          size={Size.Small}
+          appearance={Appearance.Danger}
+          onPress={onClose}
+        />
       </View>
     </View>
   );

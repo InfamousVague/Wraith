@@ -61,27 +61,35 @@ vi.mock("@wraith/ghost/enums", () => ({
 
 // Mock useBreakpoint hook
 let mockIsMobile = false;
-vi.mock("../../hooks/useBreakpoint", () => ({
+vi.mock("../../../hooks/useBreakpoint", () => ({
   useBreakpoint: () => ({
     isMobile: mockIsMobile,
   }),
 }));
 
 import { MetricsGrid } from "./MetricsGrid";
+import type { Asset } from "../../../types/asset";
+
+const createMockAsset = (overrides?: Partial<Asset>): Asset => ({
+  id: 1,
+  symbol: "BTC",
+  name: "Bitcoin",
+  price: 45000,
+  marketCap: 850000000000,
+  volume24h: 25000000000,
+  change1h: 0.5,
+  change24h: 2.5,
+  change7d: -1.2,
+  circulatingSupply: 19000000,
+  maxSupply: 21000000,
+  rank: 1,
+  image: "https://example.com/btc.png",
+  sparkline: [],
+  ...overrides,
+});
 
 describe("MetricsGrid", () => {
-  const mockAsset = {
-    symbol: "BTC",
-    name: "Bitcoin",
-    price: 45000,
-    marketCap: 850000000000,
-    volume24h: 25000000000,
-    change1h: 0.5,
-    change24h: 2.5,
-    change7d: -1.2,
-    circulatingSupply: 19000000,
-    maxSupply: 21000000,
-  };
+  const mockAsset = createMockAsset();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -218,13 +226,13 @@ describe("MetricsGrid", () => {
     });
 
     it("hides max supply card when not available", () => {
-      const assetWithoutMax = { ...mockAsset, maxSupply: undefined };
+      const assetWithoutMax = createMockAsset({ maxSupply: undefined });
       render(<MetricsGrid asset={assetWithoutMax} />);
       expect(screen.queryByText("Max Supply")).not.toBeInTheDocument();
     });
 
     it("hides supply percentage when no max supply", () => {
-      const assetWithoutMax = { ...mockAsset, maxSupply: undefined };
+      const assetWithoutMax = createMockAsset({ maxSupply: undefined });
       render(<MetricsGrid asset={assetWithoutMax} />);
       expect(screen.queryByText("Supply %")).not.toBeInTheDocument();
     });
@@ -263,13 +271,13 @@ describe("MetricsGrid", () => {
 
   describe("Supply Formatting", () => {
     it("formats trillion values correctly", () => {
-      const trillionAsset = { ...mockAsset, circulatingSupply: 1500000000000 };
+      const trillionAsset = createMockAsset({ circulatingSupply: 1500000000000 });
       render(<MetricsGrid asset={trillionAsset} />);
       expect(screen.getByText(/1\.50T BTC/)).toBeInTheDocument();
     });
 
     it("formats billion values correctly", () => {
-      const billionAsset = { ...mockAsset, circulatingSupply: 5500000000 };
+      const billionAsset = createMockAsset({ circulatingSupply: 5500000000 });
       render(<MetricsGrid asset={billionAsset} />);
       expect(screen.getByText(/5\.50B BTC/)).toBeInTheDocument();
     });
@@ -280,7 +288,7 @@ describe("MetricsGrid", () => {
     });
 
     it("formats thousand values correctly", () => {
-      const thousandAsset = { ...mockAsset, circulatingSupply: 5500 };
+      const thousandAsset = createMockAsset({ circulatingSupply: 5500 });
       render(<MetricsGrid asset={thousandAsset} />);
       expect(screen.getByText(/5\.50K BTC/)).toBeInTheDocument();
     });

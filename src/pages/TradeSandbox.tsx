@@ -235,6 +235,12 @@ export function TradeSandbox() {
   const [showDrawdownModal, setShowDrawdownModal] = useState(false);
   const [bypassDrawdown, setBypassDrawdown] = useState(false);
 
+  // Order book click-to-fill with side info
+  const [priceSelection, setPriceSelection] = useState<{ price: number; side: "bid" | "ask" } | null>(null);
+  const handleOrderBookPriceSelect = useCallback((price: number, side: "bid" | "ask") => {
+    setPriceSelection({ price, side });
+  }, []);
+
   // Debug: track modal state changes
   useEffect(() => {
     console.log("[TradeSandbox] showDrawdownModal changed to:", showDrawdownModal);
@@ -432,6 +438,8 @@ export function TradeSandbox() {
       case "limit": return "limit";
       case "stop_loss": return "stop_loss";
       case "take_profit": return "take_profit";
+      case "stop_limit": return "stop_limit";
+      case "trailing_stop": return "trailing_stop";
       default: return "market";
     }
   };
@@ -443,7 +451,15 @@ export function TradeSandbox() {
     setOrderSubmitting(true);
 
     const quantity = parseFloat(pendingOrder.size) || 0;
-    const priceNum = pendingOrder.orderType === "limit" ? parseFloat(pendingOrder.price) : undefined;
+    // Limit price for limit and stop_limit orders
+    const priceNum = (pendingOrder.orderType === "limit" || pendingOrder.orderType === "stop_limit")
+      ? parseFloat(pendingOrder.price) : undefined;
+    // Stop/trigger price for stop orders
+    const stopPriceNum = (pendingOrder.orderType === "stop_loss" || pendingOrder.orderType === "take_profit" || pendingOrder.orderType === "stop_limit")
+      ? parseFloat(pendingOrder.stopPrice || "") : undefined;
+    // Trail percent for trailing stop orders
+    const trailPercentNum = pendingOrder.orderType === "trailing_stop"
+      ? parseFloat(pendingOrder.trailPercent || "") : undefined;
     const symbol = pendingOrder.symbol || selectedAsset?.symbol || "BTC";
 
     if (isAuthenticated && portfolioId) {
@@ -457,9 +473,15 @@ export function TradeSandbox() {
           orderType: getOrderType(pendingOrder.orderType),
           quantity,
           price: priceNum,
+          stopPrice: stopPriceNum,
+          trailPercent: trailPercentNum,
           leverage: pendingOrder.leverage,
+          timeInForce: pendingOrder.timeInForce,
           stopLoss: pendingOrder.stopLoss ? parseFloat(pendingOrder.stopLoss) : undefined,
           takeProfit: pendingOrder.takeProfit ? parseFloat(pendingOrder.takeProfit) : undefined,
+          reduceOnly: pendingOrder.reduceOnly,
+          postOnly: pendingOrder.postOnly,
+          marginMode: pendingOrder.marginMode,
           bypassDrawdown,
         });
         // Reset bypass flag after successful order
@@ -785,6 +807,7 @@ export function TradeSandbox() {
               <AggregatedOrderBook
                 symbol={selectedAsset?.symbol}
                 loading={isLoading}
+                onPriceSelect={handleOrderBookPriceSelect}
               />
             </View>
           )}
@@ -800,6 +823,7 @@ export function TradeSandbox() {
               <AggregatedOrderBook
                 symbol={selectedAsset?.symbol}
                 loading={isLoading}
+                onPriceSelect={handleOrderBookPriceSelect}
               />
             </View>
           )}
@@ -810,7 +834,6 @@ export function TradeSandbox() {
               <AdvancedChart
                 asset={selectedAsset}
                 loading={isLoading}
-                height={isMobile ? 300 : showToggleLayout ? 400 : 500}
               />
             </View>
           )}
@@ -821,6 +844,7 @@ export function TradeSandbox() {
               <AggregatedOrderBook
                 symbol={selectedAsset?.symbol}
                 loading={isLoading}
+                onPriceSelect={handleOrderBookPriceSelect}
               />
             </View>
           )}
@@ -848,6 +872,7 @@ export function TradeSandbox() {
               availableMargin={portfolio.marginAvailable}
               onSubmit={handleOrderSubmit}
               loading={isLoading}
+              priceSelection={priceSelection}
               disabled={!isAuthenticated || (isPortfolioStopped && !settings.drawdownProtection.allowBypass)}
               disabledMessage={
                 !isAuthenticated
@@ -873,7 +898,7 @@ export function TradeSandbox() {
                 <HintIndicator
                   id="trade-sandbox-positions-hint"
                   title="Positions & Orders"
-                  icon="?"
+                  icon="i"
                   color={Colors.accent.primary}
                   priority={52}
                   width={400}
@@ -1006,6 +1031,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     marginBottom: spacing.sm,
+    minHeight: 500,
   },
   tradingGridMobile: {
     flexDirection: "column",
@@ -1017,6 +1043,7 @@ const styles = StyleSheet.create({
   chartPanel: {
     flex: 1,
     minWidth: 0,
+    minHeight: 400,
   },
   orderBookPanel: {
     flexShrink: 0,

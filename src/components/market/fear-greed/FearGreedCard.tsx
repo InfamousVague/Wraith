@@ -87,7 +87,7 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
             size={Size.ExtraLarge}
             appearance={status.appearance}
             showValue
-            label={t(`fearGreed.labels.${status.circleLabelKey}`)}
+            label={t(`fearGreed.labels.${status.circleLabelKey}` as any)}
           />
         </View>
 
@@ -101,7 +101,7 @@ export function FearGreedCard({ value = 72, loading = false }: FearGreedCardProp
             weight="bold"
             appearance={status.appearance}
           >
-            {t(`fearGreed.levels.${status.labelKey}`)}
+            {t(`fearGreed.levels.${status.labelKey}` as any)}
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.description}>
             {t("fearGreed.description")}

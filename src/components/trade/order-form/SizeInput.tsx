@@ -65,7 +65,7 @@ export function SizeInput({
         <HintIndicator
           id="size-input-hint"
           title="Position Size"
-          icon="?"
+          icon="i"
           color={Colors.accent.primary}
           priority={57}
           width={360}

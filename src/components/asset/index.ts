@@ -7,3 +7,4 @@ export { AssetHeader } from "./asset-header";
 export { AssetList } from "./asset-list";
 export { AssetSourceBreakdown } from "./asset-source-breakdown";
 export { KeyMetricsPanel } from "./key-metrics-panel";
+export { AssetPositions } from "./asset-positions";

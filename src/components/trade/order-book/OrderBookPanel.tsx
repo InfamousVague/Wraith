@@ -100,9 +100,9 @@ export function OrderBookPanel({
   }, [orderBook]);
 
   const handlePriceClick = useCallback(
-    (price: number) => {
+    (price: number, side: "bid" | "ask") => {
       if (onPriceSelect) {
-        onPriceSelect(price);
+        onPriceSelect(price, side);
       }
     },
     [onPriceSelect]
@@ -216,7 +216,7 @@ interface PriceLevelRowProps {
   side: "bid" | "ask";
   priceDecimals: number;
   quantityDecimals: number;
-  onClick?: (price: number) => void;
+  onClick?: (price: number, side: "bid" | "ask") => void;
 }
 
 function PriceLevelRow({
@@ -238,7 +238,7 @@ function PriceLevelRow({
   return (
     <Pressable
       style={styles.levelRow}
-      onPress={() => onClick?.(level.price)}
+      onPress={() => onClick?.(level.price, side)}
     >
       {/* Depth bar background */}
       <View

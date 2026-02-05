@@ -7,7 +7,7 @@ import { View, StyleSheet } from "react-native";
 import { Text, Icon, AnimatedNumber } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { spacing } from "../../../styles/tokens";
-import { getLatencyColor, getStatusColor, getStatusIcon } from "../server-mesh";
+import { getLatencyColor, getStatusColor, getStatusIcon } from "../servers/utils";
 import type { PeerRowProps } from "./types";
 
 export const PeerRow = React.memo(function PeerRow({ peer }: PeerRowProps) {

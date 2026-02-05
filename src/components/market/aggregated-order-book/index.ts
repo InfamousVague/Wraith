@@ -12,6 +12,6 @@ export type {
   OrderBookRowProps,
   SpreadDisplayProps,
   ExchangeBreakdownProps,
-  AggregatedOrderBook,
   AggregatedLevel,
 } from "./types";
+export type { AggregatedOrderBook as AggregatedOrderBookData } from "./types";

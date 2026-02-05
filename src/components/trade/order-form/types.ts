@@ -2,20 +2,35 @@
  * Types for OrderForm components
  */
 
-export type OrderType = "market" | "limit" | "stop_loss" | "take_profit";
+export type OrderType = "market" | "limit" | "stop_loss" | "take_profit" | "stop_limit" | "trailing_stop";
 export type OrderSide = "buy" | "sell";
 export type MarginMode = "isolated" | "cross";
+export type TimeInForce = "gtc" | "ioc" | "fok" | "gtd";
 
 export interface OrderFormState {
   symbol?: string;
   orderType: OrderType;
   side: OrderSide;
   price: string;
+  /** Stop/trigger price for stop orders */
+  stopPrice?: string;
   size: string;
   leverage: number;
   marginMode: MarginMode;
+  timeInForce: TimeInForce;
   stopLoss?: string;
   takeProfit?: string;
+  /** Trail percentage for trailing stop orders */
+  trailPercent?: string;
+  reduceOnly?: boolean;
+  postOnly?: boolean;
+}
+
+/** Price selection from order book - includes side to auto-set buy/sell */
+export interface PriceSelection {
+  price: number;
+  /** bid = buy at this price (taking from sellers), ask = sell at this price (taking from buyers) */
+  side: "bid" | "ask";
 }
 
 export interface OrderFormProps {
@@ -30,7 +45,9 @@ export interface OrderFormProps {
   /** Loading state */
   loading?: boolean;
   /** Callback when price is selected from order book */
-  onPriceSelect?: (price: number) => void;
+  onPriceSelect?: (price: number, side: "bid" | "ask") => void;
+  /** Price selection event from order book (object identity changes per click) */
+  priceSelection?: PriceSelection | null;
   /** Disable the form (e.g., when not authenticated) */
   disabled?: boolean;
   /** Message to show when disabled */

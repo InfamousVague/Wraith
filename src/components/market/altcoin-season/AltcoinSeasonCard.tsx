@@ -136,10 +136,10 @@ export function AltcoinSeasonCard({
             weight="bold"
             appearance={status.appearance}
           >
-            {t(`altcoinSeason.status.${status.statusKey}`)}
+            {t(`altcoinSeason.status.${status.statusKey}` as any)}
           </Text>
           <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.description}>
-            {t(`altcoinSeason.descriptions.${status.statusKey}`)}
+            {t(`altcoinSeason.descriptions.${status.statusKey}` as any)}
           </Text>
         </View>
       </View>

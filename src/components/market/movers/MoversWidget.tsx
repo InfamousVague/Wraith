@@ -52,7 +52,7 @@ function MoverRow({
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.moverRow, { backgroundColor: themeColors.background.sunken }]}
+      style={[styles.moverRow, { backgroundColor: themeColors.background.surface }]}
     >
       <Text size={Size.Small} appearance={TextAppearance.Muted} style={styles.rank}>
         {rank}

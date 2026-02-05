@@ -30,7 +30,7 @@ import { Text } from "@wraith/ghost/components";
 import { TextAppearance } from "@wraith/ghost/enums";
 import { useTheme } from "../context/ThemeContext";
 import { Navbar, TimeframeSelector } from "../components/ui";
-import { AssetHeader, AssetSourceBreakdown, KeyMetricsPanel } from "../components/asset";
+import { AssetHeader, AssetSourceBreakdown, KeyMetricsPanel, AssetPositions } from "../components/asset";
 import { AdvancedChart } from "../components/chart";
 import { SignalSummaryCard, SignalIndicatorsPanel } from "../components/signal";
 import { PredictionAccuracyCard } from "../components/prediction";
@@ -193,6 +193,13 @@ export function AssetDetail() {
                 </View>
               </View>
             </View>
+
+            {/* Your Open Positions */}
+            {asset?.symbol && (
+              <View style={[styles.section, { paddingHorizontal: isMobile ? 0 : sectionPadding }]}>
+                <AssetPositions symbol={asset.symbol} loading={loading} />
+              </View>
+            )}
 
             {/* Trading Timeframe Selector */}
             <View style={[styles.section, { paddingHorizontal: isMobile ? 12 : sectionPadding }]}>

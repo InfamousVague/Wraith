@@ -16,7 +16,13 @@ import { Colors } from "@wraith/ghost/tokens";
 import { spacing, radii } from "../../../styles/tokens";
 import { useApiServer } from "../../../context/ApiServerContext";
 import { usePeerSubscription, type PeerUpdate, type PeerStatus } from "../../../hooks/useHauntSocket";
-import { hauntClient, type PeerMeshResponse } from "../../../services/haunt";
+import {
+  HauntClient,
+  hauntClient,
+  type PeerMeshResponse,
+  type SyncHealthResponse,
+  type SyncStatus,
+} from "../../../services/haunt";
 import { PingIndicator } from "../ping-indicator";
 import { ServerRow } from "./ServerRow";
 import { getLatencyColor, OFFLINE_THRESHOLD_MS } from "./utils";
@@ -36,12 +42,46 @@ export function ServersCard() {
   // Peer mesh state
   const [peerData, setPeerData] = useState<PeerMeshResponse | null>(null);
 
+  // Sync health state (per server)
+  const [syncHealthByServerId, setSyncHealthByServerId] = useState<Record<string, SyncHealthResponse | null>>({});
+
   // Fetch peer mesh on mount
   useEffect(() => {
     hauntClient.getPeers()
       .then((response) => setPeerData(response.data))
       .catch(() => {});
   }, []);
+
+  // Fetch sync health from each server directly
+  const refreshSyncHealth = useCallback(async () => {
+    const results = await Promise.all(
+      servers.map(async (server) => {
+        if (server.status !== "online" && !server.isLocal) {
+          return { id: server.id, health: null as SyncHealthResponse | null };
+        }
+
+        try {
+          const client = new HauntClient(server.url);
+          const health = await client.getSyncHealth();
+          return { id: server.id, health };
+        } catch {
+          return { id: server.id, health: null as SyncHealthResponse | null };
+        }
+      })
+    );
+
+    setSyncHealthByServerId((prev) => {
+      const next = { ...prev };
+      for (const r of results) next[r.id] = r.health;
+      return next;
+    });
+  }, [servers]);
+
+  useEffect(() => {
+    refreshSyncHealth();
+    const interval = setInterval(refreshSyncHealth, 10000);
+    return () => clearInterval(interval);
+  }, [refreshSyncHealth]);
 
   // Subscribe to real-time peer updates
   usePeerSubscription(
@@ -84,6 +124,44 @@ export function ServersCard() {
       return false;
     });
   }, [servers]);
+
+  const syncStatusByServerId = useMemo(() => {
+    const healthEntries = servers
+      .map((s) => ({ server: s, health: syncHealthByServerId[s.id] }))
+      .filter((e) => e.health);
+
+    if (healthEntries.length === 0) return {} as Record<string, SyncStatus | undefined>;
+
+    const primary = healthEntries.find((e) => e.health?.isPrimary);
+    const reference = primary ?? healthEntries.reduce((best, cur) =>
+      (cur.health?.syncCursorPosition ?? 0) > (best.health?.syncCursorPosition ?? 0) ? cur : best
+    );
+    const referenceCursor = reference.health?.syncCursorPosition ?? 0;
+
+    const map: Record<string, SyncStatus | undefined> = {};
+    for (const server of servers) {
+      const health = syncHealthByServerId[server.id];
+      if (!health || server.status !== "online") {
+        map[server.id] = undefined;
+        continue;
+      }
+
+      const delta = health.syncCursorPosition - referenceCursor;
+      const ahead = delta > 0 ? delta : 0;
+      const behind = delta < 0 ? Math.abs(delta) : 0;
+
+      map[server.id] = {
+        // Aggregate-only for now; we stuff the delta into one bucket.
+        predictionsAhead: ahead,
+        predictionsBehind: behind,
+        preferencesAhead: 0,
+        preferencesBehind: 0,
+        syncing: health.pendingSyncCount > 0,
+      };
+    }
+
+    return map;
+  }, [servers, syncHealthByServerId]);
 
   // Calculate mesh health stats
   const meshStats = useMemo(() => {
@@ -219,6 +297,7 @@ export function ServersCard() {
               isActive={activeServer?.id === server.id}
               onSelect={setActiveServer}
               peerStatus={getPeerStatus(server)}
+              syncStatus={syncStatusByServerId[server.id]}
             />
           ))}
         </ScrollView>

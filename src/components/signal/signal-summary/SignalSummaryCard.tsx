@@ -85,7 +85,7 @@ export function SignalSummaryCard({
             <HintIndicator
               id="trading-signals-hint"
               title={t("signals.hint.title")}
-              icon="?"
+              icon="i"
               color={Colors.accent.primary}
               priority={11}
               width={420}

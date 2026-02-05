@@ -184,7 +184,7 @@ export function PredictionAccuracyCard({
           <HintIndicator
             id="market-prediction-hint"
             title={t("components:prediction.hint.title")}
-            icon="?"
+            icon="i"
             color={Colors.accent.primary}
             priority={12}
             width={420}
@@ -276,7 +276,7 @@ export function PredictionAccuracyCard({
                   <HintIndicator
                     id="prediction-history-hint"
                     title={t("components:prediction.historyHint.title")}
-                    icon="?"
+                    icon="i"
                     color={Colors.accent.primary}
                     priority={13}
                     width={420}

@@ -47,7 +47,7 @@ export function LeverageSlider({
           <HintIndicator
             id="leverage-hint"
             title="Leverage"
-            icon="?"
+            icon="i"
             color={Colors.accent.primary}
             priority={56}
             width={400}

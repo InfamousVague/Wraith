@@ -2,7 +2,7 @@
  * Types for peer status components
  */
 
-import type { PeerStatus } from "../../hooks/useHauntSocket";
+import type { PeerStatus } from "../../../hooks/useHauntSocket";
 
 export type PeerRowProps = {
   peer: PeerStatus;

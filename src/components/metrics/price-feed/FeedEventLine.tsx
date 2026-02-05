@@ -63,6 +63,6 @@ const styles = StyleSheet.create({
     width: 40,
   },
   eventSource: {
-    marginLeft: "auto",
+    marginLeft: "auto" as any, // flexbox auto margin for pushing to right
   },
 });

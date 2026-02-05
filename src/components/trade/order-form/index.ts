@@ -13,6 +13,10 @@ export { SizeInput } from "./SizeInput";
 export { LeverageSlider } from "./LeverageSlider";
 export { QuickSizeButtons } from "./QuickSizeButtons";
 export { OrderSummary } from "./OrderSummary";
+export { TimeInForceSelector } from "./TimeInForceSelector";
+export { OrderOptions } from "./OrderOptions";
+export { MarginModeToggle } from "./MarginModeToggle";
+export { TpSlSection } from "./TpSlSection";
 
 // Types
 export type {
@@ -21,6 +25,8 @@ export type {
   OrderType,
   OrderSide,
   MarginMode,
+  TimeInForce,
+  PriceSelection,
   OrderTypeSelectorProps,
   SideToggleProps,
   PriceInputProps,

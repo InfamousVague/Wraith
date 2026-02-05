@@ -30,7 +30,6 @@
  * - `/asset/:id` - Asset detail page (charts, signals, predictions)
  * - `/portfolio` - Portfolio overview (holdings, performance, P&L)
  * - `/trade` - Paper trading terminal
- * - `/leaderboard` - Trading leaderboard (top performers)
  * - `/profile` - User profile management
  * - `/settings` - Application settings
  */
@@ -49,12 +48,13 @@ import { ApiServerProvider } from "./context/ApiServerContext";
 import { GhostThemeProvider } from "@wraith/ghost";
 import { HauntSocketProvider } from "./hooks/useHauntSocket";
 import { ToastProvider } from "./context/ToastContext";
+import { PreloaderProvider } from "./components/preloader";
 import { Dashboard } from "./pages/Dashboard";
 import { AssetDetail } from "./pages/AssetDetail";
 import { Portfolio } from "./pages/Portfolio";
+import { Leaderboard } from "./pages/Leaderboard";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
-import { Leaderboard } from "./pages/Leaderboard";
 import { PriceTicker } from "./components/metrics";
 import { ErrorBoundary } from "./components/error";
 import { OfflineBanner, Navbar } from "./components/ui";
@@ -124,8 +124,8 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/asset/:id" element={<AssetDetail />} />
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
-          <Route path="/trade/:symbol?" element={<Suspense fallback={<PageLoader />}><Trade /></Suspense>} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/trade/:symbol?" element={<Suspense fallback={<PageLoader />}><Trade /></Suspense>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
@@ -146,7 +146,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                   <ApiServerProvider>
                     <HauntSocketProvider>
                       <ToastProvider>
-                        <App />
+                        <PreloaderProvider config={{ minDisplayTime: 1500, debug: false }}>
+                          <App />
+                        </PreloaderProvider>
                       </ToastProvider>
                     </HauntSocketProvider>
                   </ApiServerProvider>

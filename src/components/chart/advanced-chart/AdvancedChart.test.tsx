@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import React from "react";
 import { AdvancedChart } from "./AdvancedChart";
-import type { Asset } from "../../types/asset";
+import type { Asset } from "../../../types/asset";
 
 // Mock the theme context
 vi.mock("@wraith/ghost/context/ThemeContext", () => ({

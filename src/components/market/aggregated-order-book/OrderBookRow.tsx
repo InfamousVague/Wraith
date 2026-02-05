@@ -3,22 +3,29 @@
  */
 
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { Number } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { Colors } from "@wraith/ghost/tokens";
 import { radii } from "../../../styles/tokens";
 import type { OrderBookRowProps } from "./types";
 
-export function OrderBookRow({ level, maxQuantity, side, priceDecimals, quantityDecimals }: OrderBookRowProps) {
+export function OrderBookRow({ level, maxQuantity, side, priceDecimals, quantityDecimals, onPriceSelect }: OrderBookRowProps) {
   const fillPercent = maxQuantity > 0 ? (level.totalQuantity / maxQuantity) * 100 : 0;
   const isBid = side === "bid";
   // Use bright colors instead of dim
   const barColor = isBid ? Colors.status.success : Colors.status.danger;
   const priceColor = isBid ? Colors.status.success : Colors.status.danger;
 
+  const clickable = typeof onPriceSelect === "function";
+
   return (
-    <View style={styles.row}>
+    <Pressable
+      onPress={clickable ? () => onPriceSelect(level.price, side) : undefined}
+      disabled={!clickable}
+      style={styles.row}
+      accessibilityRole={clickable ? "button" : undefined}
+    >
       {/* Depth bar - always from left side */}
       <View
         style={[
@@ -58,7 +65,7 @@ export function OrderBookRow({ level, maxQuantity, side, priceDecimals, quantity
           appearance={TextAppearance.Muted}
         />
       </View>
-    </View>
+    </Pressable>
   );
 }
 

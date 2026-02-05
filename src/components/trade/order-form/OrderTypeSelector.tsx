@@ -24,6 +24,8 @@ const ORDER_TYPE_OPTIONS = [
   { value: "limit", label: "Limit" },
   { value: "stop_loss", label: "Stop Loss" },
   { value: "take_profit", label: "Take Profit" },
+  { value: "stop_limit", label: "Stop Limit" },
+  { value: "trailing_stop", label: "Trailing Stop" },
 ];
 
 const ORDER_TYPE_DESCRIPTIONS: Record<OrderType, string> = {
@@ -31,6 +33,8 @@ const ORDER_TYPE_DESCRIPTIONS: Record<OrderType, string> = {
   limit: "Execute at specified price or better",
   stop_loss: "Trigger sell when price drops to threshold",
   take_profit: "Trigger sell when price reaches target",
+  stop_limit: "Stop that triggers a limit order at specified price",
+  trailing_stop: "Stop that follows price by fixed amount or percentage",
 };
 
 export function OrderTypeSelector({ value, onChange }: OrderTypeSelectorProps) {
@@ -43,7 +47,7 @@ export function OrderTypeSelector({ value, onChange }: OrderTypeSelectorProps) {
         <HintIndicator
           id="order-type-hint"
           title="Order Types"
-          icon="?"
+          icon="i"
           color={Colors.accent.primary}
           priority={54}
           width={420}
@@ -68,6 +72,16 @@ export function OrderTypeSelector({ value, onChange }: OrderTypeSelectorProps) {
             <TooltipSection title="Take Profit">
               <TooltipBadge label="Lock In" value="Triggers when price rises to target" color={Colors.status.success} />
               <TooltipText>Automatically secures gains by closing at your profit target.</TooltipText>
+            </TooltipSection>
+            <TooltipDivider />
+            <TooltipSection title="Stop Limit">
+              <TooltipBadge label="Precision" value="Stop triggers a limit order" color={Colors.data.violet} />
+              <TooltipText>Combines stop trigger with limit execution for price control.</TooltipText>
+            </TooltipSection>
+            <TooltipDivider />
+            <TooltipSection title="Trailing Stop">
+              <TooltipBadge label="Dynamic" value="Follows price by fixed offset" color={Colors.data.cyan} />
+              <TooltipText>Stop price adjusts as market moves in your favor.</TooltipText>
             </TooltipSection>
           </TooltipContainer>
         </HintIndicator>

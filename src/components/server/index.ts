@@ -4,7 +4,6 @@
  */
 
 export { ServersCard } from "./servers";
-export { ServerMeshCard } from "./server-mesh";
 export { ServerSelectorCard } from "./server-selector-card";
 export { ServerSelectorModal } from "./server-selector-modal";
 export { PeerStatusCard } from "./peer-status";

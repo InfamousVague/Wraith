@@ -84,6 +84,8 @@ export const radii = {
   pill: 9999,
   /** 9999px - circle shape (avatars when square) */
   circle: 9999,
+  /** 9999px - full rounding (alias for circle) */
+  full: 9999,
 } as const;
 
 /**

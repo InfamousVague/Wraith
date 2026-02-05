@@ -2,7 +2,7 @@
  * Types for top movers components
  */
 
-import type { Mover, MoverTimeframe, AssetType } from "../../services/haunt";
+import type { Mover, MoverTimeframe, AssetType } from "../../../services/haunt";
 
 export type { Mover, MoverTimeframe, AssetType };
 

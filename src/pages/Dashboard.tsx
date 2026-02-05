@@ -106,17 +106,9 @@ export function Dashboard() {
     });
   }, [assets, filters.showOfflineMarkets]);
 
-  // Handle asset type change from navbar
-  const handleAssetTypeChange = (assetType: typeof filters.assetType) => {
-    setFilters({ ...filters, assetType });
-  };
-
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Navbar
-        assetType={filters.assetType}
-        onAssetTypeChange={handleAssetTypeChange}
-      />
+      <Navbar />
       <ScrollView style={styles.scrollView}>
         <MetricsCarousel assetType={filters.assetType} />
         <Toolbar
