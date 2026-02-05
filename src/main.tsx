@@ -35,11 +35,11 @@
  * - `/settings` - Application settings
  */
 
-import React from "react";
+import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "./i18n";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { View } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { PreferenceSyncProvider } from "./context/PreferenceSyncContext";
@@ -54,11 +54,30 @@ import { AssetDetail } from "./pages/AssetDetail";
 import { Portfolio } from "./pages/Portfolio";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
-import { TradeSandbox as Trade } from "./pages/TradeSandbox";
 import { Leaderboard } from "./pages/Leaderboard";
 import { PriceTicker } from "./components/metrics";
 import { ErrorBoundary } from "./components/error";
-import { OfflineBanner } from "./components/ui";
+import { OfflineBanner, Navbar } from "./components/ui";
+
+// Lazy load heavy pages for faster navigation
+const Trade = React.lazy(() => import("./pages/TradeSandbox").then(m => ({ default: m.TradeSandbox })));
+
+/** Loading fallback for lazy-loaded pages */
+function PageLoader() {
+  return (
+    <View style={pageLoaderStyles.container}>
+      <Navbar />
+      <View style={pageLoaderStyles.content}>
+        <ActivityIndicator size="large" color="#6366f1" />
+      </View>
+    </View>
+  );
+}
+
+const pageLoaderStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#050608" },
+  content: { flex: 1, justifyContent: "center", alignItems: "center" },
+});
 
 /**
  * Bridge component that connects Wraith's theme context to Ghost's theme provider.
@@ -105,7 +124,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/asset/:id" element={<AssetDetail />} />
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
-          <Route path="/trade" element={<Trade />} />
+          <Route path="/trade/:symbol?" element={<Suspense fallback={<PageLoader />}><Trade /></Suspense>} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />

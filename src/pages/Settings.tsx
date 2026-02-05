@@ -28,6 +28,7 @@ import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { useTheme } from "../context/ThemeContext";
 import { SpeedSelector, Navbar } from "../components/ui";
 import { ServersCard } from "../components/server";
+import { TradingSettingsSection } from "../components/settings";
 import { SUPPORTED_LANGUAGES, type SupportedLanguage } from "../i18n/types";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
@@ -124,6 +125,9 @@ export function Settings() {
             </View>
           </Card>
         </View>
+
+        {/* Trading Settings Section */}
+        <TradingSettingsSection />
 
         {/* Servers Section */}
         <View style={styles.section}>

@@ -50,6 +50,7 @@ export function usePositions(
 
     try {
       const response = await hauntClient.getPositions(sessionToken, portfolioId);
+      console.log("[usePositions] Fetched positions:", response.data.length, response.data);
       setPositions(response.data);
     } catch (err) {
       console.warn("Failed to fetch positions:", err);
@@ -84,6 +85,7 @@ export function usePositions(
 
   // Handle real-time position updates
   const handlePositionUpdate = useCallback((update: PositionUpdate) => {
+    console.log("[usePositions] WebSocket position update:", update.event, update);
     setLastPositionUpdate(update);
 
     // Mark position as updated for visual feedback

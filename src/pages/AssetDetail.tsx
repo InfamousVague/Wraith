@@ -163,7 +163,7 @@ export function AssetDetail() {
   };
 
   const handleTrade = () => {
-    navigate("/trade");
+    navigate(`/trade/${asset?.symbol?.toLowerCase() || ""}`);
   };
 
   return (

@@ -48,6 +48,7 @@ export function useOrders(
 
     try {
       const response = await hauntClient.getOrders(sessionToken, portfolioId);
+      console.log("[useOrders] Fetched orders:", response.data.length, response.data);
       setOrders(response.data);
     } catch (err) {
       console.warn("Failed to fetch orders:", err);
@@ -59,6 +60,7 @@ export function useOrders(
 
   // Handle real-time order updates
   const handleOrderUpdate = useCallback((update: OrderUpdate) => {
+    console.log("[useOrders] WebSocket order update:", update.event, update.status, update);
     setLastOrderUpdate(update);
 
     setOrders((prev) => {

@@ -178,14 +178,6 @@ const generateEquityCurve = () => {
 
 const EQUITY_CURVE = generateEquityCurve();
 
-// Mock performance metrics for demo mode only
-const MOCK_PERFORMANCE_METRICS = {
-  day: { change: 2.34, value: 5234.56 },
-  week: { change: 8.12, value: 18234.12 },
-  month: { change: 15.67, value: 35012.45 },
-  allTime: { change: 42.3, value: 67234.89 },
-};
-
 // Treemap layout algorithm (squarified)
 function calculateTreemap(
   holdings: Holding[],
@@ -554,36 +546,6 @@ function HoldingRow({ holding, onPress }: { holding: Holding; onPress?: () => vo
   );
 }
 
-function PerformanceCard({
-  label,
-  change,
-  value,
-}: {
-  label: string;
-  change: number;
-  value: number;
-}) {
-  const isPositive = change >= 0;
-
-  return (
-    <Card style={styles.performanceCard}>
-      <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
-        {label}
-      </Text>
-      <View style={styles.performanceValue}>
-        <Currency
-          value={value}
-          size={Size.Medium}
-          weight="semibold"
-          decimals={2}
-          color={isPositive ? Colors.status.success : Colors.status.danger}
-        />
-      </View>
-      <PercentChange value={change} size={Size.Small} />
-    </Card>
-  );
-}
-
 export function Portfolio() {
   const navigate = useNavigate();
   const { isDark } = useTheme();
@@ -701,61 +663,6 @@ export function Portfolio() {
             loading={loading}
           />
         </View>
-
-        {/* Performance Period Cards - Only show for demo mode or with real data */}
-        {!usingRealData ? (
-          // Demo mode: show mock performance metrics
-          <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
-            <View style={styles.performanceGrid}>
-              <PerformanceCard
-                label="24h"
-                change={MOCK_PERFORMANCE_METRICS.day.change}
-                value={MOCK_PERFORMANCE_METRICS.day.value}
-              />
-              <PerformanceCard
-                label="7d"
-                change={MOCK_PERFORMANCE_METRICS.week.change}
-                value={MOCK_PERFORMANCE_METRICS.week.value}
-              />
-              <PerformanceCard
-                label="30d"
-                change={MOCK_PERFORMANCE_METRICS.month.change}
-                value={MOCK_PERFORMANCE_METRICS.month.value}
-              />
-              <PerformanceCard
-                label="All Time"
-                change={MOCK_PERFORMANCE_METRICS.allTime.change}
-                value={MOCK_PERFORMANCE_METRICS.allTime.value}
-              />
-            </View>
-          </View>
-        ) : portfolio ? (
-          // Authenticated: show real total return from portfolio
-          <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
-            <View style={styles.performanceGrid}>
-              <PerformanceCard
-                label="Total P&L"
-                change={portfolio.totalValue > 0 ? ((portfolio.realizedPnl + portfolio.unrealizedPnl) / portfolio.totalValue) * 100 : 0}
-                value={portfolio.realizedPnl + portfolio.unrealizedPnl}
-              />
-              <PerformanceCard
-                label="Realized"
-                change={portfolio.totalValue > 0 ? (portfolio.realizedPnl / portfolio.totalValue) * 100 : 0}
-                value={portfolio.realizedPnl}
-              />
-              <PerformanceCard
-                label="Unrealized"
-                change={portfolio.totalValue > 0 ? (portfolio.unrealizedPnl / portfolio.totalValue) * 100 : 0}
-                value={portfolio.unrealizedPnl}
-              />
-              <PerformanceCard
-                label="Portfolio Value"
-                change={0}
-                value={portfolio.totalValue}
-              />
-            </View>
-          </View>
-        ) : null}
 
         {/* Main Content Grid */}
         <View
@@ -980,21 +887,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: spacing.lg,
-  },
-  performanceGrid: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    flexWrap: "wrap",
-  },
-  performanceCard: {
-    flex: 1,
-    minWidth: 140,
-    padding: spacing.md,
-    gap: spacing.xxs,
-  },
-  performanceValue: {
-    flexDirection: "row",
-    alignItems: "baseline",
   },
   mainGrid: {
     flexDirection: "row",

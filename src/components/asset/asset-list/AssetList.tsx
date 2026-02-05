@@ -357,9 +357,9 @@ export function AssetList({ filters, fullBleed = false }: AssetListProps) {
     assetType: filters.assetType,
   });
 
-  // Handle trade button press - navigate to trade page
+  // Handle trade button press - navigate to trade page with symbol
   const handleTradePress = useCallback((symbol: string) => {
-    navigate("/trade");
+    navigate(`/trade/${symbol.toLowerCase()}`);
   }, [navigate]);
 
   const observerRef = useRef<IntersectionObserver | null>(null);

@@ -34,9 +34,9 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { useParams } from "react-router-dom";
-import { Card, SegmentedControl, Text } from "@wraith/ghost/components";
+import { View, StyleSheet, ScrollView, Pressable } from "react-native";
+import { useParams, useNavigate } from "react-router-dom";
+import { Card, SegmentedControl, Text, Icon, ProgressBar } from "@wraith/ghost/components";
 import { Colors } from "@wraith/ghost/tokens";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useTheme } from "../context/ThemeContext";
@@ -44,7 +44,8 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { useCryptoData } from "../hooks/useCryptoData";
-import { hauntClient } from "../services/haunt";
+import { useTradingSettings } from "../hooks/useTradingSettings";
+import { hauntClient, HauntApiError } from "../services/haunt";
 import { usePortfolio } from "../hooks/usePortfolio";
 import { usePositions } from "../hooks/usePositions";
 import { useOrders } from "../hooks/useOrders";
@@ -120,13 +121,90 @@ const DEFAULT_ORDER_FORM_WIDTH = 320;
 /**
  * Paper trading sandbox page with full trading interface.
  */
+/**
+ * Drawdown warning banner shown above order form
+ */
+function DrawdownWarningBanner({
+  currentDrawdown,
+  maxDrawdown,
+  isAtLimit,
+  isApproachingLimit,
+  onOpenSettings,
+}: {
+  currentDrawdown: number;
+  maxDrawdown: number;
+  isAtLimit: boolean;
+  isApproachingLimit: boolean;
+  onOpenSettings: () => void;
+}) {
+  if (!isApproachingLimit && !isAtLimit) return null;
+
+  const progress = maxDrawdown > 0 ? Math.min(1, currentDrawdown / maxDrawdown) : 0;
+
+  const bannerStyle = isAtLimit
+    ? { ...styles.drawdownBanner, ...styles.drawdownBannerCritical }
+    : { ...styles.drawdownBanner, ...styles.drawdownBannerWarning };
+
+  return (
+    <Card style={bannerStyle}>
+      <View style={styles.drawdownBannerContent}>
+        <View style={styles.drawdownBannerHeader}>
+          <Icon
+            name={isAtLimit ? "error" : "warning"}
+            size={Size.Small}
+            color={isAtLimit ? Colors.status.danger : Colors.status.warning}
+          />
+          <Text
+            size={Size.Small}
+            weight="semibold"
+            style={{ color: isAtLimit ? Colors.status.danger : Colors.status.warning }}
+          >
+            {isAtLimit ? "Trading Stopped" : "Drawdown Warning"}
+          </Text>
+        </View>
+        <View style={styles.drawdownBannerStats}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+            Current: <Text size={Size.ExtraSmall} weight="bold" style={{ color: Colors.status.danger }}>
+              -{currentDrawdown.toFixed(1)}%
+            </Text>
+          </Text>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
+            Limit: -{maxDrawdown}%
+          </Text>
+        </View>
+        <ProgressBar
+          value={progress * 100}
+          max={100}
+          size={Size.Small}
+          appearance={isAtLimit ? TextAppearance.Danger : TextAppearance.Warning}
+        />
+        <Pressable onPress={onOpenSettings} style={styles.drawdownBannerLink}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Link}>
+            Adjust Settings
+          </Text>
+        </Pressable>
+      </View>
+    </Card>
+  );
+}
+
 export function TradeSandbox() {
   const { symbol: urlSymbol } = useParams<{ symbol?: string }>();
+  const navigate = useNavigate();
   const { isDark } = useTheme();
   const { isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
   const colors = isDark ? themes.dark : themes.light;
   const { isMobile, width } = useBreakpoint();
+
+  // Trading settings for drawdown protection
+  const {
+    settings,
+    currentDrawdownPercent,
+    isApproachingLimit,
+    isAtLimit,
+    setCurrentDrawdown,
+  } = useTradingSettings();
 
   // Use toggle layout when width is below threshold for 3-column layout
   const showToggleLayout = !isMobile && width < THREE_COLUMN_MIN_WIDTH;
@@ -157,8 +235,39 @@ export function TradeSandbox() {
   const [showDrawdownModal, setShowDrawdownModal] = useState(false);
   const [bypassDrawdown, setBypassDrawdown] = useState(false);
 
+  // Debug: track modal state changes
+  useEffect(() => {
+    console.log("[TradeSandbox] showDrawdownModal changed to:", showDrawdownModal);
+  }, [showDrawdownModal]);
+
   // Fetch real data when authenticated (with polling + WebSocket)
   const { portfolio: apiPortfolio, portfolioId, loading: portfolioLoading, clearAndRefetch: clearPortfolio, resetPortfolio } = usePortfolio();
+
+  // Calculate and update drawdown from portfolio data
+  useEffect(() => {
+    if (apiPortfolio && apiPortfolio.startingBalance > 0) {
+      // Drawdown = (starting - current) / starting * 100
+      // Positive value means loss (e.g., started at 100k, now at 90k = 10% drawdown)
+      const drawdown = ((apiPortfolio.startingBalance - apiPortfolio.totalValue) / apiPortfolio.startingBalance) * 100;
+      // Only count positive drawdown (losses), not gains
+      const clampedDrawdown = Math.max(0, drawdown);
+      setCurrentDrawdown(clampedDrawdown);
+      console.log("[TradeSandbox] Drawdown calculated:", clampedDrawdown.toFixed(2), "% (starting:", apiPortfolio.startingBalance, "current:", apiPortfolio.totalValue, ")");
+    }
+  }, [apiPortfolio, setCurrentDrawdown]);
+
+  // Check if portfolio is stopped using the backend's actual risk settings (not local settings)
+  // This mirrors the backend's is_stopped() check exactly
+  const isPortfolioStopped = React.useMemo(() => {
+    if (!apiPortfolio || apiPortfolio.startingBalance <= 0) return false;
+    const drawdownPct = (apiPortfolio.startingBalance - apiPortfolio.totalValue) / apiPortfolio.startingBalance;
+    const stopPct = apiPortfolio.riskSettings?.portfolioStopPct ?? 0.25; // Default 25% if not set
+    const stopped = drawdownPct >= stopPct;
+    if (stopped) {
+      console.log("[TradeSandbox] Portfolio IS STOPPED - drawdown:", (drawdownPct * 100).toFixed(2), "% >= stop:", (stopPct * 100).toFixed(2), "%");
+    }
+    return stopped;
+  }, [apiPortfolio]);
   const {
     positions: apiPositions,
     closePosition,
@@ -296,8 +405,17 @@ export function TradeSandbox() {
       symbol: selectedAsset?.symbol || "BTC",
     };
     setPendingOrder(orderWithSymbol);
+
+    // Proactive drawdown check - show warning modal if portfolio is stopped
+    // Use isPortfolioStopped which mirrors the backend's exact check
+    if (isAuthenticated && isPortfolioStopped && !bypassDrawdown) {
+      console.log("[TradeSandbox] Proactive check: portfolio is stopped, showing drawdown modal");
+      setShowDrawdownModal(true);
+      return;
+    }
+
     setShowOrderConfirm(true);
-  }, [selectedAsset?.symbol]);
+  }, [selectedAsset?.symbol, isAuthenticated, isPortfolioStopped, bypassDrawdown]);
 
   // Map frontend asset type to backend AssetClass (snake_case)
   const getAssetClass = (asset: Asset | null): AssetClass => {
@@ -330,6 +448,7 @@ export function TradeSandbox() {
 
     if (isAuthenticated && portfolioId) {
       try {
+        console.log("[TradeSandbox] Placing order with portfolioId:", portfolioId, "bypassDrawdown:", bypassDrawdown);
         const order = await placeOrder({
           portfolioId,
           symbol,
@@ -351,19 +470,46 @@ export function TradeSandbox() {
         refetchPositions();
         refetchOrders();
       } catch (err) {
-        console.error("Failed to place order:", err);
-        const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
+        console.error("[TradeSandbox] Failed to place order - full error object:", err);
 
-        // Handle specific error cases
-        if (errorMessage.includes("stopped due to drawdown") || errorMessage.includes("PORTFOLIO_STOPPED")) {
-          console.log("Portfolio stopped due to drawdown - showing modal");
-          setShowDrawdownModal(true);
-          // Don't clear pendingOrder - user may want to retry with bypass
+        // Extract error message and code - HauntApiError preserves both
+        let errorMessage = "Unknown error occurred";
+        let errorCode = "";
+
+        if (err instanceof HauntApiError) {
+          // Our custom error class with code and message
+          errorMessage = err.message;
+          errorCode = err.code;
+          console.log("[TradeSandbox] HauntApiError - message:", errorMessage, "code:", errorCode);
+        } else if (err instanceof Error) {
+          errorMessage = err.message;
+          console.log("[TradeSandbox] Standard Error - message:", errorMessage);
+        } else if (typeof err === "object" && err !== null) {
+          const errObj = err as { message?: string; error?: string; code?: string };
+          errorMessage = errObj.message || errObj.error || JSON.stringify(err);
+          errorCode = errObj.code || "";
+        }
+
+        // Handle drawdown/portfolio stopped errors - check multiple patterns
+        const lowerMessage = errorMessage.toLowerCase();
+        const lowerCode = errorCode.toLowerCase();
+
+        const isDrawdownError =
+          lowerCode === "portfolio_stopped" ||
+          lowerCode.includes("drawdown") ||
+          lowerMessage.includes("stopped") ||
+          lowerMessage.includes("drawdown");
+
+        console.log("[TradeSandbox] isDrawdownError:", isDrawdownError, "(code:", errorCode, ")");
+
+        if (isDrawdownError) {
+          console.log("[TradeSandbox] *** DRAWDOWN ERROR DETECTED - SHOWING MODAL ***");
           setOrderSubmitting(false);
           setShowOrderConfirm(false);
+          setShowDrawdownModal(true);
           return; // Exit early to preserve pendingOrder
-        } else if (errorMessage.includes("access denied") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
-          console.log("Portfolio access error, clearing and re-fetching...");
+        } else if (lowerMessage.includes("access denied") || lowerMessage.includes("403") || lowerMessage.includes("unauthorized")) {
+          console.log("[TradeSandbox] Portfolio access error, clearing and re-fetching...");
           clearPortfolio();
           showError("Order Failed", "Portfolio access error. Please try again.");
         } else {
@@ -419,7 +565,7 @@ export function TradeSandbox() {
     setOrderSubmitting(false);
     setShowOrderConfirm(false);
     setPendingOrder(null);
-  }, [isAuthenticated, pendingOrder, placeOrder, portfolioId, selectedAsset, showSuccess, showError]);
+  }, [isAuthenticated, pendingOrder, placeOrder, portfolioId, selectedAsset, showSuccess, showError, bypassDrawdown, clearPortfolio, refetchPositions, refetchOrders]);
 
   // Cancel order confirmation
   const handleOrderConfirmCancel = useCallback(() => {
@@ -686,14 +832,30 @@ export function TradeSandbox() {
 
           {/* Order Form (right panel) */}
           <View style={[styles.orderFormPanel, { width: effectiveOrderFormWidth }]}>
+            {/* Drawdown Warning Banner - show if approaching limit OR portfolio is stopped */}
+            {isAuthenticated && (isApproachingLimit || isPortfolioStopped) && (
+              <DrawdownWarningBanner
+                currentDrawdown={currentDrawdownPercent}
+                maxDrawdown={(apiPortfolio?.riskSettings?.portfolioStopPct ?? 0.25) * 100}
+                isAtLimit={isPortfolioStopped}
+                isApproachingLimit={isApproachingLimit && !isPortfolioStopped}
+                onOpenSettings={() => navigate("/settings")}
+              />
+            )}
             <OrderForm
               symbol={selectedAsset?.symbol || "BTC"}
               currentPrice={selectedAsset?.price}
               availableMargin={portfolio.marginAvailable}
               onSubmit={handleOrderSubmit}
               loading={isLoading}
-              disabled={!isAuthenticated}
-              disabledMessage="Connect wallet to place orders"
+              disabled={!isAuthenticated || (isPortfolioStopped && !settings.drawdownProtection.allowBypass)}
+              disabledMessage={
+                !isAuthenticated
+                  ? "Connect wallet to place orders"
+                  : isPortfolioStopped && !settings.drawdownProtection.allowBypass
+                  ? "Trading stopped - drawdown limit reached"
+                  : undefined
+              }
             />
           </View>
         </View>
@@ -808,9 +970,15 @@ export function TradeSandbox() {
       {/* Drawdown Warning Modal */}
       <DrawdownWarningModal
         visible={showDrawdownModal}
+        currentDrawdown={currentDrawdownPercent}
+        maxDrawdown={settings.drawdownProtection.maxDrawdownPercent}
         onBypassOnce={handleBypassDrawdownOnce}
         onResetPortfolio={handleDrawdownReset}
         onCancel={handleDrawdownCancel}
+        onOpenSettings={() => {
+          setShowDrawdownModal(false);
+          navigate("/settings");
+        }}
         loading={portfolioResetting}
       />
     </View>
@@ -871,5 +1039,35 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     minHeight: 200,
+  },
+  drawdownBanner: {
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+  },
+  drawdownBannerWarning: {
+    borderWidth: 1,
+    borderColor: Colors.status.warning,
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
+  },
+  drawdownBannerCritical: {
+    borderWidth: 1,
+    borderColor: Colors.status.danger,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+  },
+  drawdownBannerContent: {
+    gap: spacing.xs,
+  },
+  drawdownBannerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  drawdownBannerStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  drawdownBannerLink: {
+    alignSelf: "flex-end",
+    marginTop: spacing.xxs,
   },
 });

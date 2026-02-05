@@ -22,6 +22,21 @@ import type { AggregatedOrderBook, OrderBookResponse } from "../types/orderbook"
 // Use relative path in dev (proxied by Vite), or direct URL in production
 const HAUNT_URL = import.meta.env.VITE_HAUNT_URL || "";
 
+/**
+ * Custom error class for API errors that preserves the error code
+ */
+export class HauntApiError extends Error {
+  code: string;
+  status: number;
+
+  constructor(message: string, code: string = "", status: number = 0) {
+    super(message);
+    this.name = "HauntApiError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 export type GlobalMetrics = {
   totalMarketCap: number;
   totalVolume24h: number;
@@ -482,6 +497,55 @@ export type TradingStats = {
 
 export type TradingStatsTimeframe = "today" | "week" | "month" | "year" | "all";
 
+// Portfolio Settings types
+export type PortfolioSettings = {
+  drawdownProtection: {
+    enabled: boolean;
+    maxDrawdownPercent: number;
+    calculationMethod: string;
+    allowBypass: boolean;
+    autoResetAfter: string;
+    warningThresholdPercent: number;
+  };
+};
+
+// Portfolio Stats types - detailed trading statistics
+export type PortfolioStats = {
+  totalTrades: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  averageWin: number;
+  averageLoss: number;
+  profitFactor: number;
+  largestWin: number;
+  largestLoss: number;
+  bestTrade: { symbol: string; pnl: number; pnlPercent: number; date: number } | null;
+  worstTrade: { symbol: string; pnl: number; pnlPercent: number; date: number } | null;
+  currentStreak: { type: "win" | "loss" | "none"; count: number };
+  longestWinStreak: number;
+  longestLossStreak: number;
+  averageHoldTime: number; // in milliseconds
+  peakValue: number;
+  peakDate: number;
+  currentDrawdown: number;
+  currentDrawdownPercent: number;
+  maxDrawdownHit: number;
+  maxDrawdownPercent: number;
+  maxDrawdownDate: number;
+  sharpeRatio: number | null;
+  sortinoRatio: number | null;
+};
+
+// Drawdown History types
+export type DrawdownHistoryPoint = {
+  timestamp: number;
+  drawdownPercent: number;
+  portfolioValue: number;
+};
+
+export type DrawdownHistoryRange = "1d" | "1w" | "1m" | "3m" | "all";
+
 // Funding rate types (for perpetuals)
 export type FundingRate = {
   symbol: string;
@@ -657,12 +721,18 @@ class HauntClient {
     if (!response.ok) {
       // Try to parse error response for more details
       let errorMessage = `Haunt API error: ${response.status} ${response.statusText}`;
+      let errorCode = "";
+
       try {
         const errorBody = await response.json();
         if (errorBody.error) {
           errorMessage = errorBody.error;
         } else if (errorBody.message) {
           errorMessage = errorBody.message;
+        }
+        // Preserve the error code from the backend
+        if (errorBody.code) {
+          errorCode = errorBody.code;
         }
       } catch {
         // Couldn't parse JSON, use default message
@@ -675,7 +745,7 @@ class HauntClient {
         }
       }
 
-      throw new Error(errorMessage);
+      throw new HauntApiError(errorMessage, errorCode, response.status);
     }
 
     return response.json();
@@ -1142,6 +1212,58 @@ class HauntClient {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount }),
     });
+  }
+
+  // ========== Portfolio Settings API Methods ==========
+
+  /**
+   * Get portfolio settings (drawdown protection, etc.)
+   */
+  async getPortfolioSettings(
+    token: string,
+    portfolioId: string
+  ): Promise<ApiResponse<PortfolioSettings>> {
+    return this.fetchWithAuth(`/api/trading/portfolios/${portfolioId}/settings`, token);
+  }
+
+  /**
+   * Update portfolio settings
+   */
+  async updatePortfolioSettings(
+    token: string,
+    portfolioId: string,
+    settings: Partial<PortfolioSettings>
+  ): Promise<ApiResponse<PortfolioSettings>> {
+    return this.fetchWithAuth(`/api/trading/portfolios/${portfolioId}/settings`, token, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings),
+    });
+  }
+
+  /**
+   * Get portfolio statistics (win rate, streaks, drawdown, etc.)
+   */
+  async getPortfolioStats(
+    token: string,
+    portfolioId: string
+  ): Promise<ApiResponse<PortfolioStats>> {
+    return this.fetchWithAuth(`/api/trading/portfolios/${portfolioId}/stats`, token);
+  }
+
+  /**
+   * Get drawdown history for a portfolio
+   * @param range Time range: "1d", "1w", "1m", "3m", "all"
+   */
+  async getDrawdownHistory(
+    token: string,
+    portfolioId: string,
+    range: DrawdownHistoryRange = "1m"
+  ): Promise<ApiResponse<DrawdownHistoryPoint[]>> {
+    return this.fetchWithAuth(
+      `/api/trading/portfolios/${portfolioId}/drawdown-history?range=${range}`,
+      token
+    );
   }
 
   // ========== Auth API Methods ==========
