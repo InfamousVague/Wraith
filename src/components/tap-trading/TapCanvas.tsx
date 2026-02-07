@@ -37,9 +37,9 @@ const TILE_ACTIVE_COLOR = "rgba(167, 139, 250, 0.25)";
 const TILE_ACTIVE_BORDER = "#A78BFA";
 const TILE_WON_COLOR = "rgba(47, 213, 117, 0.5)";
 const TILE_LOST_COLOR = "rgba(239, 68, 68, 0.35)";
-const RIPPLE_DURATION_MS = 1200; // How long the ripple animation lasts
-const RIPPLE_MAX_RADIUS = 180; // Max radius of the ripple ring in px
-const RIPPLE_COLOR = "167, 139, 250"; // Purple RGB for ripple rings
+const RIPPLE_DURATION_MS = 1400; // How long the grid-cell ripple lasts
+const RIPPLE_MAX_DIST = 6; // Max cell distance the ripple reaches
+const RIPPLE_COLOR = "167, 139, 250"; // Purple RGB for cell tint
 const BG_COLOR = "#050608";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -355,6 +355,60 @@ export function TapCanvas({
       ctx.stroke();
     }
     ctx.setLineDash([]);
+
+    // ─── Grid-cell ripple effect ─────────────────────────
+    // When a trade is placed, nearby grid cells temporarily get a purple
+    // tint that radiates outward from the trade cell. The "wave front"
+    // moves outward at a fixed speed, and cells behind the front get a
+    // fading purple overlay.
+
+    const fullColumnsForRipple = Math.floor(elapsed / gridConfig.interval_ms);
+    for (const pos of activePositions) {
+      if (!pos.created_at) continue;
+      const rippleAge = now - pos.created_at;
+      if (rippleAge >= RIPPLE_DURATION_MS) continue;
+
+      const progress = rippleAge / RIPPLE_DURATION_MS; // 0→1
+      // The wave front expands over time
+      const waveFront = progress * RIPPLE_MAX_DIST;
+
+      // Position's visual column
+      const posAbsCol = (pos.time_start - gridStartTime) / gridConfig.interval_ms;
+      const posVisCol = posAbsCol - fullColumnsForRipple;
+
+      // Iterate over nearby cells and tint them
+      for (let dr = -RIPPLE_MAX_DIST; dr <= RIPPLE_MAX_DIST; dr++) {
+        for (let dc = -RIPPLE_MAX_DIST; dc <= RIPPLE_MAX_DIST; dc++) {
+          if (dr === 0 && dc === 0) continue; // Skip the trade cell itself
+
+          const dist = Math.sqrt(dr * dr + dc * dc);
+          if (dist > waveFront || dist > RIPPLE_MAX_DIST) continue;
+
+          // Compute how far behind the wave front this cell is
+          const behindWave = waveFront - dist;
+          // Cells right at the wave front are brightest, cells behind fade
+          const waveFade = Math.max(0, 1 - behindWave / (RIPPLE_MAX_DIST * 0.6));
+          // Overall fade as the ripple progresses
+          const timeFade = 1 - progress;
+          const alpha = waveFade * timeFade * 0.35;
+          if (alpha < 0.01) continue;
+
+          const targetRow = pos.row_index + dr;
+          const targetVisCol = posVisCol + dc;
+
+          // Compute screen position of this cell
+          const cellX = sparklineBoundaryX + targetVisCol * cellWidth - scrollOffsetX;
+          const cellY = targetRow * cellHeight - vpOffset;
+
+          // Skip if off-screen
+          if (cellX + cellWidth < sparklineBoundaryX || cellX > sparklineBoundaryX + gridAreaWidth) continue;
+          if (cellY + cellHeight < 0 || cellY > gridAreaHeight) continue;
+
+          ctx.fillStyle = `rgba(${RIPPLE_COLOR}, ${alpha})`;
+          ctx.fillRect(cellX, cellY, cellWidth, cellHeight);
+        }
+      }
+    }
 
     // ─── Draw multiplier text in cells ─────────────────────
 
@@ -791,36 +845,6 @@ export function TapCanvas({
         ctx.fillText(lostText, cellX + cellWidth / 2, cellY + cellHeight / 2);
       }
 
-      // ─── Ripple effect: expanding ring on recent trade placement ────
-      // Draws concentric semi-opaque purple rings that cascade outward
-      // from the tile center for RIPPLE_DURATION_MS after placement.
-      if (pos.created_at) {
-        const rippleAge = now - pos.created_at;
-        if (rippleAge < RIPPLE_DURATION_MS) {
-          const centerX = cellX + cellWidth / 2;
-          const centerY = cellY + cellHeight / 2;
-          const progress = rippleAge / RIPPLE_DURATION_MS; // 0→1
-
-          // Draw 3 staggered rings for a cascading ripple
-          for (let ring = 0; ring < 3; ring++) {
-            const ringDelay = ring * 0.2; // Each ring starts 20% later
-            const ringProgress = Math.max(0, (progress - ringDelay) / (1 - ringDelay));
-            if (ringProgress <= 0 || ringProgress >= 1) continue;
-
-            // Ease out: starts fast, slows down
-            const easedProgress = 1 - Math.pow(1 - ringProgress, 2);
-            const radius = easedProgress * RIPPLE_MAX_RADIUS;
-            // Fade out: fully opaque at start → transparent at end
-            const alpha = (1 - ringProgress) * 0.3;
-
-            ctx.strokeStyle = `rgba(${RIPPLE_COLOR}, ${alpha})`;
-            ctx.lineWidth = 2 - ringProgress * 1.5; // Thins as it expands
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.stroke();
-          }
-        }
-      }
     }
   }, [geometry, gridConfig, multipliers, activePositions, currentPrice, priceHistory, settings, priceToScreenY]);
 

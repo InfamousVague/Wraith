@@ -6,13 +6,14 @@
  *
  * Users place bets on grid cells (price x time). A sparkline shows live price.
  * Each cell displays a multiplier derived from one-touch barrier option pricing.
- * Tap a cell to bet. If price touches that cell, win bet × multiplier.
+ * Tap a cell to bet. If price touches that cell, win bet x multiplier.
  *
  * ## Layout:
  * - Navbar at top
- * - Leverage toolbar (leverage pills + 24h stats)
+ * - Toolbar (leverage pills, bet size pills, W/L stats, PnL, balance)
  * - Full-screen canvas (sparkline + grid + tiles)
- * - Bottom bar (asset info left, trade count + bet size right)
+ * - Top-left overlay: asset info card
+ * - Bottom-right overlay: trade count badge
  * - Connection status badge (top right)
  */
 
@@ -26,9 +27,7 @@ import { Navbar } from "../components/ui";
 import {
   TapCanvas,
   AssetInfoCard,
-  BetSizeToggle,
   LeverageControl,
-  TapStatsCard,
 } from "../components/tap-trading";
 import { useTapTrading } from "../hooks/useTapTrading";
 import { useAuth } from "../context/AuthContext";
@@ -160,14 +159,16 @@ export function TapTrading() {
     <View style={styles.container}>
       <Navbar />
 
-      {/* Leverage toolbar */}
+      {/* Toolbar: leverage, bet size, stats */}
       <LeverageControl
         value={leverage}
         presets={leveragePresets}
         onChange={setLeverage}
-        zoomLevel={zoomLevel}
-        onZoomChange={setZoomLevel}
+        betSize={betSize}
+        betSizePresets={betSizePresets}
+        onBetSizeChange={setBetSize}
         stats={stats}
+        balance={portfolio?.cashBalance ?? 0}
         symbol={symbol}
       />
 
@@ -184,34 +185,19 @@ export function TapTrading() {
           onCellTap={handleCellTap}
         />
 
-        {/* Top-left stats overlay */}
+        {/* Top-left: asset info card */}
         <View style={styles.topLeftOverlay} pointerEvents="box-none">
-          <TapStatsCard
-            stats={stats}
-            betSize={betSize}
-            leverage={leverage}
-            activeCount={activeCount}
-            maxTrades={maxTrades}
-            balance={portfolio?.cashBalance ?? 0}
-          />
+          <AssetInfoCard asset={asset} livePrice={currentPrice} />
         </View>
 
-        {/* Bottom overlay: asset info + bet size */}
-        <View style={styles.bottomOverlay} pointerEvents="box-none">
-          <AssetInfoCard asset={asset} livePrice={currentPrice} />
-          <View style={styles.bottomRight}>
-            <Badge
-              label={`${activeCount}/${maxTrades}`}
-              icon="layers"
-              variant="outline"
-              size={Size.Small}
-            />
-            <BetSizeToggle
-              value={betSize}
-              presets={betSizePresets}
-              onChange={setBetSize}
-            />
-          </View>
+        {/* Bottom-right: trade count badge */}
+        <View style={styles.bottomRightOverlay} pointerEvents="box-none">
+          <Badge
+            label={`${activeCount}/${maxTrades}`}
+            icon="layers"
+            variant="outline"
+            size={Size.Small}
+          />
         </View>
 
         {/* Connection status indicator */}
@@ -253,20 +239,11 @@ const styles = StyleSheet.create({
     left: spacing.sm,
     zIndex: 10,
   },
-  bottomOverlay: {
+  bottomRightOverlay: {
     position: "absolute",
     bottom: 14,
-    left: spacing.sm,
     right: spacing.sm,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
     zIndex: 10,
-  },
-  bottomRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
   },
   connectionBadge: {
     position: "absolute",

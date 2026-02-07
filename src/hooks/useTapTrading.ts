@@ -11,7 +11,7 @@
  * - WebSocket: multiplier matrix updates (~1Hz), trade events, price ticks
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { hauntClient } from "../services/haunt";
 import { useHauntSocket, useAssetSubscription } from "./useHauntSocket";
 import { useAuth } from "../context/AuthContext";
@@ -91,9 +91,58 @@ export function useTapTrading(
   const [activePositions, setActivePositions] = useState<TapPosition[]>([]);
   const [currentPrice, setCurrentPrice] = useState<number>(0);
   const [priceHistory, setPriceHistory] = useState<Array<{ time: number; price: number }>>([]);
-  const [stats, setStats] = useState<TapStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // ─── Client-side stats computation from resolved positions ────
+  // The backend stats are often null, so we compute them locally from
+  // the activePositions list (which includes recently resolved trades).
+  // We also accumulate across the session using refs so stats persist
+  // even after resolved positions are cleaned up.
+  const sessionStatsRef = useRef({
+    total_trades: 0,
+    wins: 0,
+    losses: 0,
+    net_pnl: 0,
+    total_wagered: 0,
+    total_payouts: 0,
+    win_streak: 0,
+    _counted: new Set<string>(), // track which position IDs we've counted
+  });
+
+  // Derive stats: accumulate from resolved positions as they appear
+  const stats: TapStats = useMemo(() => {
+    const s = sessionStatsRef.current;
+    for (const p of activePositions) {
+      if (s._counted.has(p.id)) continue;
+      if (p.status === "won") {
+        s._counted.add(p.id);
+        s.total_trades++;
+        s.wins++;
+        s.net_pnl += (p.payout ?? 0) - p.amount;
+        s.total_wagered += p.amount;
+        s.total_payouts += p.payout ?? 0;
+        s.win_streak++;
+      } else if (p.status === "lost") {
+        s._counted.add(p.id);
+        s.total_trades++;
+        s.losses++;
+        s.net_pnl -= p.amount;
+        s.total_wagered += p.amount;
+        s.win_streak = 0;
+      }
+    }
+    return {
+      total_trades: s.total_trades,
+      wins: s.wins,
+      losses: s.losses,
+      win_rate: s.total_trades > 0 ? s.wins / s.total_trades : 0,
+      win_streak: s.win_streak,
+      net_pnl: s.net_pnl,
+      total_wagered: s.total_wagered,
+      total_payouts: s.total_payouts,
+    };
+  }, [activePositions]);
 
   // Track callbacks for trade events (page can subscribe to these)
   const onTradeResolvedRef = useRef<((data: GridTradeResolvedData) => void) | null>(null);
