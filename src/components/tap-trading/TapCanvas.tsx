@@ -33,10 +33,13 @@ const SPARKLINE_GLOW_COLOR = "rgba(167, 139, 250, 0.15)";
 const MULTIPLIER_COLOR = "rgba(255, 255, 255, 0.45)";
 const PRICE_BADGE_COLOR = "#E91E8C"; // Pink/magenta
 const DIMMED_OVERLAY_COLOR = "rgba(0, 0, 0, 0.45)";
-const TILE_ACTIVE_COLOR = "rgba(47, 213, 117, 0.25)";
-const TILE_ACTIVE_BORDER = "#2FD575";
+const TILE_ACTIVE_COLOR = "rgba(167, 139, 250, 0.25)";
+const TILE_ACTIVE_BORDER = "#A78BFA";
 const TILE_WON_COLOR = "rgba(47, 213, 117, 0.5)";
 const TILE_LOST_COLOR = "rgba(239, 68, 68, 0.35)";
+const RIPPLE_DURATION_MS = 1200; // How long the ripple animation lasts
+const RIPPLE_MAX_RADIUS = 180; // Max radius of the ripple ring in px
+const RIPPLE_COLOR = "167, 139, 250"; // Purple RGB for ripple rings
 const BG_COLOR = "#050608";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -786,6 +789,37 @@ export function TapCanvas({
         ctx.textBaseline = "middle";
         ctx.fillStyle = "rgba(239, 68, 68, 0.7)";
         ctx.fillText(lostText, cellX + cellWidth / 2, cellY + cellHeight / 2);
+      }
+
+      // ─── Ripple effect: expanding ring on recent trade placement ────
+      // Draws concentric semi-opaque purple rings that cascade outward
+      // from the tile center for RIPPLE_DURATION_MS after placement.
+      if (pos.created_at) {
+        const rippleAge = now - pos.created_at;
+        if (rippleAge < RIPPLE_DURATION_MS) {
+          const centerX = cellX + cellWidth / 2;
+          const centerY = cellY + cellHeight / 2;
+          const progress = rippleAge / RIPPLE_DURATION_MS; // 0→1
+
+          // Draw 3 staggered rings for a cascading ripple
+          for (let ring = 0; ring < 3; ring++) {
+            const ringDelay = ring * 0.2; // Each ring starts 20% later
+            const ringProgress = Math.max(0, (progress - ringDelay) / (1 - ringDelay));
+            if (ringProgress <= 0 || ringProgress >= 1) continue;
+
+            // Ease out: starts fast, slows down
+            const easedProgress = 1 - Math.pow(1 - ringProgress, 2);
+            const radius = easedProgress * RIPPLE_MAX_RADIUS;
+            // Fade out: fully opaque at start → transparent at end
+            const alpha = (1 - ringProgress) * 0.3;
+
+            ctx.strokeStyle = `rgba(${RIPPLE_COLOR}, ${alpha})`;
+            ctx.lineWidth = 2 - ringProgress * 1.5; // Thins as it expands
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
       }
     }
   }, [geometry, gridConfig, multipliers, activePositions, currentPrice, priceHistory, settings, priceToScreenY]);
