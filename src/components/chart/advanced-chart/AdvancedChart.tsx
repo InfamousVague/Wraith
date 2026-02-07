@@ -74,6 +74,7 @@ import type {
   CrosshairData,
 } from "./types";
 import { ChartLegend } from "./ChartLegend";
+import { ChartSettingsButton, DEFAULT_CHART_SETTINGS, type ChartSettings } from "./ChartSettings";
 import { calculateSMA, calculateEMA, calculateBollingerBands } from "./utils/chartIndicators";
 import { generateOHLCData, generateLineData } from "./utils/dataGenerators";
 import {
@@ -94,6 +95,7 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>("1W");
   const [chartType, setChartType] = useState<ChartType>("area");
   const [activeIndicators, setActiveIndicators] = useState<Set<Indicator>>(new Set(["volume"]));
+  const [chartSettings, setChartSettings] = useState<ChartSettings>(DEFAULT_CHART_SETTINGS);
   const [crosshairData, setCrosshairData] = useState<{
     price?: number;
     change?: number;
@@ -115,6 +117,17 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const indicatorSeriesRef = useRef<Map<string, ISeriesApi<"Line">>>(new Map());
   const [containerHeight, setContainerHeight] = useState(height ?? 400);
+  // Track chart configuration to detect when we need full recreation vs just data update
+  const lastChartTypeRef = useRef<ChartType | null>(null);
+  const lastTimeRangeRef = useRef<TimeRange | null>(null);
+  // Track data for incremental updates - use first timestamp as signature for dataset
+  const lastDataSignatureRef = useRef<number | null>(null);
+  const lastDataLengthRef = useRef(0);
+  const isInitialDataLoadRef = useRef(true);
+  // Track last data point for detecting real-time updates
+  const lastDataPointRef = useRef<{ time: number; close: number } | null>(null);
+  // Track visible time range to preserve zoom across chart type changes
+  const savedVisibleRangeRef = useRef<{ from: number; to: number } | null>(null);
 
   const isPositive = asset ? asset.change7d >= 0 : true;
   const positiveColor = Colors.status.success;
@@ -313,18 +326,46 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
     };
   }, [asset?.id, timeRange]);
 
-  // Initialize and update chart
+  // Memoize theme colors to prevent unnecessary re-renders
+  // We only need specific color values, not the whole object
+  const chartThemeColors = useMemo(() => ({
+    textMuted: themeColors.text.muted,
+    backgroundRaised: themeColors.background.raised,
+  }), [themeColors.text.muted, themeColors.background.raised]);
+
+  // Track if we have enough data - used to trigger chart creation when data loads
+  const hasData = lineData.length >= 2;
+
+  // Initialize chart - this effect only runs when chart type or indicators change
+  // Data updates are handled in a separate effect below
   useEffect(() => {
     if (Platform.OS !== "web" || !containerRef.current) return;
-    if (lineData.length < 2) return;
 
     const container = containerRef.current;
 
-    // Clean up existing chart
-    try {
-      chartRef.current?.remove();
-    } catch {
-      // Ignore cleanup errors
+    // Check if chart already exists and type hasn't changed
+    // This allows us to skip recreation for pure data updates
+    if (chartRef.current && lastChartTypeRef.current === chartType) {
+      // Chart exists and type hasn't changed - skip recreation
+      // Data updates will be handled by the separate data effect
+      return;
+    }
+
+    // Note: Visible range is saved in the cleanup function of the previous effect run
+    // This ensures it's captured right before the old chart is destroyed
+
+    // Update tracking refs
+    lastChartTypeRef.current = chartType;
+    lastTimeRangeRef.current = timeRange;
+
+    // Full chart creation needed
+    // Clean up existing chart if it exists
+    if (chartRef.current) {
+      try {
+        chartRef.current.remove();
+      } catch {
+        // Ignore cleanup errors
+      }
     }
     chartRef.current = null;
     mainSeriesRef.current = null;
@@ -344,31 +385,44 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
     // Reset error state
     setChartError(null);
 
+    // Map crosshair mode setting to TradingView CrosshairMode enum
+    const crosshairModeMap = {
+      normal: CrosshairMode.Normal,
+      magnet: CrosshairMode.Magnet,
+      hidden: CrosshairMode.Hidden,
+    };
+
     const chartOptions: DeepPartial<ChartOptions> = {
       width: container.clientWidth || 800,
       height: chartHeight,
       layout: {
         background: { color: "transparent" },
-        textColor: themeColors.text.muted,
+        textColor: chartThemeColors.textMuted,
         fontFamily: "'Inter', -apple-system, sans-serif",
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.03)" },
-        horzLines: { color: "rgba(255,255,255,0.03)" },
+        vertLines: {
+          color: chartSettings.showVerticalGrid ? "rgba(255,255,255,0.03)" : "transparent",
+          visible: chartSettings.showVerticalGrid,
+        },
+        horzLines: {
+          color: chartSettings.showHorizontalGrid ? "rgba(255,255,255,0.03)" : "transparent",
+          visible: chartSettings.showHorizontalGrid,
+        },
       },
       crosshair: {
-        mode: CrosshairMode.Normal,
+        mode: crosshairModeMap[chartSettings.crosshairMode],
         vertLine: {
           color: "rgba(255,255,255,0.2)",
           width: 1,
           style: 2,
-          labelBackgroundColor: themeColors.background.raised,
+          labelBackgroundColor: chartThemeColors.backgroundRaised,
         },
         horzLine: {
           color: "rgba(255,255,255,0.2)",
           width: 1,
           style: 2,
-          labelBackgroundColor: themeColors.background.raised,
+          labelBackgroundColor: chartThemeColors.backgroundRaised,
         },
       },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
@@ -377,6 +431,9 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         visible: !isMobile,
         borderVisible: false,
         scaleMargins: { top: 0.1, bottom: activeIndicators.has("volume") ? 0.2 : 0.1 },
+        autoScale: chartSettings.autoScale,
+        invertScale: chartSettings.invertScale,
+        mode: chartSettings.logScale ? 1 : 0, // 0 = Normal, 1 = Logarithmic
       },
       timeScale: {
         visible: !isMobile,
@@ -389,8 +446,8 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
     const chart = createChart(container, chartOptions);
     chartRef.current = chart;
 
-    // Add main series based on chart type
-    if (chartType === "candle" && ohlcData.length > 0) {
+    // Add main series based on chart type (data will be set by separate effect)
+    if (chartType === "candle") {
       const series = chart.addSeries(CandlestickSeries, {
         upColor: positiveColor,
         downColor: negativeColor,
@@ -399,7 +456,6 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         wickUpColor: positiveColor,
         wickDownColor: negativeColor,
       });
-      series.setData(ohlcData as CandlestickData<Time>[]);
       mainSeriesRef.current = series;
     } else if (chartType === "line") {
       const series = chart.addSeries(LineSeries, {
@@ -410,7 +466,6 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 4,
       });
-      series.setData(lineData as LineData<Time>[]);
       mainSeriesRef.current = series;
     } else {
       // Area chart
@@ -424,12 +479,15 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         crosshairMarkerVisible: true,
         crosshairMarkerRadius: 4,
       });
-      series.setData(lineData as AreaData<Time>[]);
       mainSeriesRef.current = series;
     }
 
-    // Add volume histogram
-    if (activeIndicators.has("volume") && ohlcData.length > 0) {
+    // Reset data signature so data effect will load initial data
+    lastDataSignatureRef.current = null;
+    lastDataLengthRef.current = 0;
+
+    // Add volume histogram (data will be set by separate effect)
+    if (activeIndicators.has("volume")) {
       const volumeSeries = chart.addSeries(HistogramSeries, {
         color: "rgba(107, 114, 128, 0.5)",
         priceFormat: { type: "volume" },
@@ -441,79 +499,58 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         visible: false,
       });
 
-      const volumeData: HistogramData<Time>[] = ohlcData.map((d) => ({
-        time: d.time as Time,
-        value: d.volume ?? 0,
-        color: d.close >= d.open ? "rgba(47, 213, 117, 0.4)" : "rgba(255, 92, 122, 0.4)",
-      }));
-
-      volumeSeries.setData(volumeData);
       volumeSeriesRef.current = volumeSeries;
     }
 
-    // Add SMA indicator
+    // Add SMA indicator series (data will be set by separate effect)
     if (activeIndicators.has("sma")) {
-      const smaData = calculateSMA(lineData, 20);
-      if (smaData.length > 0) {
-        const smaSeries = chart.addSeries(LineSeries, {
-          color: Colors.data.blue,
-          lineWidth: 1 as LineWidth,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        smaSeries.setData(smaData as LineData<Time>[]);
-        indicatorSeriesRef.current.set("sma", smaSeries);
-      }
+      const smaSeries = chart.addSeries(LineSeries, {
+        color: Colors.data.blue,
+        lineWidth: 1 as LineWidth,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      indicatorSeriesRef.current.set("sma", smaSeries);
     }
 
-    // Add EMA indicator
+    // Add EMA indicator series (data will be set by separate effect)
     if (activeIndicators.has("ema")) {
-      const emaData = calculateEMA(lineData, 20);
-      if (emaData.length > 0) {
-        const emaSeries = chart.addSeries(LineSeries, {
-          color: Colors.data.violet,
-          lineWidth: 1 as LineWidth,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        emaSeries.setData(emaData as LineData<Time>[]);
-        indicatorSeriesRef.current.set("ema", emaSeries);
-      }
+      const emaSeries = chart.addSeries(LineSeries, {
+        color: Colors.data.violet,
+        lineWidth: 1 as LineWidth,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      indicatorSeriesRef.current.set("ema", emaSeries);
     }
 
-    // Add Bollinger Bands
+    // Add Bollinger Bands series (data will be set by separate effect)
     if (activeIndicators.has("bollinger")) {
-      const bb = calculateBollingerBands(lineData, 20, 2);
-      if (bb.upper.length > 0) {
-        const upperSeries = chart.addSeries(LineSeries, {
-          color: Colors.data.amber + "99", // 60% opacity
-          lineWidth: 1 as LineWidth,
-          lineStyle: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        upperSeries.setData(bb.upper as LineData<Time>[]);
-        indicatorSeriesRef.current.set("bb-upper", upperSeries);
+      const upperSeries = chart.addSeries(LineSeries, {
+        color: Colors.data.amber + "99", // 60% opacity
+        lineWidth: 1 as LineWidth,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      indicatorSeriesRef.current.set("bb-upper", upperSeries);
 
-        const middleSeries = chart.addSeries(LineSeries, {
-          color: Colors.data.amber,
-          lineWidth: 1 as LineWidth,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        middleSeries.setData(bb.middle as LineData<Time>[]);
-        indicatorSeriesRef.current.set("bb-middle", middleSeries);
+      const middleSeries = chart.addSeries(LineSeries, {
+        color: Colors.data.amber,
+        lineWidth: 1 as LineWidth,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      indicatorSeriesRef.current.set("bb-middle", middleSeries);
 
-        const lowerSeries = chart.addSeries(LineSeries, {
-          color: Colors.data.amber + "99", // 60% opacity
-          lineWidth: 1 as LineWidth,
-          lineStyle: 2,
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        lowerSeries.setData(bb.lower as LineData<Time>[]);
-        indicatorSeriesRef.current.set("bb-lower", lowerSeries);
-      }
+      const lowerSeries = chart.addSeries(LineSeries, {
+        color: Colors.data.amber + "99", // 60% opacity
+        lineWidth: 1 as LineWidth,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      indicatorSeriesRef.current.set("bb-lower", lowerSeries);
     }
 
     // Crosshair move handler
@@ -546,7 +583,90 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
       }
     });
 
-    chart.timeScale().fitContent();
+    // Set initial data immediately if available (fixes blank chart on initial load)
+    // This is necessary because the data effect may have already run before this effect
+    if (lineData.length >= 2 && mainSeriesRef.current) {
+      if (chartType === "candle" && ohlcData.length > 0) {
+        mainSeriesRef.current.setData(ohlcData as CandlestickData<Time>[]);
+      } else {
+        mainSeriesRef.current.setData(lineData as (LineData<Time>[] | AreaData<Time>[]));
+      }
+
+      // Set volume data if available
+      if (volumeSeriesRef.current && ohlcData.length > 0) {
+        const volumeData: HistogramData<Time>[] = ohlcData.map((d) => ({
+          time: d.time as Time,
+          value: d.volume ?? 0,
+          color: d.close >= d.open ? "rgba(47, 213, 117, 0.4)" : "rgba(255, 92, 122, 0.4)",
+        }));
+        volumeSeriesRef.current.setData(volumeData);
+      }
+
+      // Set indicator data
+      const smaSeries = indicatorSeriesRef.current.get("sma");
+      if (smaSeries) {
+        const smaData = calculateSMA(lineData, 20);
+        if (smaData.length > 0) {
+          smaSeries.setData(smaData as LineData<Time>[]);
+        }
+      }
+
+      const emaSeries = indicatorSeriesRef.current.get("ema");
+      if (emaSeries) {
+        const emaData = calculateEMA(lineData, 20);
+        if (emaData.length > 0) {
+          emaSeries.setData(emaData as LineData<Time>[]);
+        }
+      }
+
+      const bbUpper = indicatorSeriesRef.current.get("bb-upper");
+      const bbMiddle = indicatorSeriesRef.current.get("bb-middle");
+      const bbLower = indicatorSeriesRef.current.get("bb-lower");
+      if (bbUpper && bbMiddle && bbLower) {
+        const bb = calculateBollingerBands(lineData, 20, 2);
+        if (bb.upper.length > 0) {
+          bbUpper.setData(bb.upper as LineData<Time>[]);
+          bbMiddle.setData(bb.middle as LineData<Time>[]);
+          bbLower.setData(bb.lower as LineData<Time>[]);
+        }
+      }
+
+      // Update data tracking refs
+      const currentDataSignature = ohlcData.length > 0 ? ohlcData[0].time : lineData[0].time;
+      const lastOhlc = ohlcData.length > 0 ? ohlcData[ohlcData.length - 1] : null;
+      const lastLine = lineData[lineData.length - 1];
+      lastDataSignatureRef.current = currentDataSignature;
+      lastDataLengthRef.current = lineData.length;
+      lastDataPointRef.current = {
+        time: lastOhlc?.time ?? lastLine.time,
+        close: lastOhlc?.close ?? lastLine.value,
+      };
+
+      // Restore saved visible range if we have one (preserves zoom when switching chart types)
+      // Otherwise fit content for initial load
+      if (savedVisibleRangeRef.current) {
+        try {
+          chart.timeScale().setVisibleRange({
+            from: savedVisibleRangeRef.current.from as Time,
+            to: savedVisibleRangeRef.current.to as Time,
+          });
+          // Clear after successful restore
+          savedVisibleRangeRef.current = null;
+        } catch {
+          chart.timeScale().fitContent();
+        }
+      } else {
+        chart.timeScale().fitContent();
+      }
+    } else {
+      // No data yet - reset refs so data effect will handle initial load
+      lastDataSignatureRef.current = null;
+      lastDataLengthRef.current = 0;
+      lastDataPointRef.current = null;
+    }
+
+    isInitialDataLoadRef.current = false;
+
     removeWatermark(container);
 
     // Observe for watermark re-additions
@@ -564,25 +684,172 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
         const newChartHeight = Math.max(200, height ?? measuredHeight);
 
         chart.resize(width, newChartHeight);
-        chart.timeScale().fitContent();
+        // Don't fitContent on resize - preserve user's zoom/scroll position
       }
     });
     resizeObserver.observe(container);
 
+    // Store references for cleanup
+    const currentChart = chart;
+    const currentObserver = observer;
+    const currentResizeObserver = resizeObserver;
+
     return () => {
+      currentObserver.disconnect();
+      currentResizeObserver.disconnect();
+
+      // Save visible range BEFORE destroying the chart
+      // This is critical for preserving zoom when switching chart types
       try {
-        chart.remove();
+        const visibleRange = currentChart.timeScale().getVisibleRange();
+        if (visibleRange) {
+          savedVisibleRangeRef.current = {
+            from: visibleRange.from as number,
+            to: visibleRange.to as number,
+          };
+        }
+      } catch {
+        // Ignore errors - chart may already be destroyed
+      }
+
+      // Now destroy the chart
+      try {
+        currentChart.remove();
       } catch {
         // Ignore cleanup errors
       }
+      // Reset refs on cleanup so next creation works
       chartRef.current = null;
       mainSeriesRef.current = null;
       volumeSeriesRef.current = null;
       indicatorSeriesRef.current.clear();
-      observer.disconnect();
-      resizeObserver.disconnect();
     };
-  }, [lineData, ohlcData, chartType, activeIndicators, height, containerHeight, themeColors, isPositive, lineColor, stats, isMobile]);
+  // IMPORTANT: hasData is included so chart gets created when data first loads
+  // Other data updates are handled by separate effect, preventing zoom reset
+  // chartSettings is included to apply settings changes (log scale, auto-scale, grid, crosshair)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartType, activeIndicators, height, isMobile, hasData, chartSettings]);
+
+  // Handle data updates separately from chart creation
+  // This effect runs when data changes but doesn't recreate the chart
+  useEffect(() => {
+    if (!chartRef.current || !mainSeriesRef.current) return;
+    if (lineData.length < 2) return;
+
+    // Use first data point timestamp as signature to detect if dataset changed (e.g., time range change)
+    const currentDataSignature = ohlcData.length > 0 ? ohlcData[0].time : (lineData.length > 0 ? lineData[0].time : null);
+    const datasetChanged = lastDataSignatureRef.current !== currentDataSignature;
+
+    // Detect if just the last point changed (real-time update)
+    // We check both time and the close/value to detect price changes
+    const lastOhlc = ohlcData.length > 0 ? ohlcData[ohlcData.length - 1] : null;
+    const lastLine = lineData.length > 0 ? lineData[lineData.length - 1] : null;
+    const lastPointTime = lastOhlc?.time ?? lastLine?.time ?? 0;
+    const lastPointValue = lastOhlc?.close ?? lastLine?.value ?? 0;
+
+    const lastPointChanged = !lastDataPointRef.current ||
+      lastDataPointRef.current.time !== lastPointTime ||
+      lastDataPointRef.current.close !== lastPointValue;
+
+    const lastPoint = { time: lastPointTime, close: lastPointValue };
+
+    if (datasetChanged) {
+      // Dataset changed (e.g., new time range) - reload all data and fit
+      if (chartType === "candle" && ohlcData.length > 0) {
+        mainSeriesRef.current.setData(ohlcData as CandlestickData<Time>[]);
+      } else {
+        mainSeriesRef.current.setData(lineData as (LineData<Time>[] | AreaData<Time>[]));
+      }
+
+      // Update volume if present
+      if (volumeSeriesRef.current && ohlcData.length > 0) {
+        const volumeData: HistogramData<Time>[] = ohlcData.map((d) => ({
+          time: d.time as Time,
+          value: d.volume ?? 0,
+          color: d.close >= d.open ? "rgba(47, 213, 117, 0.4)" : "rgba(255, 92, 122, 0.4)",
+        }));
+        volumeSeriesRef.current.setData(volumeData);
+      }
+
+      // Update indicator series data
+      if (lineData.length > 0) {
+        const smaSeries = indicatorSeriesRef.current.get("sma");
+        if (smaSeries) {
+          const smaData = calculateSMA(lineData, 20);
+          if (smaData.length > 0) {
+            smaSeries.setData(smaData as LineData<Time>[]);
+          }
+        }
+
+        const emaSeries = indicatorSeriesRef.current.get("ema");
+        if (emaSeries) {
+          const emaData = calculateEMA(lineData, 20);
+          if (emaData.length > 0) {
+            emaSeries.setData(emaData as LineData<Time>[]);
+          }
+        }
+
+        const bbUpper = indicatorSeriesRef.current.get("bb-upper");
+        const bbMiddle = indicatorSeriesRef.current.get("bb-middle");
+        const bbLower = indicatorSeriesRef.current.get("bb-lower");
+        if (bbUpper && bbMiddle && bbLower) {
+          const bb = calculateBollingerBands(lineData, 20, 2);
+          if (bb.upper.length > 0) {
+            bbUpper.setData(bb.upper as LineData<Time>[]);
+            bbMiddle.setData(bb.middle as LineData<Time>[]);
+            bbLower.setData(bb.lower as LineData<Time>[]);
+          }
+        }
+      }
+
+      lastDataSignatureRef.current = currentDataSignature;
+      lastDataLengthRef.current = lineData.length;
+      lastDataPointRef.current = lastPoint;
+
+      // Restore saved visible range if we have one (preserves zoom when switching chart types)
+      // Otherwise fit content for initial load or time range changes
+      if (savedVisibleRangeRef.current) {
+        try {
+          chartRef.current.timeScale().setVisibleRange({
+            from: savedVisibleRangeRef.current.from as Time,
+            to: savedVisibleRangeRef.current.to as Time,
+          });
+          // Clear the saved range after restoring so future dataset changes fit content
+          savedVisibleRangeRef.current = null;
+        } catch {
+          // If restoring fails, fit content instead
+          chartRef.current.timeScale().fitContent();
+        }
+      } else {
+        // No saved range - this is a real dataset change (time range change or initial load)
+        chartRef.current.timeScale().fitContent();
+      }
+    } else if (lastPointChanged) {
+      // Same dataset but last point updated (real-time price update)
+      // Use update() to preserve zoom/scroll position
+      if (chartType === "candle" && ohlcData.length > 0) {
+        const lastCandle = ohlcData[ohlcData.length - 1];
+        mainSeriesRef.current.update(lastCandle as CandlestickData<Time>);
+      } else if (lineData.length > 0) {
+        const lastLinePoint = lineData[lineData.length - 1];
+        mainSeriesRef.current.update(lastLinePoint as LineData<Time> | AreaData<Time>);
+      }
+
+      // Update volume last bar if present
+      if (volumeSeriesRef.current && ohlcData.length > 0) {
+        const lastOhlc = ohlcData[ohlcData.length - 1];
+        volumeSeriesRef.current.update({
+          time: lastOhlc.time as Time,
+          value: lastOhlc.volume ?? 0,
+          color: lastOhlc.close >= lastOhlc.open ? "rgba(47, 213, 117, 0.4)" : "rgba(255, 92, 122, 0.4)",
+        });
+      }
+
+      lastDataLengthRef.current = lineData.length;
+      lastDataPointRef.current = lastPoint;
+    }
+    // If neither datasetChanged nor lastPointChanged, do nothing - prevents unnecessary updates
+  }, [lineData, ohlcData, chartType]);
 
   // Set initial crosshair data
   useEffect(() => {
@@ -723,6 +990,15 @@ export function AdvancedChart({ asset, loading, height }: AdvancedChartProps) {
             onChange={setChartType}
             size={Size.Small}
           />
+
+          {/* Settings button */}
+          {!isMobile && (
+            <ChartSettingsButton
+              settings={chartSettings}
+              onSettingsChange={setChartSettings}
+              size={Size.Small}
+            />
+          )}
         </View>
       </View>
 

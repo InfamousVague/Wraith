@@ -1,0 +1,1 @@
+export { NotificationHistoryModal } from "./NotificationHistoryModal";

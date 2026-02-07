@@ -108,6 +108,7 @@ type AuthContextType = {
   // Profile actions
   updateUsername: (username: string) => Promise<void>;
   updateLeaderboardVisibility: (show: boolean) => Promise<void>;
+  refreshServerProfile: (updatedProfile: ServerProfile) => void;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -308,6 +309,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [sessionToken, privateKey]);
 
   /**
+   * Refresh server profile from updated data (without API call)
+   */
+  const refreshServerProfile = useCallback((updatedProfile: ServerProfile) => {
+    localStorage.setItem(STORAGE_KEY_SERVER_PROFILE, JSON.stringify(updatedProfile));
+    setServerProfile(updatedProfile);
+  }, []);
+
+  /**
    * Login to the backend server.
    * Steps:
    * 1. Request challenge from server
@@ -430,6 +439,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Profile actions
         updateUsername,
         updateLeaderboardVisibility,
+        refreshServerProfile,
       }}
     >
       {children}

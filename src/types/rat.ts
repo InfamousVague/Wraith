@@ -78,6 +78,8 @@ export interface RatState {
   stats: RatStats;
   /** Operational status */
   status: RatStatus;
+  /** Error message (if status is "error") */
+  errorMessage?: string;
   /** Current number of open positions */
   openPositions: number;
 }

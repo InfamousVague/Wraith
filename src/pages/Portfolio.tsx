@@ -15,10 +15,10 @@
  * - Mobile: Single column stacked layout
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { View, StyleSheet, ScrollView, Platform } from "react-native";
 import { useNavigate } from "react-router-dom";
-import { Card, Text, Icon, Skeleton, Currency, PercentChange, Avatar, Button } from "@wraith/ghost/components";
+import { Card, Text, Icon, Skeleton, Currency, PercentChange, Avatar, Button, Pagination, SegmentedControl } from "@wraith/ghost/components";
 import { Colors } from "@wraith/ghost/tokens";
 import { Size, TextAppearance, Appearance } from "@wraith/ghost/enums";
 import { useTheme } from "../context/ThemeContext";
@@ -26,18 +26,16 @@ import { useAuth } from "../context/AuthContext";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { usePortfolio } from "../hooks/usePortfolio";
 import { useHoldings } from "../hooks/useHoldings";
-import { usePerformance } from "../hooks/usePerformance";
+import { usePerformance, type PerformanceRange } from "../hooks/usePerformance";
 import { usePositions } from "../hooks/usePositions";
 import { useTrades } from "../hooks/useTrades";
+import { useOrders } from "../hooks/useOrders";
 import { Navbar, HintIndicator } from "../components/ui";
-import { PortfolioSummary, TradeHistoryTable, ClosePositionModal, ModifyPositionModal } from "../components/trade";
+import { PortfolioSummary, TradeHistoryTable, OrdersTable, ClosePositionModal, ModifyPositionModal, ResetPortfolioModal } from "../components/trade";
 import { PositionCard } from "../components/positions/PositionCard";
+import { PositionTimelineChart } from "../components/portfolio/PositionTimelineChart";
+import { ChartSettingsButton, type ChartSettings, DEFAULT_CHART_SETTINGS } from "../components/chart/advanced-chart/ChartSettings";
 import { spacing, radii } from "../styles/tokens";
-import {
-  MOCK_PORTFOLIO,
-  MOCK_POSITIONS,
-  MOCK_TRADES,
-} from "../data/mockPortfolio";
 import type { Holding as ApiHolding, Position, Trade } from "../services/haunt";
 
 const themes = {
@@ -76,108 +74,6 @@ const CHART_COLORS = {
   pink: "#EC4899",
   orange: "#F97316",
 };
-
-const MOCK_HOLDINGS: Holding[] = [
-  {
-    id: "1",
-    symbol: "BTC",
-    name: "Bitcoin",
-    quantity: 1.5,
-    avgPrice: 62000,
-    currentPrice: 67500,
-    value: 101250,
-    allocation: 45.2,
-    pnl: 8250,
-    pnlPercent: 8.87,
-    color: CHART_COLORS.amber,
-  },
-  {
-    id: "2",
-    symbol: "ETH",
-    name: "Ethereum",
-    quantity: 15,
-    avgPrice: 3200,
-    currentPrice: 3450,
-    value: 51750,
-    allocation: 23.1,
-    pnl: 3750,
-    pnlPercent: 7.81,
-    color: CHART_COLORS.blue,
-  },
-  {
-    id: "3",
-    symbol: "SOL",
-    name: "Solana",
-    quantity: 200,
-    avgPrice: 95,
-    currentPrice: 125,
-    value: 25000,
-    allocation: 11.2,
-    pnl: 6000,
-    pnlPercent: 31.58,
-    color: CHART_COLORS.violet,
-  },
-  {
-    id: "4",
-    symbol: "AVAX",
-    name: "Avalanche",
-    quantity: 300,
-    avgPrice: 32,
-    currentPrice: 38,
-    value: 11400,
-    allocation: 5.1,
-    pnl: 1800,
-    pnlPercent: 18.75,
-    color: CHART_COLORS.red,
-  },
-  {
-    id: "5",
-    symbol: "LINK",
-    name: "Chainlink",
-    quantity: 500,
-    avgPrice: 14,
-    currentPrice: 16.5,
-    value: 8250,
-    allocation: 3.7,
-    pnl: 1250,
-    pnlPercent: 17.86,
-    color: CHART_COLORS.cyan,
-  },
-  {
-    id: "6",
-    symbol: "USDC",
-    name: "USD Coin",
-    quantity: 25000,
-    avgPrice: 1,
-    currentPrice: 1,
-    value: 25000,
-    allocation: 11.7,
-    pnl: 0,
-    pnlPercent: 0,
-    color: CHART_COLORS.green,
-  },
-];
-
-// Mock equity curve data (portfolio value over time)
-const generateEquityCurve = () => {
-  const now = Date.now();
-  const data = [];
-  let value = 180000;
-
-  for (let i = 30; i >= 0; i--) {
-    const timestamp = now - i * 24 * 60 * 60 * 1000;
-    // Simulate some volatility
-    value = value * (1 + (Math.random() - 0.48) * 0.03);
-    data.push({
-      timestamp,
-      value: Math.round(value * 100) / 100,
-    });
-  }
-
-  return data;
-};
-
-const EQUITY_CURVE = generateEquityCurve();
 
 // Treemap layout algorithm (squarified)
 function calculateTreemap(
@@ -452,7 +348,17 @@ function TreemapChart({ holdings, width = 280, height = 180 }: { holdings: Holdi
   );
 }
 
-function EquityChart({ data, height = 200 }: { data: typeof EQUITY_CURVE; height?: number }) {
+function EquityChart({
+  data,
+  height = 200,
+  positions = [],
+  showGrid = true,
+}: {
+  data: Array<{ timestamp: number; value: number }>;
+  height?: number;
+  positions?: Position[];
+  showGrid?: boolean;
+}) {
   if (Platform.OS !== "web" || data.length < 2) {
     return (
       <View style={[styles.equityChartPlaceholder, { height }]}>
@@ -466,41 +372,122 @@ function EquityChart({ data, height = 200 }: { data: typeof EQUITY_CURVE; height
   const maxValue = Math.max(...values);
   const valueRange = maxValue - minValue || 1;
 
-  const width = "100%";
   const padding = 20;
+  const svgWidth = 500;
 
-  const points = data
-    .map((d, i) => {
-      const x = (i / (data.length - 1)) * 100;
-      const y = ((maxValue - d.value) / valueRange) * (height - padding * 2) + padding;
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const pointsArray = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * svgWidth;
+    const y = ((maxValue - d.value) / valueRange) * (height - padding * 2) + padding;
+    return { x, y, timestamp: d.timestamp, value: d.value };
+  });
+
+  const pointsStr = pointsArray.map((p) => `${p.x},${p.y}`).join(" ");
 
   const isPositive = data[data.length - 1].value >= data[0].value;
   const lineColor = isPositive ? Colors.status.success : Colors.status.danger;
 
   // Create gradient area path
-  const areaPoints = `0,${height} ${points} 100,${height}`;
+  const areaPoints = `0,${height} ${pointsStr} ${svgWidth},${height}`;
+
+  // Map positions to chart coordinates for arrows
+  const startTime = data[0].timestamp;
+  const endTime = data[data.length - 1].timestamp;
+  const timeSpan = endTime - startTime || 1;
+
+  const positionMarkers = positions
+    .filter((p) => p.createdAt >= startTime && p.createdAt <= endTime)
+    .map((p) => {
+      const xFraction = (p.createdAt - startTime) / timeSpan;
+      const xPos = xFraction * svgWidth;
+
+      const dataIndex = Math.round(xFraction * (data.length - 1));
+      const clampedIndex = Math.max(0, Math.min(data.length - 1, dataIndex));
+      const yVal = data[clampedIndex].value;
+      const yPos = ((maxValue - yVal) / valueRange) * (height - padding * 2) + padding;
+
+      const isLong = p.side === "long";
+      return { position: p, x: xPos, y: yPos, isLong };
+    });
+
+  // Generate grid lines
+  const gridLineCount = 4;
+  const gridLines = showGrid
+    ? Array.from({ length: gridLineCount }, (_, i) => {
+        const y = padding + ((height - padding * 2) / (gridLineCount + 1)) * (i + 1);
+        return y;
+      })
+    : [];
 
   return (
-    <View style={{ width, height }}>
-      <svg width="100%" height={height} viewBox={`0 0 100 ${height}`} preserveAspectRatio="none">
+    <View style={{ width: "100%", height }}>
+      <svg width="100%" height={height} viewBox={`0 0 ${svgWidth} ${height}`} preserveAspectRatio="none">
         <defs>
           <linearGradient id="equityGradient" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" stopColor={lineColor} stopOpacity="0.3" />
             <stop offset="100%" stopColor={lineColor} stopOpacity="0.02" />
           </linearGradient>
         </defs>
+
+        {/* Grid lines */}
+        {gridLines.map((y, i) => (
+          <line
+            key={`grid-${i}`}
+            x1="0"
+            y1={y}
+            x2={svgWidth}
+            y2={y}
+            stroke="rgba(255, 255, 255, 0.04)"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+
         <polygon points={areaPoints} fill="url(#equityGradient)" />
         <polyline
-          points={points}
+          points={pointsStr}
           fill="none"
           stroke={lineColor}
           strokeWidth="2"
           vectorEffect="non-scaling-stroke"
         />
       </svg>
+
+      {/* Position arrows overlaid with absolute positioning */}
+      {positionMarkers.map((marker) => {
+        const arrowColor = marker.isLong ? Colors.status.success : Colors.status.danger;
+        const arrowW = 14;
+        const arrowH = 16;
+        const leftPercent = (marker.x / svgWidth) * 100;
+        const topPixels = marker.y;
+        const topOffset = marker.isLong ? topPixels - arrowH - 4 : topPixels + 4;
+
+        return (
+          <div
+            key={marker.position.id}
+            style={{
+              position: "absolute",
+              left: `${leftPercent}%`,
+              top: topOffset,
+              transform: `translateX(-${arrowW / 2}px)`,
+              pointerEvents: "none",
+            }}
+          >
+            <svg width={arrowW} height={arrowH} viewBox={`0 0 ${arrowW} ${arrowH}`}>
+              {marker.isLong ? (
+                <polygon
+                  points={`${arrowW / 2},0 ${arrowW},${arrowH} 0,${arrowH}`}
+                  fill={arrowColor}
+                />
+              ) : (
+                <polygon
+                  points={`0,0 ${arrowW},0 ${arrowW / 2},${arrowH}`}
+                  fill={arrowColor}
+                />
+              )}
+            </svg>
+          </div>
+        );
+      })}
     </View>
   );
 }
@@ -554,79 +541,125 @@ export function Portfolio() {
   const colors = isDark ? themes.dark : themes.light;
   const { isMobile, isNarrow } = useBreakpoint();
 
-  // Fetch real data when authenticated
-  const { portfolio, portfolioId, loading: portfolioLoading } = usePortfolio();
+  // Fetch all real data from the API
+  const { portfolio, portfolioId, loading: portfolioLoading, resetPortfolio } = usePortfolio();
   const { holdings: holdingsData, loading: holdingsLoading } = useHoldings(portfolioId);
-  const { performance, loading: performanceLoading } = usePerformance(portfolioId, "1m");
+  const [performanceRange, setPerformanceRange] = useState<PerformanceRange>("1m");
+  const { performance, loading: performanceLoading } = usePerformance(portfolioId, performanceRange);
   const { positions, loading: positionsLoading, closePosition, modifyPosition, updatedPositionIds } = usePositions(portfolioId);
-  const { trades, loading: tradesLoading } = useTrades(portfolioId, 10);
+  const TRADES_PER_PAGE = 10;
+  const {
+    trades,
+    loading: tradesLoading,
+    page: tradesPage,
+    totalPages: tradesTotalPages,
+    setPage: setTradesPage,
+  } = useTrades(portfolioId, TRADES_PER_PAGE);
+  const { trades: allTimelineTrades } = useTrades(portfolioId, 500);
+  const { orders, loading: ordersLoading, cancelOrder, cancelAllOrders } = useOrders(portfolioId);
 
+  const [equityChartSettings, setEquityChartSettings] = useState<ChartSettings>(DEFAULT_CHART_SETTINGS);
   const [positionToClose, setPositionToClose] = useState<Position | null>(null);
   const [positionToModify, setPositionToModify] = useState<Position | null>(null);
   const [positionClosing, setPositionClosing] = useState(false);
   const [positionModifying, setPositionModifying] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const sectionPadding = isMobile ? 12 : isNarrow ? 16 : 24;
 
-  // Authenticated users ALWAYS see real data (even if empty) - no mock fallback
-  // Unauthenticated users see mock data for demo purposes
-  const usingRealData = isAuthenticated;
-
-  // Use real data if authenticated, otherwise fall back to mock for demo
-  // Note: API returns cashBalance, we map it to balance for display components
-  const portfolioData = usingRealData
-    ? (portfolio ? { ...portfolio, balance: portfolio.cashBalance } : { balance: 0, cashBalance: 0, marginUsed: 0, marginAvailable: 0, unrealizedPnl: 0, realizedPnl: 0, totalValue: 0 })
-    : MOCK_PORTFOLIO;
+  // Map portfolio data — API uses cashBalance, display components use balance
+  const portfolioData = portfolio
+    ? { ...portfolio, balance: portfolio.cashBalance }
+    : { balance: 0, cashBalance: 0, marginUsed: 0, marginAvailable: 0, unrealizedPnl: 0, realizedPnl: 0, totalValue: 0 };
   const loading = portfolioLoading || holdingsLoading;
 
   // Transform holdings to display format with colors
+  // Falls back to deriving holdings from open positions if the API returns empty
   const displayHoldings = useMemo(() => {
-    // Authenticated users see real holdings (even if empty)
-    // Unauthenticated users see mock data for demo
-    if (usingRealData) {
-      if (!holdingsData?.holdings || holdingsData.holdings.length === 0) {
-        return []; // Empty state for authenticated users with no holdings
-      }
-      const holdingColors = [
-        CHART_COLORS.amber,
-        CHART_COLORS.blue,
-        CHART_COLORS.violet,
-        CHART_COLORS.red,
-        CHART_COLORS.cyan,
-        CHART_COLORS.green,
-        CHART_COLORS.pink,
-        CHART_COLORS.orange,
-      ];
+    const holdingColors = [
+      CHART_COLORS.amber,
+      CHART_COLORS.blue,
+      CHART_COLORS.violet,
+      CHART_COLORS.red,
+      CHART_COLORS.cyan,
+      CHART_COLORS.green,
+      CHART_COLORS.pink,
+      CHART_COLORS.orange,
+    ];
+
+    // Use API holdings if available
+    if (holdingsData?.holdings && holdingsData.holdings.length > 0) {
       return holdingsData.holdings.map((h, i) => ({
         ...h,
         color: holdingColors[i % holdingColors.length],
       }));
     }
-    return MOCK_HOLDINGS;
-  }, [holdingsData, usingRealData]);
+
+    // Fallback: derive holdings from open positions
+    if (positions.length > 0) {
+      const getSize = (p: Position) => p.quantity ?? p.size ?? 0;
+      const getPrice = (p: Position) => p.markPrice ?? p.currentPrice;
+      const totalPositionValue = positions.reduce((sum, p) => sum + Math.abs(getSize(p) * getPrice(p)), 0);
+      return positions.map((p, i): Holding => {
+        const value = Math.abs(getSize(p) * getPrice(p));
+        return {
+          id: p.id,
+          symbol: p.symbol,
+          name: p.symbol,
+          quantity: getSize(p),
+          avgPrice: p.entryPrice,
+          currentPrice: getPrice(p),
+          value,
+          allocation: totalPositionValue > 0 ? (value / totalPositionValue) * 100 : 0,
+          pnl: p.unrealizedPnl,
+          pnlPercent: p.unrealizedPnlPercent ?? p.unrealizedPnlPct ?? 0,
+          color: holdingColors[i % holdingColors.length],
+        };
+      });
+    }
+
+    return [];
+  }, [holdingsData, positions]);
 
   // Transform performance data for equity chart
   const equityCurveData = useMemo(() => {
-    // Authenticated users see real performance data (even if empty)
-    if (usingRealData) {
-      if (!performance?.data || performance.data.length === 0) {
-        return []; // Empty state for authenticated users with no performance data
-      }
-      return performance.data.map((p) => ({
-        timestamp: p.timestamp,
-        value: p.value,
-      }));
+    if (!performance?.data || performance.data.length === 0) {
+      return [];
     }
-    return EQUITY_CURVE;
-  }, [performance, usingRealData]);
+    return performance.data.map((p) => ({
+      timestamp: p.timestamp,
+      value: p.value,
+    }));
+  }, [performance]);
 
-  // Authenticated users see real positions (even if empty)
-  // Unauthenticated users see mock data for demo
-  const displayPositions = usingRealData ? positions : MOCK_POSITIONS;
+  const displayPositions = positions;
+  const displayOrders = orders;
 
-  // Authenticated users see real trades (even if empty)
-  // Unauthenticated users see mock data for demo
-  const displayTrades = usingRealData ? trades : MOCK_TRADES;
+  // Map time range for timeline syncing
+  const RANGE_TO_MS: Record<PerformanceRange, number> = {
+    "1d": 24 * 60 * 60 * 1000,
+    "1w": 7 * 24 * 60 * 60 * 1000,
+    "1m": 30 * 24 * 60 * 60 * 1000,
+    "3m": 90 * 24 * 60 * 60 * 1000,
+    "1y": 365 * 24 * 60 * 60 * 1000,
+    "all": Infinity,
+  };
+  const timelineTimeRange = RANGE_TO_MS[performanceRange];
+
+  // Time range selector options
+  const timeRangeOptions = [
+    { label: "1D", value: "1d" },
+    { label: "1W", value: "1w" },
+    { label: "1M", value: "1m" },
+    { label: "3M", value: "3m" },
+    { label: "1Y", value: "1y" },
+    { label: "ALL", value: "all" },
+  ];
+
+  const handleTradesPageChange = useCallback((newPage: number) => {
+    setTradesPage(newPage);
+  }, [setTradesPage]);
 
   const totalValue = useMemo(() => {
     return displayHoldings.reduce((sum, h) => sum + h.value, 0);
@@ -662,6 +695,18 @@ export function Portfolio() {
     }
   };
 
+  const handleConfirmReset = async () => {
+    setResetting(true);
+    try {
+      await resetPortfolio();
+      setShowResetModal(false);
+    } catch (err) {
+      console.error("[Portfolio] Failed to reset portfolio:", err);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Navbar />
@@ -676,12 +721,21 @@ export function Portfolio() {
               Your holdings and performance
             </Text>
           </View>
-          <Button
-            label="Trade"
-            icon="trending-up"
-            appearance={Appearance.Primary}
-            onPress={() => navigate("/trade")}
-          />
+          <View style={styles.headerActions}>
+            <Button
+              label="Reset Portfolio"
+              icon="refresh-cw"
+              appearance={Appearance.Secondary}
+              size={Size.Small}
+              onPress={() => setShowResetModal(true)}
+            />
+            <Button
+              label="Trade"
+              icon="trending-up"
+              appearance={Appearance.Primary}
+              onPress={() => navigate("/trade")}
+            />
+          </View>
         </View>
 
         {/* Portfolio Summary Bar */}
@@ -711,22 +765,29 @@ export function Portfolio() {
               <Text size={Size.Small} weight="semibold">
                 Portfolio Value
               </Text>
-              <HintIndicator
-                id="portfolio-equity-curve"
-                title="Equity Curve"
-                content="Shows your portfolio value over time. Green indicates gains, red indicates losses compared to the starting value."
-                inline
-                priority={40}
-              />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                <ChartSettingsButton
+                  settings={equityChartSettings}
+                  onSettingsChange={setEquityChartSettings}
+                  size={Size.Small}
+                />
+                <HintIndicator
+                  id="portfolio-equity-curve"
+                  title="Equity Curve"
+                  content="Shows your portfolio value over time. Green indicates gains, red indicates losses compared to the starting value."
+                  inline
+                  priority={40}
+                />
+              </View>
             </View>
             <View style={styles.equityHeader}>
               <Currency
-                value={usingRealData ? (portfolio?.totalValue || 0) : totalValue}
+                value={portfolio?.totalValue || 0}
                 size={Size.ExtraLarge}
                 weight="bold"
                 decimals={2}
               />
-              {usingRealData && portfolio ? (
+              {portfolio ? (
                 <View style={styles.equityChange}>
                   <Text
                     size={Size.Small}
@@ -742,25 +803,24 @@ export function Portfolio() {
                     size={Size.Small}
                   />
                 </View>
-              ) : !usingRealData ? (
-                <View style={styles.equityChange}>
-                  <Text
-                    size={Size.Small}
-                    style={{
-                      color: totalPnl >= 0 ? Colors.status.success : Colors.status.danger,
-                    }}
-                  >
-                    {totalPnl >= 0 ? "+" : "-"}${Math.abs(totalPnl).toLocaleString()}
-                  </Text>
-                  <PercentChange
-                    value={(totalPnl / (totalValue - totalPnl || 1)) * 100}
-                    size={Size.Small}
-                  />
-                </View>
               ) : null}
             </View>
+
+            <SegmentedControl
+              options={timeRangeOptions}
+              value={performanceRange}
+              onChange={(val: string) => setPerformanceRange(val as PerformanceRange)}
+              size={Size.ExtraSmall}
+              style={{ marginBottom: spacing.sm }}
+            />
+
             {equityCurveData.length > 0 ? (
-              <EquityChart data={equityCurveData} height={isMobile ? 150 : 180} />
+              <EquityChart
+                data={equityCurveData}
+                height={isMobile ? 150 : 180}
+                positions={equityChartSettings.showPositions ? displayPositions : []}
+                showGrid={equityChartSettings.showHorizontalGrid}
+              />
             ) : (
               <View style={[styles.equityChartPlaceholder, { height: isMobile ? 150 : 180 }]}>
                 <Text appearance={TextAppearance.Muted} size={Size.Small}>
@@ -768,6 +828,15 @@ export function Portfolio() {
                 </Text>
               </View>
             )}
+
+            {/* Activity Timeline — inside chart card */}
+            <View style={styles.timelineDivider} />
+            <PositionTimelineChart
+              positions={displayPositions}
+              trades={allTimelineTrades}
+              height={isMobile ? 100 : 120}
+              timeRange={timelineTimeRange !== Infinity ? timelineTimeRange : undefined}
+            />
           </Card>
         </View>
 
@@ -799,45 +868,67 @@ export function Portfolio() {
         </View>
 
         {/* Open Positions */}
-        {displayPositions.length > 0 && (
-          <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
-            <Card style={styles.positionsCard}>
-              <View style={styles.cardHeader}>
-                <Text size={Size.Small} weight="semibold">
-                  Open Positions
+        <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+          <Card style={styles.positionsCard}>
+            <View style={styles.cardHeader}>
+              <Text size={Size.Small} weight="semibold">
+                Open Positions
+              </Text>
+              <View style={styles.positionCount}>
+                <Text size={Size.ExtraSmall} style={{ color: Colors.accent.primary }}>
+                  {displayPositions.length} active
                 </Text>
-                <View style={styles.positionCount}>
-                  <Text size={Size.ExtraSmall} style={{ color: Colors.accent.primary }}>
-                    {displayPositions.length} active
-                  </Text>
-                </View>
               </View>
-              {/* Column headers for row variant */}
-              <View style={styles.positionsHeaderRow}>
-                <View style={styles.positionsHeaderLeft}>
-                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>Asset</Text>
-                </View>
-                <View style={styles.positionsHeaderMiddle}>
-                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Size</Text>
-                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Entry</Text>
-                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Mark</Text>
-                </View>
-                <View style={styles.positionsHeaderRight}>
-                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>P&L</Text>
-                </View>
+            </View>
+            {displayPositions.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text appearance={TextAppearance.Muted} size={Size.Small}>
+                  No open positions. Place a trade to get started.
+                </Text>
               </View>
-              <View style={styles.positionsList}>
-                {displayPositions.map((position) => (
-                  <PositionCard
-                    key={position.id}
-                    position={position}
-                    variant="row"
-                    isUpdated={usingRealData ? updatedPositionIds.has(position.id) : false}
-                    onClose={usingRealData ? () => setPositionToClose(position) : undefined}
-                    onEdit={usingRealData ? () => setPositionToModify(position) : undefined}
-                  />
-                ))}
-              </View>
+            ) : (
+              <>
+                {/* Column headers for row variant */}
+                <View style={styles.positionsHeaderRow}>
+                  <View style={styles.positionsHeaderLeft}>
+                    <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>Asset</Text>
+                  </View>
+                  <View style={styles.positionsHeaderMiddle}>
+                    <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Size</Text>
+                    <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Entry</Text>
+                    <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} style={styles.positionsHeaderCell}>Mark</Text>
+                  </View>
+                  <View style={styles.positionsHeaderRight}>
+                    <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>P&L</Text>
+                  </View>
+                </View>
+                <View style={styles.positionsList}>
+                  {displayPositions.map((position) => (
+                    <PositionCard
+                      key={position.id}
+                      position={position}
+                      variant="row"
+                      isUpdated={updatedPositionIds.has(position.id)}
+                      onClose={() => setPositionToClose(position)}
+                      onEdit={() => setPositionToModify(position)}
+                    />
+                  ))}
+                </View>
+              </>
+            )}
+          </Card>
+        </View>
+
+        {/* Open Orders */}
+        {displayOrders.length > 0 && (
+          <View style={[styles.section, { paddingHorizontal: sectionPadding }]}>
+            <Card style={styles.ordersCard}>
+              <OrdersTable
+                orders={displayOrders}
+                loading={ordersLoading}
+                onCancelOrder={(id) => cancelOrder(id)}
+                onCancelAllOrders={() => cancelAllOrders()}
+              />
             </Card>
           </View>
         )}
@@ -856,7 +947,17 @@ export function Portfolio() {
                 onPress={() => navigate("/trade")}
               />
             </View>
-            <TradeHistoryTable trades={displayTrades} loading={loading} />
+            <TradeHistoryTable trades={trades} loading={tradesLoading} />
+            {tradesTotalPages > 1 && (
+              <Pagination
+                currentPage={tradesPage}
+                totalPages={tradesTotalPages}
+                onPageChange={handleTradesPageChange}
+                size={Size.Small}
+                loading={tradesLoading}
+                style={{ marginTop: spacing.md }}
+              />
+            )}
           </Card>
         </View>
       </ScrollView>
@@ -875,6 +976,15 @@ export function Portfolio() {
         onSave={handleSaveModify}
         onCancel={() => setPositionToModify(null)}
         loading={positionModifying}
+      />
+
+      <ResetPortfolioModal
+        visible={showResetModal}
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetModal(false)}
+        loading={resetting}
+        startingBalance={portfolio?.startingBalance ?? 250000}
+        currentBalance={portfolio?.cashBalance}
       />
     </View>
   );
@@ -899,6 +1009,11 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     gap: spacing.xxs,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   section: {
     marginBottom: spacing.lg,
@@ -943,6 +1058,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "rgba(255, 255, 255, 0.02)",
     borderRadius: radii.md,
+  },
+  timelineDivider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   holdingsCard: {
     padding: spacing.md,
@@ -1051,6 +1172,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
+  },
+  ordersCard: {
+    padding: spacing.md,
   },
   tradesCard: {
     padding: spacing.md,

@@ -2,14 +2,11 @@
  * @file ToastContainer.tsx
  * @description Container component that renders all active toasts.
  *
- * Positions toasts at the top-right of the screen and manages
- * their stacking order.
+ * Positions toasts at the top-right of the screen with glassmorphism styling.
  */
 
 import React from "react";
-import { View, StyleSheet } from "react-native";
 import { Toast, type ToastProps } from "./Toast";
-import { spacing } from "../../../styles/tokens";
 
 type ToastContainerProps = {
   toasts: Omit<ToastProps, "onDismiss">[];
@@ -19,21 +16,23 @@ type ToastContainerProps = {
 export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   if (toasts.length === 0) return null;
 
+  const containerStyle: React.CSSProperties = {
+    position: "fixed",
+    top: 24,
+    right: 20,
+    zIndex: 9999,
+    maxWidth: 400,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    pointerEvents: "none",
+  };
+
   return (
-    <View style={styles.container}>
+    <div style={containerStyle}>
       {toasts.map((toast) => (
         <Toast key={toast.id} {...toast} onDismiss={onDismiss} />
       ))}
-    </View>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    top: spacing.xl,
-    right: spacing.lg,
-    zIndex: 9999,
-    maxWidth: 400,
-  },
-});

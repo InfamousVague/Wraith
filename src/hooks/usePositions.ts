@@ -56,8 +56,22 @@ export function usePositions(
   const updateTimeoutRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const fetchPositions = useCallback(async () => {
-    if (!isAuthenticated || !sessionToken || !portfolioId) {
+    // Clear previous data when auth conditions change
+    if (!isAuthenticated) {
       setPositions([]);
+      setError("Not authenticated");
+      return;
+    }
+
+    if (!sessionToken) {
+      setPositions([]);
+      setError("No session token - please log in again");
+      return;
+    }
+
+    if (!portfolioId) {
+      setPositions([]);
+      setError(null); // No error, just no portfolio selected
       return;
     }
 
@@ -70,7 +84,13 @@ export function usePositions(
       setPositions(response.data.map(normalizePosition));
     } catch (err) {
       console.warn("Failed to fetch positions:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch positions");
+      // Check for auth-related errors
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch positions";
+      if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
+        setError("Session expired - please log in again");
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

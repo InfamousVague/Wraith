@@ -32,6 +32,7 @@ import { Colors } from "@wraith/ghost/tokens";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { Navbar, LoginProgress, LogoutConfirmModal } from "../components/ui";
+import { UsernameEditor } from "../components/profile/UsernameEditor";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 // Theme colors
@@ -68,6 +69,7 @@ export function Profile() {
     disconnectFromServer,
     serverProfile,
     updateLeaderboardVisibility,
+    refreshServerProfile,
   } = useAuth();
 
   const [importKey, setImportKey] = useState("");
@@ -451,10 +453,13 @@ export function Profile() {
 
                         {/* Username Section */}
                         <View style={styles.profileSetting}>
-                          <Text size={Size.Medium} weight="semibold">
-                            {t("auth:profile.username")}
-                          </Text>
-                          <Text size={Size.Medium}>{serverProfile.username}</Text>
+                          <UsernameEditor
+                            currentUsername={serverProfile.username}
+                            onUsernameUpdated={(updatedProfile) => {
+                              // Update the profile state without reloading the page
+                              refreshServerProfile(updatedProfile);
+                            }}
+                          />
                         </View>
 
                         {/* Leaderboard Opt-in Section */}

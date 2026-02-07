@@ -29,8 +29,22 @@ export function usePerformance(
   const [error, setError] = useState<string | null>(null);
 
   const fetchPerformance = useCallback(async () => {
-    if (!isAuthenticated || !sessionToken || !portfolioId) {
+    // Clear previous data when auth conditions change
+    if (!isAuthenticated) {
       setPerformance(null);
+      setError("Not authenticated");
+      return;
+    }
+
+    if (!sessionToken) {
+      setPerformance(null);
+      setError("No session token - please log in again");
+      return;
+    }
+
+    if (!portfolioId) {
+      setPerformance(null);
+      setError(null); // No error, just no portfolio selected
       return;
     }
 
@@ -42,7 +56,25 @@ export function usePerformance(
       setPerformance(response.data);
     } catch (err) {
       console.warn("Failed to fetch performance:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch performance");
+      // Check for auth-related errors
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch performance";
+      if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
+        setError("Session expired - please log in again");
+      } else if (errorMessage.includes("404")) {
+        // 404 might mean no performance data yet, return empty response
+        setPerformance({
+          range,
+          data: [],
+          startValue: 0,
+          endValue: 0,
+          totalPnl: 0,
+          totalPnlPercent: 0,
+          timestamp: Date.now(),
+        });
+        setError(null);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

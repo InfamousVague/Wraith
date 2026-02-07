@@ -7,3 +7,4 @@ export { PortfolioHealthCard, type PortfolioHealthCardProps } from "./PortfolioH
 export { PortfolioStatsCard, type PortfolioStatsCardProps } from "./PortfolioStatsCard";
 export { DrawdownChart, type DrawdownChartProps } from "./DrawdownChart";
 export { PortfolioAvatar, type PortfolioAvatarProps } from "./PortfolioAvatar";
+export { PositionTimelineChart } from "./PositionTimelineChart";

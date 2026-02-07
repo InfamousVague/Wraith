@@ -33,7 +33,7 @@ export type UsernameConfig = {
 
 const DEFAULT_CONFIG: UsernameConfig = {
   minLength: 3,
-  maxLength: 20,
+  maxLength: 30,
   allowedSpecialChars: ["_", "-", "."],
 };
 
@@ -339,7 +339,7 @@ export function generateSuggestions(
  * Escape special regex characters.
  */
 function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return str.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&");
 }
 
 /**

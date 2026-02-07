@@ -1614,6 +1614,69 @@ class HauntClient {
       body: JSON.stringify({ portfolioId, config }),
     });
   }
+  // ─── Tap Trading (Gridline) ──────────────────────────────────
+
+  /**
+   * Get grid configuration for a symbol
+   */
+  async getGridConfig(symbol: string): Promise<ApiResponse<unknown>> {
+    return this.fetch(`/api/grid/config/${symbol}`);
+  }
+
+  /**
+   * Get full grid state (config + multipliers + active positions)
+   */
+  async getGridState(
+    symbol: string,
+    opts?: { row_count?: number; col_count?: number; portfolio_id?: string }
+  ): Promise<ApiResponse<unknown>> {
+    const params = new URLSearchParams();
+    if (opts?.row_count) params.set("row_count", String(opts.row_count));
+    if (opts?.col_count) params.set("col_count", String(opts.col_count));
+    if (opts?.portfolio_id) params.set("portfolio_id", opts.portfolio_id);
+    const qs = params.toString();
+    return this.fetch(`/api/grid/state/${symbol}${qs ? `?${qs}` : ""}`);
+  }
+
+  /**
+   * Get active grid positions for a portfolio
+   */
+  async getGridPositions(token: string, portfolioId: string): Promise<ApiResponse<unknown>> {
+    return this.fetchWithAuth(`/api/grid/positions/${portfolioId}`, token);
+  }
+
+  /**
+   * Get grid stats for a portfolio and symbol (rolling 24h)
+   */
+  async getGridStats(token: string, portfolioId: string, symbol: string): Promise<ApiResponse<unknown>> {
+    return this.fetchWithAuth(`/api/grid/stats/${portfolioId}/${symbol}`, token);
+  }
+
+  /**
+   * Place a grid trade — client sends (row, col), server is authoritative
+   */
+  async placeGridTrade(
+    token: string,
+    params: {
+      symbol: string;
+      rowIndex: number;
+      colIndex: number;
+      amount: number;
+      leverage: number;
+      portfolioId: string;
+      priceLow: number;
+      priceHigh: number;
+      timeStart: number;
+      timeEnd: number;
+      multiplier: number;
+    }
+  ): Promise<ApiResponse<unknown>> {
+    return this.fetchWithAuth("/api/grid/trade", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+  }
 }
 
 // Default client instance

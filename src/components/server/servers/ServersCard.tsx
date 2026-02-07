@@ -219,7 +219,7 @@ export function ServersCard() {
                 backgroundColor: useAutoFastest
                   ? `${Colors.status.success}15`
                   : pressed
-                  ? themeColors.background.hover
+                  ? themeColors.background.raised
                   : themeColors.background.overlay,
                 borderColor: useAutoFastest
                   ? Colors.status.success

@@ -31,7 +31,9 @@ import { useAuth } from "../../../context/AuthContext";
 import { useApiServer } from "../../../context/ApiServerContext";
 // Theme toggle removed - available in settings
 import { useBreakpoint } from "../../../hooks/useBreakpoint";
+import { useToast } from "../../../context/ToastContext";
 import { ServersCard } from "../../server/servers";
+import { NotificationHistoryModal } from "../notification-history";
 import { AnimatedHamburger } from "./AnimatedHamburger";
 import type { NavbarProps } from "./types";
 
@@ -52,8 +54,10 @@ export function Navbar() {
   const { isAuthenticated, user, serverProfile } = useAuth();
   const { activeServer } = useApiServer();
   const { isMobile } = useBreakpoint();
+  const { unreadCount } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
   const [serverPopoverOpen, setServerPopoverOpen] = useState(false);
+  const [notifModalOpen, setNotifModalOpen] = useState(false);
   const serverIndicatorRef = useRef<View>(null);
 
   const statusColor = getServerStatusColor(activeServer?.status ?? "checking", activeServer?.latencyMs ?? null);
@@ -164,6 +168,24 @@ export function Navbar() {
                   </Text>
                 </Pressable>
 
+                {/* Notifications */}
+                <Pressable
+                  onPress={() => { setMenuOpen(false); setNotifModalOpen(true); }}
+                  style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
+                >
+                  <View style={{ position: "relative" }}>
+                    <Icon name="bell" size={Size.Medium} color={themeColors.text.primary} />
+                    {unreadCount > 0 && (
+                      <View style={styles.bellBadgeMobile}>
+                        <Text size={Size.TwoXSmall} style={styles.bellBadgeText}>
+                          {unreadCount > 9 ? "9+" : String(unreadCount)}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text size={Size.Medium}>Notifications</Text>
+                </Pressable>
+
                 {/* Settings */}
                 <Pressable
                   onPress={handleSettingsClick}
@@ -185,6 +207,12 @@ export function Navbar() {
         >
           <ServersCard />
         </BottomSheet>
+
+        {/* Notification History Modal (mobile) */}
+        <NotificationHistoryModal
+          visible={notifModalOpen}
+          onClose={() => setNotifModalOpen(false)}
+        />
       </>
     );
   }
@@ -263,6 +291,21 @@ export function Navbar() {
             iconLeft="user"
           />
 
+          {/* Notification bell */}
+          <Pressable
+            onPress={() => setNotifModalOpen(true)}
+            style={styles.bellButton}
+          >
+            <Icon name="bell" size={Size.Medium} color={themeColors.text.primary} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text size={Size.TwoXSmall} style={styles.bellBadgeText}>
+                  {unreadCount > 9 ? "9+" : String(unreadCount)}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
           {/* Settings button (icon-only) */}
           <Button
             label=""
@@ -274,6 +317,12 @@ export function Navbar() {
           />
         </View>
       </View>
+
+      {/* Notification History Modal */}
+      <NotificationHistoryModal
+        visible={notifModalOpen}
+        onClose={() => setNotifModalOpen(false)}
+      />
 
       {/* Server Selector Popover (desktop) */}
       <Popover
@@ -391,5 +440,45 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radii.lg,
     minHeight: 56,
+  },
+  // Bell / notification styles
+  bellButton: {
+    position: "relative",
+    padding: spacing.xs,
+    borderRadius: radii.md,
+    minHeight: 36,
+    minWidth: 36,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 2,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.status.danger,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  bellBadgeMobile: {
+    position: "absolute",
+    top: -4,
+    right: -6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.status.danger,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  bellBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 14,
   },
 });

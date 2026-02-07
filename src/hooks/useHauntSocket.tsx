@@ -129,6 +129,71 @@ export type AlertUpdate = {
   timestamp: number;
 };
 
+// Gridline / Tap Trading event types
+export type GridMultiplierUpdateData = {
+  symbol: string;
+  multipliers: number[][];
+  config: {
+    symbol: string;
+    priceHigh: number;
+    priceLow: number;
+    rowCount: number;
+    colCount: number;
+    intervalMs: number;
+    rowHeight: number;
+    maxLeverage: number;
+  };
+  currentPrice: number;
+  current_price?: number; // Legacy fallback
+  current_col_index?: number;
+  timestamp: number;
+};
+
+export type GridTradePlacedData = {
+  position: {
+    id: string;
+    portfolio_id: string;
+    symbol: string;
+    row_index: number;
+    col_index: number;
+    amount: number;
+    leverage: number;
+    multiplier: number;
+    price_low: number;
+    price_high: number;
+    time_start: number;
+    time_end: number;
+    status: string;
+    created_at: number;
+  };
+  timestamp: number;
+};
+
+export type GridTradeResolvedData = {
+  position: {
+    id: string;
+    status: "won" | "lost";
+    result_pnl: number;
+  };
+  won: boolean;
+  payout: number;
+  pnl: number;
+  timestamp: number;
+};
+
+export type GridColumnExpiredData = {
+  symbol: string;
+  col_index: number;
+  time_end: number;
+  results: Array<{
+    position_id: string;
+    won: boolean;
+    payout: number;
+    pnl: number;
+  }>;
+  timestamp: number;
+};
+
 export type WSMessage =
   | { type: "price_update"; data: PriceUpdate }
   | { type: "market_update"; data: MarketUpdate }
@@ -137,6 +202,12 @@ export type WSMessage =
   | { type: "position_update"; data: PositionUpdate }
   | { type: "order_update"; data: OrderUpdate }
   | { type: "alert_triggered"; data: AlertUpdate }
+  | { type: "grid_multiplier_update"; data: GridMultiplierUpdateData }
+  | { type: "gridline_trade_placed"; data: GridTradePlacedData }
+  | { type: "gridline_trade_resolved"; data: GridTradeResolvedData }
+  | { type: "grid_column_expired"; data: GridColumnExpiredData }
+  | { type: "gridline_subscribed" }
+  | { type: "gridline_unsubscribed" }
   | { type: "subscribed"; assets: string[] }
   | { type: "unsubscribed"; assets: string[] }
   | { type: "throttle_set"; throttle_ms: number }
@@ -164,6 +235,14 @@ type HauntSocketContextType = {
   unsubscribePeers: () => void;
   subscribePortfolio: (token: string) => void;
   unsubscribePortfolio: () => void;
+  // Gridline / Tap Trading
+  subscribeGridline: (symbol: string, portfolioId?: string) => void;
+  unsubscribeGridline: (symbol: string) => void;
+  onGridMultiplierUpdate: (callback: (update: GridMultiplierUpdateData) => void) => () => void;
+  onGridTradePlaced: (callback: (update: GridTradePlacedData) => void) => () => void;
+  onGridTradeResolved: (callback: (update: GridTradeResolvedData) => void) => () => void;
+  onGridColumnExpired: (callback: (update: GridColumnExpiredData) => void) => () => void;
+  gridlineSubscribed: boolean;
   peersSubscribed: boolean;
   portfolioSubscribed: boolean;
   updateCount: number;
@@ -192,6 +271,7 @@ export function HauntSocketProvider({
   const [updateCount, setUpdateCount] = useState(0);
   const [peersSubscribed, setPeersSubscribed] = useState(false);
   const [portfolioSubscribed, setPortfolioSubscribed] = useState(false);
+  const [gridlineSubscribed, setGridlineSubscribed] = useState(false);
 
   // Get active server from context
   const { activeServer } = useApiServer();
@@ -235,6 +315,12 @@ export function HauntSocketProvider({
   const positionCallbacksRef = useRef<Set<(update: PositionUpdate) => void>>(new Set());
   const orderCallbacksRef = useRef<Set<(update: OrderUpdate) => void>>(new Set());
   const alertCallbacksRef = useRef<Set<(update: AlertUpdate) => void>>(new Set());
+
+  // Gridline callback registries
+  const gridMultiplierCallbacksRef = useRef<Set<(update: GridMultiplierUpdateData) => void>>(new Set());
+  const gridTradePlacedCallbacksRef = useRef<Set<(update: GridTradePlacedData) => void>>(new Set());
+  const gridTradeResolvedCallbacksRef = useRef<Set<(update: GridTradeResolvedData) => void>>(new Set());
+  const gridColumnExpiredCallbacksRef = useRef<Set<(update: GridColumnExpiredData) => void>>(new Set());
 
   const connect = useCallback(() => {
     // Don't connect if already open or connecting
@@ -342,6 +428,33 @@ export function HauntSocketProvider({
             case "portfolio_unsubscribed":
               setPortfolioSubscribed(false);
               logger.data("Haunt WS", { action: "portfolio_unsubscribed" });
+              break;
+
+            // Gridline / Tap Trading events
+            case "grid_multiplier_update":
+              gridMultiplierCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "gridline_trade_placed":
+              gridTradePlacedCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "gridline_trade_resolved":
+              gridTradeResolvedCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "grid_column_expired":
+              gridColumnExpiredCallbacksRef.current.forEach((cb) => cb(message.data));
+              break;
+
+            case "gridline_subscribed":
+              setGridlineSubscribed(true);
+              logger.data("Haunt WS", { action: "gridline_subscribed" });
+              break;
+
+            case "gridline_unsubscribed":
+              setGridlineSubscribed(false);
+              logger.data("Haunt WS", { action: "gridline_unsubscribed" });
               break;
 
             case "error":
@@ -518,6 +631,46 @@ export function HauntSocketProvider({
     }
   }, []);
 
+  // Gridline / Tap Trading subscribe/unsubscribe
+  const subscribeGridline = useCallback((symbol: string, portfolioId?: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: "subscribe_gridline",
+        symbol,
+        portfolio_id: portfolioId,
+      }));
+    }
+  }, []);
+
+  const unsubscribeGridline = useCallback((symbol: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        type: "unsubscribe_gridline",
+        symbol,
+      }));
+    }
+  }, []);
+
+  const onGridMultiplierUpdate = useCallback((callback: (update: GridMultiplierUpdateData) => void) => {
+    gridMultiplierCallbacksRef.current.add(callback);
+    return () => { gridMultiplierCallbacksRef.current.delete(callback); };
+  }, []);
+
+  const onGridTradePlaced = useCallback((callback: (update: GridTradePlacedData) => void) => {
+    gridTradePlacedCallbacksRef.current.add(callback);
+    return () => { gridTradePlacedCallbacksRef.current.delete(callback); };
+  }, []);
+
+  const onGridTradeResolved = useCallback((callback: (update: GridTradeResolvedData) => void) => {
+    gridTradeResolvedCallbacksRef.current.add(callback);
+    return () => { gridTradeResolvedCallbacksRef.current.delete(callback); };
+  }, []);
+
+  const onGridColumnExpired = useCallback((callback: (update: GridColumnExpiredData) => void) => {
+    gridColumnExpiredCallbacksRef.current.add(callback);
+    return () => { gridColumnExpiredCallbacksRef.current.delete(callback); };
+  }, []);
+
   // Memoize context value to prevent unnecessary re-renders of all consumers
   const value = useMemo<HauntSocketContextType>(() => ({
     connected,
@@ -537,10 +690,17 @@ export function HauntSocketProvider({
     unsubscribePeers,
     subscribePortfolio,
     unsubscribePortfolio,
+    subscribeGridline,
+    unsubscribeGridline,
+    onGridMultiplierUpdate,
+    onGridTradePlaced,
+    onGridTradeResolved,
+    onGridColumnExpired,
+    gridlineSubscribed,
     peersSubscribed,
     portfolioSubscribed,
     updateCount,
-  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, onPeerUpdate, onPortfolioUpdate, onPositionUpdate, onOrderUpdate, onAlertTriggered, subscribePeers, unsubscribePeers, subscribePortfolio, unsubscribePortfolio, peersSubscribed, portfolioSubscribed, updateCount]);
+  }), [connected, subscribe, unsubscribe, setThrottle, subscriptions, error, onPriceUpdate, onMarketUpdate, onPeerUpdate, onPortfolioUpdate, onPositionUpdate, onOrderUpdate, onAlertTriggered, subscribePeers, unsubscribePeers, subscribePortfolio, unsubscribePortfolio, subscribeGridline, unsubscribeGridline, onGridMultiplierUpdate, onGridTradePlaced, onGridTradeResolved, onGridColumnExpired, gridlineSubscribed, peersSubscribed, portfolioSubscribed, updateCount]);
 
   return (
     <HauntSocketContext.Provider value={value}>
@@ -568,6 +728,13 @@ const noopContext: HauntSocketContextType = {
   unsubscribePeers: () => {},
   subscribePortfolio: () => {},
   unsubscribePortfolio: () => {},
+  subscribeGridline: () => {},
+  unsubscribeGridline: () => {},
+  onGridMultiplierUpdate: () => () => {},
+  onGridTradePlaced: () => () => {},
+  onGridTradeResolved: () => () => {},
+  onGridColumnExpired: () => () => {},
+  gridlineSubscribed: false,
   peersSubscribed: false,
   portfolioSubscribed: false,
   updateCount: 0,

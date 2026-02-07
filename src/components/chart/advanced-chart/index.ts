@@ -21,6 +21,8 @@ export type {
 
 // Components
 export { ChartLegend } from "./ChartLegend";
+export { ChartSettingsButton, DEFAULT_CHART_SETTINGS } from "./ChartSettings";
+export type { ChartSettings, CrosshairMode } from "./ChartSettings";
 
 // Utils
 export {

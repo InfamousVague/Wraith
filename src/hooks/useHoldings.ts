@@ -30,8 +30,22 @@ export function useHoldings(
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchHoldings = useCallback(async () => {
-    if (!isAuthenticated || !sessionToken || !portfolioId) {
+    // Clear previous data when auth conditions change
+    if (!isAuthenticated) {
       setHoldings(null);
+      setError("Not authenticated");
+      return;
+    }
+
+    if (!sessionToken) {
+      setHoldings(null);
+      setError("No session token - please log in again");
+      return;
+    }
+
+    if (!portfolioId) {
+      setHoldings(null);
+      setError(null); // No error, just no portfolio selected
       return;
     }
 
@@ -43,7 +57,17 @@ export function useHoldings(
       setHoldings(response.data);
     } catch (err) {
       console.warn("Failed to fetch holdings:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch holdings");
+      // Check for auth-related errors
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch holdings";
+      if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
+        setError("Session expired - please log in again");
+      } else if (errorMessage.includes("404")) {
+        // 404 might mean no holdings exist yet, which is fine
+        setHoldings({ holdings: [], totalValue: 0, totalPnl: 0, timestamp: Date.now() });
+        setError(null);
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

@@ -37,9 +37,24 @@ export function usePortfolio(pollInterval: number = DEFAULT_POLL_INTERVAL): UseP
   const fetchPortfolio = useCallback(async () => {
     // Require full authentication including server profile with publicKey
     // Without publicKey, we can't properly filter portfolios by user
-    if (!isAuthenticated || !sessionToken || !serverProfile?.publicKey) {
+    if (!isAuthenticated) {
       setPortfolio(null);
       setPortfolioId(null);
+      setError("Not authenticated");
+      return;
+    }
+
+    if (!sessionToken) {
+      setPortfolio(null);
+      setPortfolioId(null);
+      setError("No session token - please log in again");
+      return;
+    }
+
+    if (!serverProfile?.publicKey) {
+      setPortfolio(null);
+      setPortfolioId(null);
+      setError("No server profile - authentication incomplete");
       return;
     }
 
@@ -77,7 +92,13 @@ export function usePortfolio(pollInterval: number = DEFAULT_POLL_INTERVAL): UseP
       setPortfolio(defaultPortfolio);
     } catch (err) {
       console.warn("Failed to fetch portfolio:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch portfolio");
+      // Check for auth-related errors
+      const errorMessage = err instanceof Error ? err.message : "Failed to fetch portfolio";
+      if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Unauthorized")) {
+        setError("Session expired - please log in again");
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

@@ -30,6 +30,7 @@
  * - `/asset/:id` - Asset detail page (charts, signals, predictions)
  * - `/portfolio` - Portfolio overview (holdings, performance, P&L)
  * - `/trade` - Paper trading terminal
+ * - `/tap/:symbol?` - Tap Trading (real-time prediction grid)
  * - `/profile` - User profile management
  * - `/settings` - Application settings
  */
@@ -61,6 +62,7 @@ import { OfflineBanner, Navbar } from "./components/ui";
 
 // Lazy load heavy pages for faster navigation
 const Trade = React.lazy(() => import("./pages/TradeSandbox").then(m => ({ default: m.TradeSandbox })));
+const TapTrading = React.lazy(() => import("./pages/TapTrading").then(m => ({ default: m.TapTrading })));
 
 /** Loading fallback for lazy-loaded pages */
 function PageLoader() {
@@ -126,6 +128,7 @@ function App() {
           <Route path="/portfolio" element={<ProtectedRoute><Portfolio /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/trade/:symbol?" element={<Suspense fallback={<PageLoader />}><Trade /></Suspense>} />
+          <Route path="/tap/:symbol?" element={<Suspense fallback={<PageLoader />}><TapTrading /></Suspense>} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

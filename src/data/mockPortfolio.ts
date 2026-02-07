@@ -56,9 +56,9 @@ export interface Trade {
 
 export const MOCK_PORTFOLIO: Portfolio = {
   id: "portfolio-1",
-  balance: 5000000,
-  marginUsed: 250000,
-  marginAvailable: 4750000,
+  balance: 222650,
+  marginUsed: 18750,
+  marginAvailable: 203900,
   unrealizedPnl: 15234.56,
   realizedPnl: 42100.0,
 };

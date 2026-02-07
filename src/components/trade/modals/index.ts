@@ -3,3 +3,4 @@ export { TradeReceiptModal, type TradeReceiptModalProps } from "./TradeReceiptMo
 export { ClosePositionModal, type ClosePositionModalProps } from "./ClosePositionModal";
 export { ModifyPositionModal, type ModifyPositionModalProps } from "./ModifyPositionModal";
 export { DrawdownWarningModal, type DrawdownWarningModalProps } from "./DrawdownWarningModal";
+export { ResetPortfolioModal, type ResetPortfolioModalProps } from "./ResetPortfolioModal";
