@@ -807,16 +807,12 @@ export function TapCanvas({
 
       // Fill
       ctx.fillStyle = bgColor;
-      ctx.beginPath();
-      ctx.roundRect(cellX + 1, cellY + 1, cellWidth - 2, cellHeight - 2, 3);
-      ctx.fill();
+      ctx.fillRect(cellX, cellY, cellWidth, cellHeight);
 
       // Border
       ctx.strokeStyle = borderColor;
       ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(cellX + 1, cellY + 1, cellWidth - 2, cellHeight - 2, 3);
-      ctx.stroke();
+      ctx.strokeRect(cellX, cellY, cellWidth, cellHeight);
 
       // Text inside tile
       if (pos.status === "active" || pos.status === "pending") {

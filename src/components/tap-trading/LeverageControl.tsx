@@ -4,14 +4,14 @@
  *
  * Contains:
  * - Labeled leverage segmented control
- * - Labeled bet size segmented control
+ * - Labeled bet size segmented control (with custom input)
  * - Win/Loss record with PnL
  * - Balance display
  * - Info tooltips (HintIndicator) on labeled sections
  */
 
-import React, { useMemo } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { View, StyleSheet, Pressable, TextInput } from "react-native";
 import { SegmentedControl, Text, Divider, Icon, Currency, type SegmentOption } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
@@ -41,6 +41,8 @@ type LeverageControlProps = {
   symbol: string;
 };
 
+const CUSTOM_KEY = "__custom__";
+
 export function LeverageControl({
   value,
   presets,
@@ -53,16 +55,101 @@ export function LeverageControl({
   symbol,
 }: LeverageControlProps) {
   const themeColors = useThemeColors();
+  const [customMode, setCustomMode] = useState(false);
+  const [customInput, setCustomInput] = useState("");
+  const [customError, setCustomError] = useState<string | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   const leverageOptions: SegmentOption<string>[] = useMemo(
     () => presets.map((p) => ({ value: String(p), label: `${p}x` })),
     [presets]
   );
 
+  // Bet size options: presets + "Custom" pill
   const betSizeOptions: SegmentOption<string>[] = useMemo(
-    () => betSizePresets.map((s) => ({ value: String(s), label: `$${s}` })),
+    () => [
+      ...betSizePresets.map((s) => ({ value: String(s), label: `$${s}` })),
+      { value: CUSTOM_KEY, label: "Custom" },
+    ],
     [betSizePresets]
   );
+
+  // Track whether current betSize matches a preset
+  const isPreset = betSizePresets.includes(betSize);
+  const segmentValue = customMode || !isPreset ? CUSTOM_KEY : String(betSize);
+
+  // Focus the input when custom mode activates
+  useEffect(() => {
+    if (customMode) {
+      const t = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [customMode]);
+
+  const handleSegmentChange = useCallback(
+    (v: string) => {
+      if (v === CUSTOM_KEY) {
+        setCustomMode(true);
+        setCustomInput(isPreset ? "" : String(betSize));
+        setCustomError(null);
+      } else {
+        setCustomMode(false);
+        setCustomError(null);
+        onBetSizeChange(Number(v));
+      }
+    },
+    [onBetSizeChange, betSize, isPreset]
+  );
+
+  const validateAndApply = useCallback(
+    (raw: string) => {
+      const trimmed = raw.replace(/[^0-9.]/g, "");
+      const num = parseFloat(trimmed);
+      if (!trimmed || isNaN(num) || num <= 0) {
+        setCustomError("Enter a valid amount");
+        return;
+      }
+      if (num > balance) {
+        setCustomError(`Max $${balance.toFixed(2)}`);
+        return;
+      }
+      setCustomError(null);
+      const rounded = Math.round(num * 100) / 100;
+      onBetSizeChange(rounded);
+    },
+    [balance, onBetSizeChange]
+  );
+
+  const handleCustomInputChange = useCallback(
+    (text: string) => {
+      const clean = text.replace(/[^0-9.]/g, "");
+      const parts = clean.split(".");
+      const sanitized = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : clean;
+      setCustomInput(sanitized);
+      setCustomError(null);
+
+      const num = parseFloat(sanitized);
+      if (sanitized && !isNaN(num) && num > 0) {
+        if (num > balance) {
+          setCustomError(`Max $${balance.toFixed(2)}`);
+        }
+      }
+    },
+    [balance]
+  );
+
+  const handleCustomSubmit = useCallback(() => {
+    validateAndApply(customInput);
+  }, [customInput, validateAndApply]);
+
+  const handleCustomBlur = useCallback(() => {
+    if (customInput) {
+      validateAndApply(customInput);
+    } else {
+      setCustomMode(false);
+      onBetSizeChange(betSizePresets[0] ?? 5);
+    }
+  }, [customInput, validateAndApply, betSizePresets, onBetSizeChange]);
 
   const pnl = stats?.net_pnl ?? 0;
   const wins = stats?.wins ?? 0;
@@ -80,7 +167,7 @@ export function LeverageControl({
         {/* Leverage section */}
         <View style={styles.labeledControl}>
           <View style={styles.labelRow}>
-            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+            <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
               Leverage
             </Text>
             <HintIndicator
@@ -113,7 +200,6 @@ export function LeverageControl({
             options={leverageOptions}
             value={String(value)}
             onChange={(v) => onChange(Number(v))}
-            size={Size.Small}
           />
         </View>
 
@@ -122,7 +208,7 @@ export function LeverageControl({
         {/* Bet size section */}
         <View style={styles.labeledControl}>
           <View style={styles.labelRow}>
-            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+            <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
               Size
             </Text>
             <HintIndicator
@@ -136,8 +222,8 @@ export function LeverageControl({
             >
               <TooltipContainer>
                 <TooltipText>
-                  The amount wagered per tap. Select a preset to change your bet
-                  size for the next trade.
+                  The amount wagered per tap. Select a preset or enter a custom
+                  amount (up to your available balance).
                 </TooltipText>
                 <TooltipListItem icon="dollar-sign" color={Colors.status.success}>
                   Your risk per trade is fixed at the bet amount
@@ -148,12 +234,39 @@ export function LeverageControl({
               </TooltipContainer>
             </HintIndicator>
           </View>
-          <SegmentedControl
-            options={betSizeOptions}
-            value={String(betSize)}
-            onChange={(v) => onBetSizeChange(Number(v))}
-            size={Size.Small}
-          />
+          <View style={styles.betSizeRow}>
+            <SegmentedControl
+              options={betSizeOptions}
+              value={segmentValue}
+              onChange={handleSegmentChange}
+            />
+            {customMode && (
+              <View style={styles.customInputWrap}>
+                <Text size={Size.ExtraSmall} style={{ color: Colors.text.muted }}>$</Text>
+                <TextInput
+                  ref={inputRef}
+                  value={customInput}
+                  onChangeText={handleCustomInputChange}
+                  onSubmitEditing={handleCustomSubmit}
+                  onBlur={handleCustomBlur}
+                  placeholder={`max ${Math.floor(balance)}`}
+                  placeholderTextColor={Colors.text.muted}
+                  keyboardType="decimal-pad"
+                  returnKeyType="done"
+                  style={[
+                    styles.customInput,
+                    customError ? styles.customInputError : null,
+                  ]}
+                  maxLength={10}
+                />
+                {customError && (
+                  <Text size={Size.ExtraSmall} style={{ color: Colors.status.danger }}>
+                    {customError}
+                  </Text>
+                )}
+              </View>
+            )}
+          </View>
         </View>
       </View>
 
@@ -162,7 +275,7 @@ export function LeverageControl({
         {/* Win / Loss */}
         <View style={styles.statBlock}>
           <View style={styles.labelRow}>
-            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+            <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
               W / L
             </Text>
             <HintIndicator
@@ -276,11 +389,11 @@ export function LeverageControl({
             </HintIndicator>
           </View>
           <View style={styles.winLossRow}>
-            <Text size={Size.ExtraSmall} weight="semibold" style={{ color: Colors.status.success }}>
+            <Text size={Size.Small} weight="semibold" style={{ color: Colors.status.success }}>
               {wins}
             </Text>
-            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>/</Text>
-            <Text size={Size.ExtraSmall} weight="semibold" style={{ color: Colors.status.danger }}>
+            <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>/</Text>
+            <Text size={Size.Small} weight="semibold" style={{ color: Colors.status.danger }}>
               {losses}
             </Text>
           </View>
@@ -290,10 +403,10 @@ export function LeverageControl({
 
         {/* PnL */}
         <View style={styles.statBlock}>
-          <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
             PnL
           </Text>
-          <Text size={Size.ExtraSmall} weight="semibold" style={{ color: pnlColor }}>
+          <Text size={Size.Small} weight="semibold" style={{ color: pnlColor }}>
             {pnl >= 0 ? "+" : ""}{pnl.toFixed(2)}
           </Text>
         </View>
@@ -302,12 +415,12 @@ export function LeverageControl({
 
         {/* Balance */}
         <View style={styles.statBlock}>
-          <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+          <Text size={Size.ExtraSmall} appearance={TextAppearance.Muted}>
             Bal
           </Text>
           <Currency
             value={balance}
-            size={Size.ExtraSmall}
+            size={Size.Small}
             weight="semibold"
             decimals={2}
           />
@@ -318,8 +431,8 @@ export function LeverageControl({
           <>
             <Divider orientation="vertical" style={styles.statDivider} />
             <View style={styles.streakBadge}>
-              <Icon name="zap" size={Size.TwoXSmall} color={Colors.status.warning} />
-              <Text size={Size.ExtraSmall} weight="semibold" style={{ color: Colors.status.warning }}>
+              <Icon name="zap" size={Size.ExtraSmall} color={Colors.status.warning} />
+              <Text size={Size.Small} weight="semibold" style={{ color: Colors.status.warning }}>
                 {stats.win_streak}
               </Text>
             </View>
@@ -335,48 +448,75 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: spacing.xxs,
+    paddingVertical: spacing.xs,
     paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   controlsGroup: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   labeledControl: {
-    gap: 2,
+    gap: 3,
   },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     paddingLeft: 2,
   },
   divider: {
-    height: 32,
+    height: 40,
   },
   statsGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
   statBlock: {
     alignItems: "center",
-    gap: 1,
+    gap: 2,
   },
   statDivider: {
-    height: 20,
+    height: 28,
   },
   winLossRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 3,
   },
   streakBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 3,
+  },
+  betSizeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  customInputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  customInput: {
+    width: 80,
+    height: 36,
+    borderWidth: 1,
+    borderColor: Colors.border.subtle,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    fontSize: 15,
+    color: "#FFFFFF",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    // @ts-ignore web-only
+    outlineStyle: "none",
+    fontFamily: "-apple-system, system-ui, sans-serif",
+  },
+  customInputError: {
+    borderColor: Colors.status.danger,
   },
 });
