@@ -9,6 +9,7 @@ export { AssetInfoCard } from "./AssetInfoCard";
 export { BetSizeToggle } from "./BetSizeToggle";
 export { LeverageControl } from "./LeverageControl";
 export { NotificationBanner } from "./NotificationBanner";
+export { TapStatsCard } from "./TapStatsCard";
 
 // Future:
 // export { AssetSelector } from "./AssetSelector";

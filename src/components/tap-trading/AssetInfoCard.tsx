@@ -6,10 +6,9 @@
 
 import React from "react";
 import { View, StyleSheet } from "react-native";
-import { Text, Avatar, PercentChange, Currency } from "@wraith/ghost/components";
-import { Size, TextAppearance } from "@wraith/ghost/enums";
-import { Colors } from "@wraith/ghost/tokens";
-import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Text, Avatar, PercentChange, Currency, Card, CardBorder, CardVariant } from "@wraith/ghost/components";
+import { Size, TextAppearance, Shape } from "@wraith/ghost/enums";
+
 import { spacing } from "../../styles/tokens";
 import type { Asset } from "../../types/asset";
 
@@ -20,54 +19,57 @@ type AssetInfoCardProps = {
 };
 
 export function AssetInfoCard({ asset, livePrice }: AssetInfoCardProps) {
-  const themeColors = useThemeColors();
-
   if (!asset) return null;
 
   const displayPrice = livePrice ?? asset.price;
 
   return (
-    <View style={[styles.card, { borderColor: themeColors.border.subtle }]}>
-      <Avatar
-        uri={asset.image}
-        initials={asset.symbol.slice(0, 2)}
-        size={Size.Medium}
-      />
-      <View style={styles.info}>
-        <View style={styles.nameRow}>
-          <Text size={Size.Medium} weight="bold" numberOfLines={1}>
-            {asset.name}
-          </Text>
-          <Text size={Size.Small} appearance={TextAppearance.Muted}>
-            {asset.symbol}
-          </Text>
-        </View>
-        <View style={styles.priceRow}>
-          <Currency
-            value={displayPrice}
-            size={Size.Medium}
-            weight="semibold"
-            decimals={displayPrice < 1 ? 6 : 2}
-          />
-          <PercentChange value={asset.change24h} size={Size.Small} />
+    <Card
+      variant={CardVariant.Surface}
+      border={CardBorder.Solid}
+      shape={Shape.Rounded}
+      padding={spacing.xs}
+      style={styles.card}
+    >
+      <View style={styles.row}>
+        <Avatar
+          uri={asset.image}
+          initials={asset.symbol.slice(0, 2)}
+          size={Size.Medium}
+        />
+        <View style={styles.info}>
+          <View style={styles.nameRow}>
+            <Text size={Size.Large} weight="bold" numberOfLines={1}>
+              {asset.name}
+            </Text>
+            <Text size={Size.Medium} weight="semibold" style={{ opacity: 0.5 }}>
+              {asset.symbol}
+            </Text>
+          </View>
+          <View style={styles.priceRow}>
+            <Currency
+              value={displayPrice}
+              size={Size.Medium}
+              weight="semibold"
+              decimals={displayPrice < 1 ? 6 : 2}
+            />
+            <PercentChange value={asset.change24h} size={Size.Small} />
+          </View>
         </View>
       </View>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    // @ts-ignore - web-only property
+    pointerEvents: "auto",
+  },
+  row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: Colors.background.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    // @ts-ignore - web-only property
-    pointerEvents: "auto",
   },
   info: {
     gap: 2,

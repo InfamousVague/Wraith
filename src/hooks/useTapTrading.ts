@@ -239,12 +239,23 @@ export function useTapTrading(
       if (pos.symbol?.toUpperCase() !== symbol.toUpperCase()) return;
 
       setActivePositions((prev) => {
-        // Replace optimistic entry or add new
-        const existing = prev.findIndex((p) => p.id === pos.id);
-        if (existing >= 0) {
+        // Match by server ID first, then fall back to matching optimistic
+        // entry by (row, col) to prevent duplicates from race conditions
+        let idx = prev.findIndex((p) => p.id === pos.id);
+        if (idx < 0) {
+          // Look for the optimistic entry (pending_* ID) at the same cell
+          idx = prev.findIndex(
+            (p) =>
+              p.id.startsWith("pending_") &&
+              p.row_index === pos.row_index &&
+              p.col_index === pos.col_index &&
+              (p.status === "pending" || p.status === "active")
+          );
+        }
+        if (idx >= 0) {
           const next = [...prev];
-          next[existing] = {
-            ...next[existing],
+          next[idx] = {
+            ...next[idx],
             id: pos.id,
             multiplier: pos.multiplier,
             price_low: pos.price_low,
@@ -256,6 +267,16 @@ export function useTapTrading(
           };
           return next;
         }
+        // Truly new position (e.g. placed from another session/device)
+        // Check for duplicate by row/col before adding
+        const alreadyExists = prev.some(
+          (p) =>
+            p.row_index === pos.row_index &&
+            p.col_index === pos.col_index &&
+            (p.status === "active" || p.status === "pending")
+        );
+        if (alreadyExists) return prev;
+
         return [...prev, {
           id: pos.id,
           portfolio_id: pos.portfolio_id,
@@ -403,9 +424,17 @@ export function useTapTrading(
 
       const data = (res as any).data;
       if (data) {
-        // Replace optimistic with server-confirmed position (all values from server)
-        setActivePositions((prev) =>
-          prev.map((p) =>
+        // Replace optimistic with server-confirmed position (all values from server).
+        // If the WebSocket already replaced the optimistic entry (id changed),
+        // look for the server ID to avoid creating a duplicate.
+        setActivePositions((prev) => {
+          const hasOptimistic = prev.some((p) => p.id === optimisticId);
+          const hasServerId = data.id && prev.some((p) => p.id === data.id);
+
+          // WebSocket already handled it — optimistic is gone, server entry exists
+          if (!hasOptimistic && hasServerId) return prev;
+
+          return prev.map((p) =>
             p.id === optimisticId
               ? {
                   id: data.id || optimisticId,
@@ -424,8 +453,8 @@ export function useTapTrading(
                   created_at: data.createdAt ?? data.created_at ?? p.created_at,
                 }
               : p
-          )
-        );
+          );
+        });
       } else {
         // No position data in response — keep optimistic as active
         setActivePositions((prev) =>

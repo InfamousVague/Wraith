@@ -16,10 +16,10 @@
  * - Connection status badge (top right)
  */
 
-import React, { useState, useCallback, useEffect } from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { View, StyleSheet, Animated, Easing } from "react-native";
 import { useParams } from "react-router-dom";
-import { Text, Icon, Badge, Skeleton } from "@wraith/ghost/components";
+import { Text, Icon, Badge } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { Colors } from "@wraith/ghost/tokens";
 import { Navbar } from "../components/ui";
@@ -28,6 +28,7 @@ import {
   AssetInfoCard,
   BetSizeToggle,
   LeverageControl,
+  TapStatsCard,
 } from "../components/tap-trading";
 import { useTapTrading } from "../hooks/useTapTrading";
 import { useAuth } from "../context/AuthContext";
@@ -115,14 +116,36 @@ export function TapTrading() {
     [placeTrade, betSize, leverage, sessionToken, portfolio, activePositions, gridConfig, showError]
   );
 
+  // Spinning loader animation (matches Preloader pattern)
+  const spinAnim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spinAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spinAnim]);
+
+  const spinInterpolate = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
   // Loading state
   if (loading && !gridConfig) {
     return (
       <View style={styles.container}>
         <Navbar />
         <View style={styles.loadingContainer}>
-          <Skeleton width={40} height={40} borderRadius={20} />
-          <Text appearance={TextAppearance.Secondary} size={Size.Small}>
+          <Animated.View style={{ transform: [{ rotate: spinInterpolate }] }}>
+            <Icon name="loader" size={Size.Large} color={Colors.accent.primary} />
+          </Animated.View>
+          <Text appearance={TextAppearance.Muted} size={Size.Small}>
             Loading grid data...
           </Text>
         </View>
@@ -161,16 +184,28 @@ export function TapTrading() {
           onCellTap={handleCellTap}
         />
 
+        {/* Top-left stats overlay */}
+        <View style={styles.topLeftOverlay} pointerEvents="box-none">
+          <TapStatsCard
+            stats={stats}
+            betSize={betSize}
+            leverage={leverage}
+            activeCount={activeCount}
+            maxTrades={maxTrades}
+            balance={portfolio?.cashBalance ?? 0}
+          />
+        </View>
+
         {/* Bottom overlay: asset info + bet size */}
         <View style={styles.bottomOverlay} pointerEvents="box-none">
           <AssetInfoCard asset={asset} livePrice={currentPrice} />
           <View style={styles.bottomRight}>
-            <View style={styles.tradeCountBadge}>
-              <Icon name="layers" size={Size.TwoXSmall} color={Colors.text.muted} />
-              <Text size={Size.ExtraSmall} weight="semibold" appearance={TextAppearance.Muted}>
-                {activeCount}/{maxTrades}
-              </Text>
-            </View>
+            <Badge
+              label={`${activeCount}/${maxTrades}`}
+              icon="layers"
+              variant="outline"
+              size={Size.Small}
+            />
             <BetSizeToggle
               value={betSize}
               presets={betSizePresets}
@@ -182,10 +217,12 @@ export function TapTrading() {
         {/* Connection status indicator */}
         {!connected && (
           <View style={styles.connectionBadge}>
-            <View style={styles.connectionDot} />
-            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
-              Connecting...
-            </Text>
+            <Badge
+              label="Connecting..."
+              dot
+              variant="warning"
+              size={Size.TwoXSmall}
+            />
           </View>
         )}
       </View>
@@ -210,6 +247,12 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
   },
+  topLeftOverlay: {
+    position: "absolute",
+    top: spacing.xs,
+    left: spacing.sm,
+    zIndex: 10,
+  },
   bottomOverlay: {
     position: "absolute",
     bottom: 14,
@@ -225,36 +268,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
-  tradeCountBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xxs,
-    paddingVertical: 4,
-    paddingHorizontal: spacing.xs,
-    backgroundColor: Colors.overlay.white.faint,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border.subtle,
-  },
   connectionBadge: {
     position: "absolute",
     top: spacing.xs,
     right: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xxs,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    backgroundColor: "rgba(30, 30, 35, 0.9)",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: Colors.border.subtle,
     zIndex: 10,
-  },
-  connectionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.status.warning,
   },
 });

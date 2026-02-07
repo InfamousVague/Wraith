@@ -430,27 +430,18 @@ export function TapCanvas({
           if (edgeAlpha <= 0.01) continue;
 
           if (isLocked) {
-            // Locked column: show "0.0x" in dim red to indicate untradeable
-            ctx.fillStyle = `rgba(239, 68, 68, ${0.25 * edgeAlpha})`;
+            // Locked column: show "0.0x" in dim white
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.15 * edgeAlpha})`;
             ctx.fillText("0.0x", cellCenterX, screenY + cellHeight / 2);
           } else if (isBubbleTransition) {
-            // Transition column: show heavily decayed multiplier in dim amber
+            // Transition column: show heavily decayed multiplier, dimmer white
             const decayedMult = mult * 0.15; // ~85% reduction
             const text = decayedMult >= 1 ? `${decayedMult.toFixed(1)}x` : `${decayedMult.toFixed(2)}x`;
-            ctx.fillStyle = `rgba(245, 158, 11, ${0.35 * edgeAlpha})`; // Amber/warning color
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.25 * edgeAlpha})`;
             ctx.fillText(text, cellCenterX, screenY + cellHeight / 2);
           } else {
-            // Normal multiplier display
-            let baseAlpha = 0.45;
-            if (settings.multiplierColorMode === "heatmap") {
-              ctx.fillStyle = getHeatmapColor(mult, gridConfig.min_multiplier, gridConfig.max_multiplier);
-            } else if (settings.multiplierColorMode === "opacity") {
-              baseAlpha = getMultiplierAlpha(mult, gridConfig.min_multiplier, gridConfig.max_multiplier);
-              ctx.fillStyle = `rgba(255, 255, 255, ${baseAlpha * edgeAlpha})`;
-            } else {
-              ctx.fillStyle = `rgba(255, 255, 255, ${baseAlpha * edgeAlpha})`;
-            }
-
+            // Normal multiplier display — uniform white, no color gradient
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.45 * edgeAlpha})`;
             const text = mult >= 10 ? `${mult.toFixed(1)}x` : `${mult.toFixed(2)}x`;
             ctx.fillText(text, cellCenterX, screenY + cellHeight / 2);
           }
@@ -854,8 +845,9 @@ export function TapCanvas({
         const timeEnd = timeStart + gridConfig.interval_ms;
 
         // Block trades on columns in the bubble zone (too close to dot)
-        const BUBBLE_HARD_LOCK_TAP = 2; // Cols 0-1 are hard locked
-        if (cell.col < BUBBLE_HARD_LOCK_TAP) {
+        // Cols 0-2 are locked: 0-1 hard lock, col 2 transition (decayed display)
+        const BUBBLE_LOCK_TAP = 3;
+        if (cell.col < BUBBLE_LOCK_TAP) {
           return; // Column is in the bubble zone — too close to dot
         }
 

@@ -46,14 +46,14 @@ export function LeverageControl({ value, presets, onChange, zoomLevel = 1.0, onZ
           options={leverageOptions}
           value={String(value)}
           onChange={(v) => onChange(Number(v))}
-          size={Size.ExtraSmall}
+          size={Size.Small}
         />
         <Divider orientation="vertical" style={styles.divider} />
         <SegmentedControl
           options={zoomOptions}
           value={String(zoomLevel)}
           onChange={(v) => onZoomChange?.(Number(v))}
-          size={Size.ExtraSmall}
+          size={Size.Small}
         />
       </View>
 
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   divider: {
-    height: 20,
+    height: 24,
   },
   statsGroup: {
     flexDirection: "row",
