@@ -110,6 +110,24 @@ export function TapCanvas({
   const viewportInitializedRef = useRef<boolean>(false);
   const LERP_SPEED = 0.06; // Smooth tracking (6% per frame — gives eye time to see grid slide)
 
+  // ─── Smooth grid config transitions ─────────────────────────
+  // When gridConfig.price_high/price_low change (grid re-centering), the sparkline
+  // Y-scale would snap instantly causing visible warping. Instead, we lerp between
+  // old and new config values over ~500ms for a smooth visual transition.
+  const prevConfigRef = useRef<{ price_high: number; price_low: number } | null>(null);
+  const configTransitionStartRef = useRef<number>(0);
+  const CONFIG_TRANSITION_MS = 500;
+
+  useEffect(() => {
+    if (!gridConfig) return;
+    const prev = prevConfigRef.current;
+    if (prev && (prev.price_high !== gridConfig.price_high || prev.price_low !== gridConfig.price_low)) {
+      // Config changed — start a transition from the old values
+      configTransitionStartRef.current = Date.now();
+    }
+    prevConfigRef.current = { price_high: gridConfig.price_high, price_low: gridConfig.price_low };
+  }, [gridConfig?.price_high, gridConfig?.price_low]);
+
   // ─── Resize observer ────────────────────────────────────────
 
   useEffect(() => {
@@ -380,11 +398,22 @@ export function TapCanvas({
           // Skip if completely off-screen to the right
           if (cellX > sparklineBoundaryX + gridAreaWidth + fadeInWidth) continue;
 
-          // Check if this column is too close to expiry (locked / untradeable)
+          // ─── Bubble zone: gradient of 0.0x multipliers near the dot ─────
+          // Columns near the sparkline dot (leftmost visible) have artificially
+          // suppressed multipliers to prevent easy wins. The "bubble" extends
+          // BUBBLE_COLUMNS from the dot:
+          //   Col 0-1: Hard locked (0.0x, untappable, dark overlay)
+          //   Col 2:   Transition zone (heavily decayed multiplier, ~0.3x)
+          //   Col 3+:  Normal multipliers
+          const BUBBLE_HARD_LOCK = 2;  // Columns 0-1: completely locked
+          const BUBBLE_TRANSITION = 3; // Column 2: transition zone
           const colAbsoluteTime = gridStartTime + (fullColsNow + c) * gridConfig.interval_ms;
           const colTimeEnd = colAbsoluteTime + gridConfig.interval_ms;
           const colTimeRemaining = colTimeEnd - now;
-          const isLocked = colTimeRemaining < MIN_TIME_BUFFER;
+          const isTimeLocked = colTimeRemaining < MIN_TIME_BUFFER;
+          const isBubbleLocked = c < BUBBLE_HARD_LOCK; // Col 0-1 are always locked
+          const isBubbleTransition = c === BUBBLE_HARD_LOCK; // Col 2 is transition
+          const isLocked = isTimeLocked || isBubbleLocked;
 
           // Left edge fade-out: text fades to 0% as column approaches the dot
           let edgeAlpha = 1.0;
@@ -404,6 +433,12 @@ export function TapCanvas({
             // Locked column: show "0.0x" in dim red to indicate untradeable
             ctx.fillStyle = `rgba(239, 68, 68, ${0.25 * edgeAlpha})`;
             ctx.fillText("0.0x", cellCenterX, screenY + cellHeight / 2);
+          } else if (isBubbleTransition) {
+            // Transition column: show heavily decayed multiplier in dim amber
+            const decayedMult = mult * 0.15; // ~85% reduction
+            const text = decayedMult >= 1 ? `${decayedMult.toFixed(1)}x` : `${decayedMult.toFixed(2)}x`;
+            ctx.fillStyle = `rgba(245, 158, 11, ${0.35 * edgeAlpha})`; // Amber/warning color
+            ctx.fillText(text, cellCenterX, screenY + cellHeight / 2);
           } else {
             // Normal multiplier display
             let baseAlpha = 0.45;
@@ -423,11 +458,14 @@ export function TapCanvas({
       }
     }
 
-    // ─── Left edge: black out columns whose left edge has reached the dot ─
+    // ─── Left edge: black out columns + bubble zone overlay ────
     // Column disappears the instant it touches the dot — period closed.
+    // Bubble zone columns (0-2) get graduated dark overlays.
     {
       const fullColsNowBlackout = Math.floor(elapsed / gridConfig.interval_ms);
       const MIN_TIME_BUFFER_BLACKOUT = gridConfig.min_time_buffer_ms || 2000;
+      const BUBBLE_HARD_LOCK_BO = 2;  // Cols 0-1: hard locked
+      const BUBBLE_TRANSITION_BO = 3; // Col 2: transition
 
       for (let c = 0; c <= gridConfig.col_count; c++) {
         const colX = sparklineBoundaryX + c * cellWidth - scrollOffsetX;
@@ -436,11 +474,21 @@ export function TapCanvas({
           ctx.fillStyle = BG_COLOR;
           ctx.fillRect(colX, 0, cellWidth + 1, gridAreaHeight);
         } else if (colX < sparklineBoundaryX + gridAreaWidth) {
-          // Check if this column is near-expiry (locked) — draw subtle dark overlay
           const colAbsTime = gridStartTime + (fullColsNowBlackout + c) * gridConfig.interval_ms;
           const colTimeEnd = colAbsTime + gridConfig.interval_ms;
           const colTimeRemaining = colTimeEnd - now;
-          if (colTimeRemaining < MIN_TIME_BUFFER_BLACKOUT && colTimeRemaining > 0) {
+
+          if (c < BUBBLE_HARD_LOCK_BO) {
+            // Bubble hard lock: dark overlay (strongest nearest to dot)
+            const overlayAlpha = c === 0 ? 0.45 : 0.35;
+            ctx.fillStyle = `rgba(0, 0, 0, ${overlayAlpha})`;
+            ctx.fillRect(colX, 0, cellWidth, gridAreaHeight);
+          } else if (c < BUBBLE_TRANSITION_BO) {
+            // Bubble transition: lighter overlay
+            ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+            ctx.fillRect(colX, 0, cellWidth, gridAreaHeight);
+          } else if (colTimeRemaining < MIN_TIME_BUFFER_BLACKOUT && colTimeRemaining > 0) {
+            // Time-based near-expiry overlay (for columns not in bubble but about to expire)
             ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
             ctx.fillRect(colX, 0, cellWidth, gridAreaHeight);
           }
@@ -500,11 +548,22 @@ export function TapCanvas({
           return sparkXLeft + progress * (sparkXRight - sparkXLeft);
         };
 
-        // Stable Y-scale anchored to grid config (doesn't shift as history window changes).
-        // Previously we computed sparkMin/sparkMax from the visible price history, which
-        // caused the entire sparkline to warp every frame as points entered/exited the window.
-        const sparkMean = (gridConfig.price_high + gridConfig.price_low) / 2;
-        const sparkRange = Math.max(gridConfig.price_high - gridConfig.price_low, 0.01);
+        // Smooth Y-scale: lerp between previous and current grid config
+        // to prevent instant snapping when the grid re-centers.
+        const prev = prevConfigRef.current;
+        const transitionElapsed = now - configTransitionStartRef.current;
+        const configT = configTransitionStartRef.current > 0
+          ? Math.min(1, transitionElapsed / CONFIG_TRANSITION_MS)
+          : 1; // No transition in progress → use current values directly
+        const smoothHigh = prev && configT < 1
+          ? prev.price_high + (gridConfig.price_high - prev.price_high) * configT
+          : gridConfig.price_high;
+        const smoothLow = prev && configT < 1
+          ? prev.price_low + (gridConfig.price_low - prev.price_low) * configT
+          : gridConfig.price_low;
+
+        const sparkMean = (smoothHigh + smoothLow) / 2;
+        const sparkRange = Math.max(smoothHigh - smoothLow, 0.01);
         const sparkYTop = gridAreaHeight * 0.1;
         const sparkYBottom = gridAreaHeight * 0.9;
         const sparkYRange = sparkYBottom - sparkYTop;
@@ -527,12 +586,22 @@ export function TapCanvas({
         const screenCenter = gridAreaHeight * 0.5;
 
         // Build path points — blend from amplified Y (left) to grid Y (right)
+        // Uses smoothstep(t) = t² × (3 - 2t) which has zero derivative at both ends,
+        // creating a seamless transition with no visible "elbow" at the boundary.
         const points: Array<{ x: number; y: number }> = [];
         for (let i = 0; i < historyWithNow.length; i++) {
-          const x = timeToX(historyWithNow[i].time);
+          // Force the last point (synthetic "now") to exactly the boundary X
+          // so the sparkline connects perfectly to the dot.
+          let x: number;
+          if (i === historyWithNow.length - 1) {
+            x = sparklineBoundaryX; // Exact boundary alignment (A3 fix)
+          } else {
+            x = timeToX(historyWithNow[i].time);
+          }
           const price = historyWithNow[i].price;
-          // Blend: 0 at left → 1 at sparkline boundary (softer curve for smooth transition)
-          const blend = Math.pow(Math.max(0, Math.min(1, (x - sparkXLeft) / (sparkXRight - sparkXLeft))), 1.5);
+          // Smoothstep blend: 0 at left → 1 at sparkline boundary
+          const t = Math.max(0, Math.min(1, (x - sparkXLeft) / (sparkXRight - sparkXLeft)));
+          const blend = t * t * (3 - 2 * t); // smoothstep — zero derivative at t=0 and t=1
           const yAmplified = amplifiedY(price);
           const yGrid = gridY(price);
           const y = yAmplified * (1 - blend) + yGrid * blend;
@@ -783,6 +852,12 @@ export function TapCanvas({
         const absoluteCol = fullCols + cell.col;
         const timeStart = gridStartTime + absoluteCol * gridConfig.interval_ms;
         const timeEnd = timeStart + gridConfig.interval_ms;
+
+        // Block trades on columns in the bubble zone (too close to dot)
+        const BUBBLE_HARD_LOCK_TAP = 2; // Cols 0-1 are hard locked
+        if (cell.col < BUBBLE_HARD_LOCK_TAP) {
+          return; // Column is in the bubble zone — too close to dot
+        }
 
         // Block trades on columns too close to expiry
         const timeRemaining = timeEnd - Date.now();
