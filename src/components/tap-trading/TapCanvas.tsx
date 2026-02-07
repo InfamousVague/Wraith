@@ -629,8 +629,8 @@ export function TapCanvas({
 
         // Subtle glow
         if (settings.glowIntensity !== "off") {
-          ctx.strokeStyle = "rgba(167, 139, 250, 0.08)";
-          ctx.lineWidth = 4;
+          ctx.strokeStyle = "rgba(167, 139, 250, 0.10)";
+          ctx.lineWidth = 7;
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
           ctx.beginPath();
@@ -643,7 +643,7 @@ export function TapCanvas({
 
         // Main sparkline
         ctx.strokeStyle = SPARKLINE_COLOR;
-        ctx.lineWidth = settings.sparklineThickness || 2;
+        ctx.lineWidth = settings.sparklineThickness || 3;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.beginPath();
@@ -658,12 +658,12 @@ export function TapCanvas({
         // Dot at sparkline boundary — positioned at grid's Y for current price
         const dotX = sparklineBoundaryX;
         const dotY = dotScreenY; // Directly use grid-aligned Y, not blended sparkline Y
-        const dotRadius = 5;
+        const dotRadius = 7;
 
         // Dot glow
-        ctx.fillStyle = "rgba(167, 139, 250, 0.15)";
+        ctx.fillStyle = "rgba(167, 139, 250, 0.18)";
         ctx.beginPath();
-        ctx.arc(dotX, dotY, dotRadius + 3, 0, Math.PI * 2);
+        ctx.arc(dotX, dotY, dotRadius + 4, 0, Math.PI * 2);
         ctx.fill();
 
         // Dot
@@ -675,7 +675,7 @@ export function TapCanvas({
         // Dot center (white)
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.arc(dotX, dotY, 2, 0, Math.PI * 2);
+        ctx.arc(dotX, dotY, 2.5, 0, Math.PI * 2);
         ctx.fill();
       }
     }
