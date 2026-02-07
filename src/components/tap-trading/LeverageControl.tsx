@@ -1,14 +1,20 @@
 /**
  * @file LeverageControl.tsx
- * @description Top toolbar bar with leverage pills and rolling 24h stats.
- * Leverage pills: 1x, 2x, 5x, 10x — always visible, active highlighted.
+ * @description Top toolbar bar with leverage pills, zoom presets, and rolling 24h stats.
+ * Uses Ghost SegmentedControl for both leverage and zoom groups.
  */
 
-import React from "react";
+import React, { useMemo } from "react";
+import { View, StyleSheet } from "react-native";
+import { SegmentedControl, Text, Divider, Icon, type SegmentOption } from "@wraith/ghost/components";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { Colors } from "@wraith/ghost/tokens";
+import { spacing } from "../../styles/tokens";
 import type { TapStats } from "../../types/tap-trading";
 
 const ZOOM_PRESETS = [1.0, 1.5, 2.5];
+const ZOOM_LABELS = ["S", "M", "L"];
 
 type LeverageControlProps = {
   value: number;
@@ -22,115 +28,84 @@ type LeverageControlProps = {
 
 export function LeverageControl({ value, presets, onChange, zoomLevel = 1.0, onZoomChange, stats, symbol }: LeverageControlProps) {
   const themeColors = useThemeColors();
-  const borderColor = themeColors.border.subtle;
+
+  const leverageOptions: SegmentOption<string>[] = useMemo(
+    () => presets.map((p) => ({ value: String(p), label: `${p}x` })),
+    [presets]
+  );
+
+  const zoomOptions: SegmentOption<string>[] = useMemo(
+    () => ZOOM_PRESETS.map((z, i) => ({ value: String(z), label: ZOOM_LABELS[i] })),
+    []
+  );
 
   return (
-    <div style={{ ...toolbarStyle, borderBottom: `1px solid ${borderColor}` }}>
-      <div style={leverageGroupStyle}>
-        {presets.map((preset) => (
-          <button
-            key={preset}
-            style={{
-              ...pillStyle,
-              border: `1px solid ${borderColor}`,
-              ...(preset === value ? activePillStyle : {}),
-            }}
-            onClick={() => onChange(preset)}
-          >
-            {preset}x
-          </button>
-        ))}
-        <div style={{ ...dividerStyle, background: borderColor }} />
-        {ZOOM_PRESETS.map((z, i) => {
-          const labels = ["S", "M", "L"];
-          return (
-            <button
-              key={z}
-              style={{
-                ...pillStyle,
-                border: `1px solid ${borderColor}`,
-                ...(zoomLevel === z ? zoomActivePillStyle : {}),
-              }}
-              onClick={() => onZoomChange?.(z)}
-            >
-              {labels[i]}
-            </button>
-          );
-        })}
-      </div>
+    <View style={[styles.toolbar, { borderBottomColor: themeColors.border.subtle }]}>
+      <View style={styles.controlsGroup}>
+        <SegmentedControl
+          options={leverageOptions}
+          value={String(value)}
+          onChange={(v) => onChange(Number(v))}
+          size={Size.ExtraSmall}
+        />
+        <Divider orientation="vertical" style={styles.divider} />
+        <SegmentedControl
+          options={zoomOptions}
+          value={String(zoomLevel)}
+          onChange={(v) => onZoomChange?.(Number(v))}
+          size={Size.ExtraSmall}
+        />
+      </View>
 
-      <div style={statsGroupStyle}>
+      <View style={styles.statsGroup}>
         {stats && stats.win_streak > 0 && (
-          <span style={statStyle}>
-            {stats.win_streak}
-          </span>
+          <View style={styles.streakBadge}>
+            <Icon name="zap" size={Size.TwoXSmall} color={Colors.status.warning} />
+            <Text size={Size.ExtraSmall} weight="semibold" style={{ color: Colors.status.warning }}>
+              {stats.win_streak}
+            </Text>
+          </View>
         )}
         {stats && (
-          <span style={{
-            ...statStyle,
-            color: stats.net_pnl >= 0 ? "#2FD575" : "#EF4444",
-          }}>
+          <Text
+            size={Size.ExtraSmall}
+            weight="semibold"
+            style={{ color: stats.net_pnl >= 0 ? Colors.status.success : Colors.status.danger }}
+          >
             {stats.net_pnl >= 0 ? "+" : ""}${stats.net_pnl.toFixed(2)}
-          </span>
+          </Text>
         )}
-      </div>
-    </div>
+      </View>
+    </View>
   );
 }
 
-const toolbarStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "6px 16px",
-  gap: 12,
-};
-
-const leverageGroupStyle: React.CSSProperties = {
-  display: "flex",
-  gap: 4,
-};
-
-const pillStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.05)",
-  borderRadius: 6,
-  padding: "4px 12px",
-  color: "rgba(255, 255, 255, 0.45)",
-  fontSize: 12,
-  fontWeight: 600,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  cursor: "pointer",
-  transition: "all 0.15s",
-};
-
-const activePillStyle: React.CSSProperties = {
-  background: "rgba(47, 213, 117, 0.12)",
-  border: "1px solid rgba(47, 213, 117, 0.25)",
-  color: "#2FD575",
-};
-
-const zoomActivePillStyle: React.CSSProperties = {
-  background: "rgba(147, 130, 255, 0.12)",
-  border: "1px solid rgba(147, 130, 255, 0.3)",
-  color: "#9382FF",
-};
-
-const dividerStyle: React.CSSProperties = {
-  width: 1,
-  height: 20,
-  background: "rgba(255, 255, 255, 0.1)",
-  margin: "0 4px",
-};
-
-const statsGroupStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-};
-
-const statStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 600,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  color: "rgba(255, 255, 255, 0.5)",
-};
+const styles = StyleSheet.create({
+  toolbar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.md,
+    borderBottomWidth: 1,
+    gap: spacing.sm,
+  },
+  controlsGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  divider: {
+    height: 20,
+  },
+  statsGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  streakBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+});

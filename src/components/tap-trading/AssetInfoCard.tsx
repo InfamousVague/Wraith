@@ -8,7 +8,9 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Text, Avatar, PercentChange, Currency } from "@wraith/ghost/components";
 import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { spacing } from "../../styles/tokens";
 import type { Asset } from "../../types/asset";
 
 type AssetInfoCardProps = {
@@ -19,14 +21,13 @@ type AssetInfoCardProps = {
 
 export function AssetInfoCard({ asset, livePrice }: AssetInfoCardProps) {
   const themeColors = useThemeColors();
-  const borderColor = themeColors.border.subtle;
 
   if (!asset) return null;
 
   const displayPrice = livePrice ?? asset.price;
 
   return (
-    <View style={[styles.card, { borderColor }]}>
+    <View style={[styles.card, { borderColor: themeColors.border.subtle }]}>
       <Avatar
         uri={asset.image}
         initials={asset.symbol.slice(0, 2)}
@@ -59,13 +60,14 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(20, 20, 25, 0.85)",
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: Colors.background.surface,
     borderRadius: 14,
     borderWidth: 1,
-    pointerEvents: "auto" as any,
+    // @ts-ignore - web-only property
+    pointerEvents: "auto",
   },
   info: {
     gap: 2,
@@ -73,11 +75,11 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: spacing.xxs,
   },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.xs,
   },
 });

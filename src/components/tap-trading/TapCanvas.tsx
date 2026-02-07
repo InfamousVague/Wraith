@@ -28,8 +28,8 @@ const TIME_LABEL_HEIGHT = 28; // Height reserved for time labels on bottom
 const SPARKLINE_Y_AMPLIFY = 3.0; // Amplify sparkline Y-movement for visual drama
 const VISIBLE_ROWS_PER_SCREEN = 12; // How many rows fit on screen at zoom 1.0 (cell sizing)
 const GRID_LINE_COLOR = "rgba(255, 255, 255, 0.08)";
-const SPARKLINE_COLOR = "#2FD575"; // Brand green
-const SPARKLINE_GLOW_COLOR = "rgba(47, 213, 117, 0.15)";
+const SPARKLINE_COLOR = "#A78BFA"; // Primary accent (pastel purple)
+const SPARKLINE_GLOW_COLOR = "rgba(167, 139, 250, 0.15)";
 const MULTIPLIER_COLOR = "rgba(255, 255, 255, 0.45)";
 const PRICE_BADGE_COLOR = "#E91E8C"; // Pink/magenta
 const DIMMED_OVERLAY_COLOR = "rgba(0, 0, 0, 0.45)";
@@ -612,9 +612,9 @@ export function TapCanvas({
         if (points.length > 1) {
           const gradientBottom = Math.min(gridAreaHeight, screenCenter + gridAreaHeight * 0.4);
           const gradient = ctx.createLinearGradient(0, screenCenter - gridAreaHeight * 0.3, 0, gradientBottom);
-          gradient.addColorStop(0, "rgba(47, 213, 117, 0.10)");
-          gradient.addColorStop(0.5, "rgba(47, 213, 117, 0.03)");
-          gradient.addColorStop(1, "rgba(47, 213, 117, 0)");
+          gradient.addColorStop(0, "rgba(167, 139, 250, 0.10)");
+          gradient.addColorStop(0.5, "rgba(167, 139, 250, 0.03)");
+          gradient.addColorStop(1, "rgba(167, 139, 250, 0)");
 
           ctx.fillStyle = gradient;
           ctx.beginPath();
@@ -629,7 +629,7 @@ export function TapCanvas({
 
         // Subtle glow
         if (settings.glowIntensity !== "off") {
-          ctx.strokeStyle = "rgba(47, 213, 117, 0.08)";
+          ctx.strokeStyle = "rgba(167, 139, 250, 0.08)";
           ctx.lineWidth = 4;
           ctx.lineCap = "round";
           ctx.lineJoin = "round";
@@ -661,7 +661,7 @@ export function TapCanvas({
         const dotRadius = 5;
 
         // Dot glow
-        ctx.fillStyle = "rgba(47, 213, 117, 0.15)";
+        ctx.fillStyle = "rgba(167, 139, 250, 0.15)";
         ctx.beginPath();
         ctx.arc(dotX, dotY, dotRadius + 3, 0, Math.PI * 2);
         ctx.fill();

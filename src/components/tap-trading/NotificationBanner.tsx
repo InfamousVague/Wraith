@@ -8,6 +8,11 @@
  */
 
 import React, { useEffect, useRef } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
+import { Text, Icon } from "@wraith/ghost/components";
+import { Size } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
+import { spacing } from "../../styles/tokens";
 import type { TapNotification } from "../../types/tap-trading";
 
 type NotificationBannerProps = {
@@ -42,68 +47,56 @@ export function NotificationBanner({ notifications, onDismiss }: NotificationBan
   const visible = notifications.slice(-3);
 
   return (
-    <div style={containerStyle}>
-      {visible.map((notif) => (
-        <div
-          key={notif.id}
-          style={{
-            ...bannerStyle,
-            ...(notif.type === "win" ? winStyle : errorStyle),
-          }}
-          onClick={() => onDismiss(notif.id)}
-        >
-          <span style={iconStyle}>{notif.type === "win" ? "🪙" : "⚠️"}</span>
-          <span style={textStyle}>{notif.message}</span>
-        </div>
-      ))}
-    </div>
+    <View style={styles.container} pointerEvents="box-none">
+      {visible.map((notif) => {
+        const isWin = notif.type === "win";
+        const accentColor = isWin ? Colors.status.success : Colors.status.warning;
+        const surfaceColor = isWin ? Colors.status.successSurface : Colors.status.warningSurface;
+
+        return (
+          <Pressable
+            key={notif.id}
+            onPress={() => onDismiss(notif.id)}
+            style={[
+              styles.banner,
+              {
+                backgroundColor: surfaceColor,
+                borderColor: `${accentColor}40`,
+              },
+            ]}
+          >
+            <Icon
+              name={isWin ? "coins" : "alert-circle"}
+              size={Size.ExtraSmall}
+              color={accentColor}
+            />
+            <Text size={Size.Small} weight="semibold" style={{ color: accentColor }}>
+              {notif.message}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
-const containerStyle: React.CSSProperties = {
-  position: "absolute",
-  top: 8,
-  left: "50%",
-  transform: "translateX(-50%)",
-  display: "flex",
-  flexDirection: "column",
-  gap: 6,
-  zIndex: 100,
-  pointerEvents: "none",
-};
-
-const bannerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "8px 16px",
-  borderRadius: 8,
-  fontSize: 13,
-  fontWeight: 600,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  pointerEvents: "auto",
-  cursor: "pointer",
-  backdropFilter: "blur(8px)",
-  animation: "slideIn 0.2s ease-out",
-  whiteSpace: "nowrap",
-};
-
-const winStyle: React.CSSProperties = {
-  backgroundColor: "rgba(47, 213, 117, 0.15)",
-  border: "1px solid rgba(47, 213, 117, 0.3)",
-  color: "#2FD575",
-};
-
-const errorStyle: React.CSSProperties = {
-  backgroundColor: "rgba(245, 158, 11, 0.15)",
-  border: "1px solid rgba(245, 158, 11, 0.3)",
-  color: "#F59E0B",
-};
-
-const iconStyle: React.CSSProperties = {
-  fontSize: 14,
-};
-
-const textStyle: React.CSSProperties = {
-  letterSpacing: "-0.01em",
-};
+const styles = StyleSheet.create({
+  container: {
+    position: "absolute",
+    top: spacing.xs,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    gap: spacing.xxs,
+    zIndex: 100,
+  },
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+});

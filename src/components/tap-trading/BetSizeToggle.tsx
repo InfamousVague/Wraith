@@ -1,11 +1,15 @@
 /**
  * @file BetSizeToggle.tsx
  * @description Bottom-right bet size popup picker.
- * Shows current bet size as a pill. Tap to open picker with all presets.
+ * Shows current bet size as a Ghost Button pill. Tap to open Ghost Popover with all presets.
  */
 
-import React, { useState, useRef, useEffect } from "react";
-import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import React, { useState, useRef, useCallback } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
+import { Button, Popover, Text } from "@wraith/ghost/components";
+import { Size, Appearance, Shape } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
+import { spacing } from "../../styles/tokens";
 
 type BetSizeToggleProps = {
   value: number;
@@ -14,98 +18,84 @@ type BetSizeToggleProps = {
 };
 
 export function BetSizeToggle({ value, presets, onChange }: BetSizeToggleProps) {
-  const themeColors = useThemeColors();
-  const borderColor = themeColors.border.subtle;
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<View>(null);
 
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  const handleSelect = useCallback(
+    (preset: number) => {
+      onChange(preset);
+      setOpen(false);
+    },
+    [onChange]
+  );
 
   return (
-    <div ref={containerRef} style={wrapperStyle}>
-      {open && (
-        <div style={{ ...pickerStyle, border: `1px solid ${borderColor}` }}>
-          {presets.map((preset) => (
-            <button
-              key={preset}
-              style={{
-                ...presetStyle,
-                ...(preset === value ? activePresetStyle : {}),
-              }}
-              onClick={() => {
-                onChange(preset);
-                setOpen(false);
-              }}
-            >
-              ${preset}
-            </button>
-          ))}
-        </div>
-      )}
-      <button style={{ ...pillStyle, border: `1px solid ${borderColor}` }} onClick={() => setOpen(!open)}>
-        ${value}
-      </button>
-    </div>
+    <View>
+      <View ref={anchorRef} collapsable={false}>
+        <Button
+          label={`$${value}`}
+          appearance={Appearance.Ghost}
+          size={Size.Small}
+          shape={Shape.Pill}
+          backgroundOpacity={0.08}
+          onPress={() => setOpen(!open)}
+        />
+      </View>
+      <Popover
+        visible={open}
+        onClose={() => setOpen(false)}
+        anchorRef={anchorRef}
+        placement="top-end"
+        offset={8}
+        closeOnClickOutside
+        closeOnEscape
+        minWidth={80}
+        style={styles.popover}
+      >
+        <View style={styles.presetList}>
+          {presets.map((preset) => {
+            const isActive = preset === value;
+            return (
+              <Pressable
+                key={preset}
+                onPress={() => handleSelect(preset)}
+                style={[
+                  styles.presetItem,
+                  isActive && styles.presetItemActive,
+                ]}
+              >
+                <Text
+                  size={Size.Small}
+                  weight={isActive ? "semibold" : "regular"}
+                  style={{ color: isActive ? Colors.status.success : Colors.text.secondary }}
+                >
+                  ${preset}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Popover>
+    </View>
   );
 }
 
-const wrapperStyle: React.CSSProperties = {
-  position: "relative",
-};
-
-const pillStyle: React.CSSProperties = {
-  background: "rgba(255, 255, 255, 0.08)",
-  borderRadius: 20,
-  padding: "6px 16px",
-  color: "#FFFFFF",
-  fontSize: 13,
-  fontWeight: 600,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  cursor: "pointer",
-  transition: "background 0.15s",
-};
-
-const pickerStyle: React.CSSProperties = {
-  position: "absolute",
-  bottom: "calc(100% + 8px)",
-  right: 0,
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  padding: 6,
-  backgroundColor: "rgba(20, 20, 25, 0.95)",
-  borderRadius: 10,
-  backdropFilter: "blur(12px)",
-  zIndex: 50,
-};
-
-const presetStyle: React.CSSProperties = {
-  background: "transparent",
-  border: "1px solid transparent",
-  borderRadius: 6,
-  padding: "6px 20px",
-  color: "rgba(255, 255, 255, 0.6)",
-  fontSize: 13,
-  fontWeight: 500,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  cursor: "pointer",
-  transition: "all 0.15s",
-  whiteSpace: "nowrap",
-};
-
-const activePresetStyle: React.CSSProperties = {
-  background: "rgba(47, 213, 117, 0.15)",
-  border: "1px solid rgba(47, 213, 117, 0.3)",
-  color: "#2FD575",
-  fontWeight: 600,
-};
+const styles = StyleSheet.create({
+  popover: {
+    padding: spacing.xxs,
+  },
+  presetList: {
+    gap: 2,
+  },
+  presetItem: {
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.md,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  presetItemActive: {
+    backgroundColor: "rgba(47, 213, 117, 0.12)",
+    borderColor: "rgba(47, 213, 117, 0.25)",
+  },
+});

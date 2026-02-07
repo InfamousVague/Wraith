@@ -12,15 +12,16 @@
  * - Navbar at top
  * - Leverage toolbar (leverage pills + 24h stats)
  * - Full-screen canvas (sparkline + grid + tiles)
- * - Bottom bar (balance pill left, bet size toggle right)
- * - Notification banners (top center, max 3)
+ * - Bottom bar (asset info left, trade count + bet size right)
+ * - Connection status badge (top right)
  */
 
 import React, { useState, useCallback, useEffect } from "react";
-import { View, StyleSheet, ActivityIndicator } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useParams } from "react-router-dom";
-import { Text } from "@wraith/ghost/components";
-import { TextAppearance } from "@wraith/ghost/enums";
+import { Text, Icon, Badge, Skeleton } from "@wraith/ghost/components";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { Navbar } from "../components/ui";
 import {
   TapCanvas,
@@ -33,6 +34,7 @@ import { useAuth } from "../context/AuthContext";
 import { usePortfolio } from "../hooks/usePortfolio";
 import { useToast } from "../context/ToastContext";
 import { hauntClient } from "../services/haunt";
+import { spacing } from "../styles/tokens";
 import { DEFAULT_TAP_SETTINGS } from "../types/tap-trading";
 import type { TapSettings } from "../types/tap-trading";
 import type { Asset } from "../types/asset";
@@ -119,14 +121,17 @@ export function TapTrading() {
       <View style={styles.container}>
         <Navbar />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2FD575" />
-          <Text appearance={TextAppearance.Secondary} style={styles.loadingText}>
+          <Skeleton width={40} height={40} borderRadius={20} />
+          <Text appearance={TextAppearance.Secondary} size={Size.Small}>
             Loading grid data...
           </Text>
         </View>
       </View>
     );
   }
+
+  const activeCount = activePositions.filter((p) => p.status === "active" || p.status === "pending").length;
+  const maxTrades = gridConfig?.max_active_trades ?? 10;
 
   return (
     <View style={styles.container}>
@@ -157,27 +162,31 @@ export function TapTrading() {
         />
 
         {/* Bottom overlay: asset info + bet size */}
-        <div style={bottomOverlayStyle}>
+        <View style={styles.bottomOverlay} pointerEvents="box-none">
           <AssetInfoCard asset={asset} livePrice={currentPrice} />
-          <div style={bottomRightStyle}>
-            <span style={tradeCountStyle}>
-              {activePositions.filter((p) => p.status === "active" || p.status === "pending").length}
-              /{gridConfig?.max_active_trades ?? 10}
-            </span>
+          <View style={styles.bottomRight}>
+            <View style={styles.tradeCountBadge}>
+              <Icon name="layers" size={Size.TwoXSmall} color={Colors.text.muted} />
+              <Text size={Size.ExtraSmall} weight="semibold" appearance={TextAppearance.Muted}>
+                {activeCount}/{maxTrades}
+              </Text>
+            </View>
             <BetSizeToggle
               value={betSize}
               presets={betSizePresets}
               onChange={setBetSize}
             />
-          </div>
-        </div>
+          </View>
+        </View>
 
         {/* Connection status indicator */}
         {!connected && (
-          <div style={connectionIndicatorStyle}>
-            <span style={connectionDotStyle} />
-            Connecting...
-          </div>
+          <View style={styles.connectionBadge}>
+            <View style={styles.connectionDot} />
+            <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+              Connecting...
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -189,70 +198,63 @@ export function TapTrading() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#050608",
+    backgroundColor: Colors.background.canvas,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 16,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: "#666",
+    gap: spacing.md,
   },
   canvasContainer: {
     flex: 1,
     position: "relative",
   },
+  bottomOverlay: {
+    position: "absolute",
+    bottom: 14,
+    left: spacing.sm,
+    right: spacing.sm,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    zIndex: 10,
+  },
+  bottomRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  tradeCountBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xxs,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.xs,
+    backgroundColor: Colors.overlay.white.faint,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border.subtle,
+  },
+  connectionBadge: {
+    position: "absolute",
+    top: spacing.xs,
+    right: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xxs,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(30, 30, 35, 0.9)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.border.subtle,
+    zIndex: 10,
+  },
+  connectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.status.warning,
+  },
 });
-
-const bottomOverlayStyle: React.CSSProperties = {
-  position: "absolute",
-  bottom: 14,
-  left: 12,
-  right: 12,
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-end",
-  pointerEvents: "none",
-  zIndex: 10,
-};
-
-const bottomRightStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  pointerEvents: "auto",
-};
-
-const tradeCountStyle: React.CSSProperties = {
-  color: "rgba(255, 255, 255, 0.4)",
-  fontSize: 12,
-  fontWeight: 600,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-};
-
-const connectionIndicatorStyle: React.CSSProperties = {
-  position: "absolute",
-  top: 8,
-  right: 12,
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "4px 10px",
-  backgroundColor: "rgba(30, 30, 35, 0.9)",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  borderRadius: 6,
-  color: "rgba(255, 255, 255, 0.5)",
-  fontSize: 11,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  zIndex: 10,
-};
-
-const connectionDotStyle: React.CSSProperties = {
-  width: 6,
-  height: 6,
-  borderRadius: 3,
-  backgroundColor: "#F59E0B",
-};

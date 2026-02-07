@@ -5,7 +5,12 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
+import { View, StyleSheet } from "react-native";
+import { Text, Icon, Currency } from "@wraith/ghost/components";
+import { Size } from "@wraith/ghost/enums";
+import { Colors } from "@wraith/ghost/tokens";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
+import { spacing } from "../../styles/tokens";
 
 type BalancePillProps = {
   balance: number;
@@ -13,7 +18,6 @@ type BalancePillProps = {
 
 export function BalancePill({ balance }: BalancePillProps) {
   const themeColors = useThemeColors();
-  const borderColor = themeColors.border.subtle;
   const [flash, setFlash] = useState<"none" | "win" | "loss">("none");
   const prevBalanceRef = useRef(balance);
 
@@ -32,41 +36,40 @@ export function BalancePill({ balance }: BalancePillProps) {
     }
   }, [balance]);
 
-  const flashColor =
+  const flashBorderColor =
     flash === "win"
-      ? "rgba(47, 213, 117, 0.3)"
+      ? Colors.status.success
       : flash === "loss"
-      ? "rgba(239, 68, 68, 0.3)"
-      : "transparent";
+      ? Colors.status.danger
+      : themeColors.border.subtle;
 
   return (
-    <div style={{ ...pillStyle, border: `1px solid ${borderColor}`, boxShadow: `0 0 12px ${flashColor}` }}>
-      <span style={iconStyle}>💰</span>
-      <span style={amountStyle}>
-        ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-      </span>
-    </div>
+    <View
+      style={[
+        styles.pill,
+        { borderColor: flashBorderColor },
+      ]}
+    >
+      <Icon name="wallet" size={Size.TwoXSmall} color={Colors.text.muted} />
+      <Currency
+        value={balance}
+        size={Size.Small}
+        weight="semibold"
+        decimals={2}
+      />
+    </View>
   );
 }
 
-const pillStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  padding: "6px 14px",
-  background: "rgba(255, 255, 255, 0.06)",
-  borderRadius: 20,
-  transition: "box-shadow 0.3s",
-  pointerEvents: "auto",
-};
-
-const iconStyle: React.CSSProperties = {
-  fontSize: 13,
-};
-
-const amountStyle: React.CSSProperties = {
-  color: "#FFFFFF",
-  fontSize: 13,
-  fontWeight: 600,
-  fontFamily: "-apple-system, system-ui, sans-serif",
-};
+const styles = StyleSheet.create({
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xxs,
+    paddingVertical: spacing.xxs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: Colors.overlay.white.faint,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+});
