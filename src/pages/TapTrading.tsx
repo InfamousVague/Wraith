@@ -35,12 +35,14 @@ import { usePortfolio } from "../hooks/usePortfolio";
 import { useToast } from "../context/ToastContext";
 import { hauntClient } from "../services/haunt";
 import { spacing } from "../styles/tokens";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 import { DEFAULT_TAP_SETTINGS } from "../types/tap-trading";
 import type { TapSettings } from "../types/tap-trading";
 import type { Asset } from "../types/asset";
 
 export function TapTrading() {
   const { symbol = "BTC" } = useParams<{ symbol?: string }>();
+  const { isMobile } = useBreakpoint();
   const { sessionToken } = useAuth();
   const { portfolio } = usePortfolio();
   const { showError, showSuccess } = useToast();
@@ -182,6 +184,7 @@ export function TapTrading() {
           priceHistory={priceHistory}
           settings={settings}
           zoomLevel={zoomLevel}
+          isMobile={isMobile}
           onCellTap={handleCellTap}
         />
 

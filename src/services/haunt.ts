@@ -1677,7 +1677,79 @@ class HauntClient {
       body: JSON.stringify(params),
     });
   }
+
+  // ─── Notifications ─────────────────────────────────────────────
+
+  /**
+   * Get paginated notifications for the authenticated user.
+   */
+  async getNotifications(
+    token: string,
+    page: number = 1,
+    pageSize: number = 20,
+    unreadOnly: boolean = false
+  ): Promise<{ data: NotificationListResponse }> {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+    if (unreadOnly) params.set("unreadOnly", "true");
+    return this.fetchWithAuth(`/api/notifications?${params.toString()}`, token);
+  }
+
+  /**
+   * Mark all notifications as read.
+   */
+  async markAllNotificationsRead(token: string): Promise<{ data: { success: boolean; affected: number } }> {
+    return this.fetchWithAuth("/api/notifications/read-all", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /**
+   * Mark specific notifications as read.
+   */
+  async markNotificationsRead(
+    token: string,
+    ids: string[]
+  ): Promise<{ data: { success: boolean; affected: number } }> {
+    return this.fetchWithAuth("/api/notifications/read", token, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+  }
+
+  /**
+   * Clear all notification history.
+   */
+  async clearNotifications(token: string): Promise<{ data: { success: boolean; affected: number } }> {
+    return this.fetchWithAuth("/api/notifications", token, {
+      method: "DELETE",
+    });
+  }
 }
+
+/** Backend notification list response shape. */
+export type NotificationListResponse = {
+  notifications: BackendNotification[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  unreadCount: number;
+};
+
+/** A single notification from the backend. */
+export type BackendNotification = {
+  id: string;
+  userId: string;
+  type: "success" | "error" | "warning" | "info";
+  title: string;
+  message: string | null;
+  read: boolean;
+  timestamp: number;
+};
 
 // Default client instance
 export const hauntClient = new HauntClient();

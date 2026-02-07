@@ -52,6 +52,7 @@ type TapCanvasProps = {
   priceHistory: Array<{ time: number; price: number }>;
   settings: TapSettings;
   zoomLevel?: number;
+  isMobile?: boolean;
   onCellTap?: (row: number, col: number, timeStart: number, timeEnd: number) => void;
 };
 
@@ -60,6 +61,15 @@ type TapCanvasProps = {
 function formatPrice(price: number): string {
   if (price >= 10000) return price.toFixed(0);
   if (price >= 1000) return price.toFixed(1);
+  if (price >= 1) return price.toFixed(2);
+  if (price >= 0.01) return price.toFixed(4);
+  return price.toFixed(6);
+}
+
+function formatPriceAbbreviated(price: number): string {
+  if (price >= 100000) return `${(price / 1000).toFixed(1)}K`;
+  if (price >= 10000) return `${(price / 1000).toFixed(2)}K`;
+  if (price >= 1000) return price.toFixed(0);
   if (price >= 1) return price.toFixed(2);
   if (price >= 0.01) return price.toFixed(4);
   return price.toFixed(6);
@@ -98,6 +108,7 @@ export function TapCanvas({
   priceHistory,
   settings,
   zoomLevel: zoomLevelProp = 1.0,
+  isMobile = false,
   onCellTap,
 }: TapCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -107,6 +118,9 @@ export function TapCanvas({
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const gridStartTimeRef = useRef<number>(Date.now());
   const zoomLevel = zoomLevelProp;
+
+  // Hover state for showing price labels
+  const hoveredCellRef = useRef<{ row: number; col: number } | null>(null);
 
   // Smooth viewport tracking: the viewport Y-offset lerps to keep current price centered
   const viewportOffsetRef = useRef<number>(0);
@@ -154,14 +168,20 @@ export function TapCanvas({
 
     const { width, height } = dimensions;
     const dpr = window.devicePixelRatio || 1;
-    const sparklineBoundaryX = Math.floor(width * SPARKLINE_RATIO);
-    const gridAreaWidth = width - sparklineBoundaryX - PRICE_LABEL_WIDTH;
+
+    // Responsive constants: mobile gets more grid space, fewer rows for bigger cells
+    const sparkRatio = isMobile ? 0.28 : SPARKLINE_RATIO;
+    const priceLabelW = isMobile ? 55 : PRICE_LABEL_WIDTH;
+    const baseVisibleRows = isMobile ? 8 : VISIBLE_ROWS_PER_SCREEN;
+
+    const sparklineBoundaryX = Math.floor(width * sparkRatio);
+    const gridAreaWidth = width - sparklineBoundaryX - priceLabelW;
     const gridAreaHeight = height - TIME_LABEL_HEIGHT;
 
     // Zoom: zoomLevel is magnification (1.0 = 12 rows visible, 3.0 = ~4 rows zoomed in)
     // Cell size is based on VISIBLE_ROWS_PER_SCREEN, NOT total data rows.
     // The grid may have 36+ data rows for buffer, but only ~12 fit on screen at once.
-    const visibleRows = Math.round(Math.max(4, VISIBLE_ROWS_PER_SCREEN / zoomLevel));
+    const visibleRows = Math.round(Math.max(4, baseVisibleRows / zoomLevel));
     const visibleCols = Math.round(Math.max(4, Math.min(gridConfig.col_count, gridConfig.col_count / zoomLevel)));
     const cellWidth = gridAreaWidth / visibleCols;
     const cellHeight = gridAreaHeight / visibleRows;
@@ -410,10 +430,13 @@ export function TapCanvas({
       }
     }
 
-    // ─── Draw multiplier text in cells ─────────────────────
+    // ─── Draw multiplier text + hover price labels in cells ──
+
+    const hovered = hoveredCellRef.current;
 
     if (multipliers.length > 0) {
       const fontSize = Math.max(9, Math.min(14, cellWidth * 0.18));
+      const priceFontSize = Math.max(7, fontSize * 0.7);
       ctx.font = `600 ${fontSize}px -apple-system, system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -456,51 +479,65 @@ export function TapCanvas({
           if (cellX > sparklineBoundaryX + gridAreaWidth + fadeInWidth) continue;
 
           // ─── Bubble zone: gradient of 0.0x multipliers near the dot ─────
-          // Columns near the sparkline dot (leftmost visible) have artificially
-          // suppressed multipliers to prevent easy wins. The "bubble" extends
-          // BUBBLE_COLUMNS from the dot:
-          //   Col 0-1: Hard locked (0.0x, untappable, dark overlay)
-          //   Col 2:   Transition zone (heavily decayed multiplier, ~0.3x)
-          //   Col 3+:  Normal multipliers
-          const BUBBLE_HARD_LOCK = 2;  // Columns 0-1: completely locked
-          const BUBBLE_TRANSITION = 3; // Column 2: transition zone
+          const BUBBLE_HARD_LOCK = 2;
+          const BUBBLE_TRANSITION = 3;
           const colAbsoluteTime = gridStartTime + (fullColsNow + c) * gridConfig.interval_ms;
           const colTimeEnd = colAbsoluteTime + gridConfig.interval_ms;
           const colTimeRemaining = colTimeEnd - now;
           const isTimeLocked = colTimeRemaining < MIN_TIME_BUFFER;
-          const isBubbleLocked = c < BUBBLE_HARD_LOCK; // Col 0-1 are always locked
-          const isBubbleTransition = c === BUBBLE_HARD_LOCK; // Col 2 is transition
+          const isBubbleLocked = c < BUBBLE_HARD_LOCK;
+          const isBubbleTransition = c === BUBBLE_HARD_LOCK;
           const isLocked = isTimeLocked || isBubbleLocked;
 
-          // Left edge fade-out: text fades to 0% as column approaches the dot
+          // Left edge fade-out
           let edgeAlpha = 1.0;
           const distFromDot = cellX - sparklineBoundaryX;
           if (distFromDot < fadeOutWidth) {
             edgeAlpha = distFromDot / fadeOutWidth;
           }
 
-          // Right edge fade-in: cells entering from the right fade in smoothly
+          // Right edge fade-in
           const distPastRight = cellX - (sparklineBoundaryX + gridAreaWidth - cellWidth);
           if (distPastRight > 0) {
             edgeAlpha = Math.min(edgeAlpha, Math.max(0, 1 - distPastRight / fadeInWidth));
           }
           if (edgeAlpha <= 0.01) continue;
 
+          // Check if this cell is hovered
+          const isHovered = hovered && hovered.row === r && hovered.col === c;
+
+          // Draw hover highlight
+          if (isHovered) {
+            ctx.fillStyle = `rgba(255, 255, 255, 0.04)`;
+            ctx.fillRect(cellX, screenY, cellWidth, cellHeight);
+          }
+
+          // Draw multiplier text
+          ctx.font = `600 ${fontSize}px -apple-system, system-ui, sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
           if (isLocked) {
-            // Locked column: show "0.0x" in dim white
             ctx.fillStyle = `rgba(255, 255, 255, ${0.15 * edgeAlpha})`;
-            ctx.fillText("0.0x", cellCenterX, screenY + cellHeight / 2);
+            ctx.fillText("0.0x", cellCenterX, screenY + cellHeight / 2 - (isHovered ? priceFontSize * 0.4 : 0));
           } else if (isBubbleTransition) {
-            // Transition column: show heavily decayed multiplier, dimmer white
-            const decayedMult = mult * 0.15; // ~85% reduction
+            const decayedMult = mult * 0.15;
             const text = decayedMult >= 1 ? `${decayedMult.toFixed(1)}x` : `${decayedMult.toFixed(2)}x`;
             ctx.fillStyle = `rgba(255, 255, 255, ${0.25 * edgeAlpha})`;
-            ctx.fillText(text, cellCenterX, screenY + cellHeight / 2);
+            ctx.fillText(text, cellCenterX, screenY + cellHeight / 2 - (isHovered ? priceFontSize * 0.4 : 0));
           } else {
-            // Normal multiplier display — uniform white, no color gradient
             ctx.fillStyle = `rgba(255, 255, 255, ${0.45 * edgeAlpha})`;
             const text = mult >= 10 ? `${mult.toFixed(1)}x` : `${mult.toFixed(2)}x`;
-            ctx.fillText(text, cellCenterX, screenY + cellHeight / 2);
+            ctx.fillText(text, cellCenterX, screenY + cellHeight / 2 - (isHovered ? priceFontSize * 0.4 : 0));
+          }
+
+          // Draw abbreviated price below multiplier on hover
+          if (isHovered) {
+            const rowCenterPrice = gridConfig.price_high - (r + 0.5) * gridConfig.row_height;
+            const priceLabel = formatPriceAbbreviated(rowCenterPrice);
+            ctx.font = `500 ${priceFontSize}px -apple-system, system-ui, sans-serif`;
+            ctx.fillStyle = `rgba(167, 139, 250, ${0.6 * edgeAlpha})`;
+            ctx.fillText(priceLabel, cellCenterX, screenY + cellHeight / 2 + priceFontSize * 0.8);
           }
         }
       }
@@ -634,25 +671,46 @@ export function TapCanvas({
         const screenCenter = gridAreaHeight * 0.5;
 
         // Build path points — blend from amplified Y (left) to grid Y (right)
-        // Uses smoothstep(t) = t² × (3 - 2t) which has zero derivative at both ends,
-        // creating a seamless transition with no visible "elbow" at the boundary.
+        // The blend completes at 85% of sparkline width so the rightmost 15%
+        // is purely grid-aligned, preventing visual misalignment at the boundary.
+        // Uses smoothstep(t) = t² × (3 - 2t) which has zero derivative at both ends.
+        const blendZoneWidth = (sparkXRight - sparkXLeft) * 0.85;
         const points: Array<{ x: number; y: number }> = [];
         for (let i = 0; i < historyWithNow.length; i++) {
           // Force the last point (synthetic "now") to exactly the boundary X
           // so the sparkline connects perfectly to the dot.
           let x: number;
-          if (i === historyWithNow.length - 1) {
-            x = sparklineBoundaryX; // Exact boundary alignment (A3 fix)
+          const isLastPoint = i === historyWithNow.length - 1;
+          if (isLastPoint) {
+            x = sparklineBoundaryX; // Exact boundary alignment
           } else {
             x = timeToX(historyWithNow[i].time);
           }
           const price = historyWithNow[i].price;
-          // Smoothstep blend: 0 at left → 1 at sparkline boundary
-          const t = Math.max(0, Math.min(1, (x - sparkXLeft) / (sparkXRight - sparkXLeft)));
-          const blend = t * t * (3 - 2 * t); // smoothstep — zero derivative at t=0 and t=1
+
+          // For the last point and any point past the blend zone, use pure grid Y
+          // This ensures the sparkline visually connects to the correct grid row
+          if (isLastPoint) {
+            points.push({ x, y: gridY(price) });
+            continue;
+          }
+
+          // Smoothstep blend: completes at 85% through the sparkline zone
+          const t = Math.max(0, Math.min(1, (x - sparkXLeft) / blendZoneWidth));
+          const blend = t * t * (3 - 2 * t); // smoothstep
           const yAmplified = amplifiedY(price);
           const yGrid = gridY(price);
-          const y = yAmplified * (1 - blend) + yGrid * blend;
+          // During config transitions, force grid-Y for rightmost portion
+          const forceGridT = 0.7; // Past 70% of blend zone, bias toward grid Y
+          let y: number;
+          if (configT < 1 && t > forceGridT) {
+            // Transition in progress — use a stronger grid bias to prevent misalignment
+            const extraBias = (t - forceGridT) / (1 - forceGridT);
+            const adjustedBlend = Math.min(1, blend + extraBias * (1 - blend));
+            y = yAmplified * (1 - adjustedBlend) + yGrid * adjustedBlend;
+          } else {
+            y = yAmplified * (1 - blend) + yGrid * blend;
+          }
           points.push({ x, y });
         }
 
@@ -918,6 +976,35 @@ export function TapCanvas({
     [onCellTap, screenToCell, gridConfig]
   );
 
+  // ─── Handle mouse hover for price labels ────────────────────
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const cell = screenToCell(x, y);
+      const prev = hoveredCellRef.current;
+
+      if (cell) {
+        if (!prev || prev.row !== cell.row || prev.col !== cell.col) {
+          hoveredCellRef.current = cell;
+        }
+      } else if (prev) {
+        hoveredCellRef.current = null;
+      }
+    },
+    [screenToCell]
+  );
+
+  const handleMouseLeave = useCallback(() => {
+    hoveredCellRef.current = null;
+  }, []);
+
   // Zoom is now controlled via the zoomLevel prop (set by parent page buttons)
 
   return (
@@ -926,6 +1013,8 @@ export function TapCanvas({
         ref={canvasRef}
         style={canvasStyle}
         onClick={handleClick}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
       />
       {/* Loading overlay when no grid config */}
       {!gridConfig && (

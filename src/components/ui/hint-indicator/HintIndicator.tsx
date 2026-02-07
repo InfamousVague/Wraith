@@ -199,9 +199,9 @@ export function HintIndicator({
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
               zIndex: 9999,
             }}
           />
@@ -215,11 +215,17 @@ export function HintIndicator({
                 left: 0,
                 right: 0,
                 maxHeight: mobileSheetHeight,
-                backgroundColor: Colors.background.subtle,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
+                backgroundColor: "rgba(18, 18, 24, 0.92)" as any,
+                backdropFilter: "blur(32px)" as any,
+                WebkitBackdropFilter: "blur(32px)" as any,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.10)",
+                borderBottomWidth: 0,
                 zIndex: 10000,
                 overflow: "hidden",
+                boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06)" as any,
                 transform: [{
                   translateY: slideAnim.interpolate({
                     inputRange: [0, 1],
@@ -250,7 +256,7 @@ export function HintIndicator({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+                  borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
                 }}
               >
                 <View pointerEvents="none">
@@ -298,7 +304,7 @@ export function HintIndicator({
               <div
                 style={{
                   padding: "16px 20px 32px 20px",
-                  borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.08)",
                 }}
               >
                 <div
@@ -331,11 +337,13 @@ export function HintIndicator({
                   left: popupPosition.left,
                   width: popupWidth,
                   maxHeight: popupPosition.maxHeight,
-                  backgroundColor: Colors.background.subtle,
-                  borderRadius: 12,
-                  border: "1px solid rgba(255, 255, 255, 0.06)",
+                  background: "rgba(18, 18, 24, 0.92)",
+                  backdropFilter: "blur(32px)",
+                  WebkitBackdropFilter: "blur(32px)",
+                  borderRadius: 16,
+                  border: "1px solid rgba(255, 255, 255, 0.10)",
                   zIndex: 10000,
-                  boxShadow: "0 16px 48px rgba(0, 0, 0, 0.6)",
+                  boxShadow: "0 24px 48px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
                   display: "flex",
                   flexDirection: "column",
                   overflow: "hidden",
@@ -403,26 +411,26 @@ export function HintIndicator({
                     display: "flex",
                     justifyContent: "flex-end",
                     flexShrink: 0,
-                    borderTop: "1px solid rgba(255, 255, 255, 0.04)",
+                    borderTop: "1px solid rgba(255, 255, 255, 0.08)",
                   }}
                 >
                   <div
                     onClick={handleDismiss}
                     style={{
-                      backgroundColor: "rgba(167, 139, 250, 0.15)",
-                      border: "1px solid rgba(167, 139, 250, 0.3)",
-                      borderRadius: 6,
+                      backgroundColor: "rgba(167, 139, 250, 0.12)",
+                      border: "1px solid rgba(167, 139, 250, 0.25)",
+                      borderRadius: 8,
                       padding: "8px 20px",
                       cursor: "pointer",
                       transition: "all 0.15s",
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "rgba(167, 139, 250, 0.25)";
-                      e.currentTarget.style.borderColor = "rgba(167, 139, 250, 0.5)";
+                      e.currentTarget.style.backgroundColor = "rgba(167, 139, 250, 0.22)";
+                      e.currentTarget.style.borderColor = "rgba(167, 139, 250, 0.45)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "rgba(167, 139, 250, 0.15)";
-                      e.currentTarget.style.borderColor = "rgba(167, 139, 250, 0.3)";
+                      e.currentTarget.style.backgroundColor = "rgba(167, 139, 250, 0.12)";
+                      e.currentTarget.style.borderColor = "rgba(167, 139, 250, 0.25)";
                     }}
                   >
                     <View pointerEvents="none">

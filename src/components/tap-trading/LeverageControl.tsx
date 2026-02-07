@@ -17,6 +17,7 @@ import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
 import { spacing } from "../../styles/tokens";
+import { useBreakpoint } from "../../hooks/useBreakpoint";
 import {
   HintIndicator,
   TooltipContainer,
@@ -55,6 +56,7 @@ export function LeverageControl({
   symbol,
 }: LeverageControlProps) {
   const themeColors = useThemeColors();
+  const { isMobile, isNarrow } = useBreakpoint();
   const [customMode, setCustomMode] = useState(false);
   const [customInput, setCustomInput] = useState("");
   const [customError, setCustomError] = useState<string | null>(null);
@@ -160,10 +162,16 @@ export function LeverageControl({
   const payouts = stats?.total_payouts ?? 0;
   const pnlColor = pnl >= 0 ? Colors.status.success : Colors.status.danger;
 
+  const controlSize = isMobile ? Size.Small : undefined;
+
   return (
-    <View style={[styles.toolbar, { borderBottomColor: themeColors.border.subtle }]}>
+    <View style={[
+      styles.toolbar,
+      isMobile && styles.toolbarMobile,
+      { borderBottomColor: themeColors.border.subtle },
+    ]}>
       {/* Left side: Leverage + Size controls */}
-      <View style={styles.controlsGroup}>
+      <View style={[styles.controlsGroup, isMobile && styles.controlsGroupMobile]}>
         {/* Leverage section */}
         <View style={styles.labeledControl}>
           <View style={styles.labelRow}>
@@ -200,6 +208,7 @@ export function LeverageControl({
             options={leverageOptions}
             value={String(value)}
             onChange={(v) => onChange(Number(v))}
+            size={controlSize}
           />
         </View>
 
@@ -239,10 +248,11 @@ export function LeverageControl({
               options={betSizeOptions}
               value={segmentValue}
               onChange={handleSegmentChange}
+              size={controlSize}
             />
             {customMode && (
               <View style={styles.customInputWrap}>
-                <Text size={Size.ExtraSmall} style={{ color: Colors.text.muted }}>$</Text>
+                <Icon name="dollar-sign" size={Size.ExtraSmall} color={Colors.text.muted} />
                 <TextInput
                   ref={inputRef}
                   value={customInput}
@@ -271,7 +281,7 @@ export function LeverageControl({
       </View>
 
       {/* Right side: Stats */}
-      <View style={styles.statsGroup}>
+      <View style={[styles.statsGroup, isMobile && styles.statsGroupMobile]}>
         {/* Win / Loss */}
         <View style={styles.statBlock}>
           <View style={styles.labelRow}>
@@ -453,10 +463,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     gap: spacing.md,
   },
+  toolbarMobile: {
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
   controlsGroup: {
     flexDirection: "row",
     alignItems: "flex-end",
     gap: spacing.sm,
+  },
+  controlsGroupMobile: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: spacing.xs,
+    flex: 1,
   },
   labeledControl: {
     gap: 3,
@@ -474,6 +496,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  statsGroupMobile: {
+    justifyContent: "space-around",
+    paddingVertical: spacing.xxs,
   },
   statBlock: {
     alignItems: "center",

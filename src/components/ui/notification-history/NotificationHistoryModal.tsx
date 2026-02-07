@@ -1,23 +1,25 @@
 /**
  * @file NotificationHistoryModal.tsx
- * @description Glassmorphism notification history modal.
+ * @description Glassmorphism notification history modal with pagination.
  *
  * Triggered from the notification bell in the navbar.
  * Shows all past notifications with type icons, timestamps, and read state.
- * Supports "Mark all read" and "Clear history" actions.
+ * Supports "Mark all read", "Clear history", and pagination.
  */
 
-import React from "react";
-import { Modal, Pressable, ScrollView, View, StyleSheet } from "react-native";
-import { Text, Icon, Button, type IconName } from "@wraith/ghost/components";
-import { Size, Shape, Appearance, TextAppearance } from "@wraith/ghost/enums";
+import React, { useState, useMemo } from "react";
+import { Modal, Pressable, View, StyleSheet } from "react-native";
+import { Text, Icon, Badge, type IconName } from "@wraith/ghost/components";
+import { Size, TextAppearance } from "@wraith/ghost/enums";
 import { useThemeColors } from "@wraith/ghost/context/ThemeContext";
 import { Colors } from "@wraith/ghost/tokens";
-import { spacing, radii } from "../../../styles/tokens";
+import { spacing } from "../../../styles/tokens";
 import { useToast, type NotificationRecord } from "../../../context/ToastContext";
 import type { ToastType } from "../toast";
 
-// ─── Type config ─────────────────────────────────────────────────
+// ─── Constants ──────────────────────────────────────────────────
+
+const PAGE_SIZE = 15;
 
 const TYPE_CONFIG: Record<ToastType, { icon: IconName; color: string; label: string }> = {
   success: { icon: "check-circle", color: Colors.status.success, label: "Success" },
@@ -26,7 +28,7 @@ const TYPE_CONFIG: Record<ToastType, { icon: IconName; color: string; label: str
   info: { icon: "info", color: Colors.accent.primary, label: "Info" },
 };
 
-// ─── Relative time formatter ─────────────────────────────────────
+// ─── Relative time formatter ────────────────────────────────────
 
 function timeAgo(timestamp: number): string {
   const seconds = Math.floor((Date.now() - timestamp) / 1000);
@@ -39,7 +41,7 @@ function timeAgo(timestamp: number): string {
   return `${days}d ago`;
 }
 
-// ─── Component ───────────────────────────────────────────────────
+// ─── Component ──────────────────────────────────────────────────
 
 type Props = {
   visible: boolean;
@@ -49,14 +51,21 @@ type Props = {
 export function NotificationHistoryModal({ visible, onClose }: Props) {
   const themeColors = useThemeColors();
   const { notifications, unreadCount, markAllRead, clearHistory } = useToast();
+  const [page, setPage] = useState(1);
 
-  const handleMarkAllRead = () => {
-    markAllRead();
-  };
+  // Reset page when modal opens
+  React.useEffect(() => {
+    if (visible) setPage(1);
+  }, [visible]);
 
-  const handleClear = () => {
-    clearHistory();
-  };
+  const totalPages = Math.max(1, Math.ceil(notifications.length / PAGE_SIZE));
+  const paginatedNotifications = useMemo(
+    () => notifications.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [notifications, page]
+  );
+
+  const handlePrevPage = () => setPage((p) => Math.max(1, p - 1));
+  const handleNextPage = () => setPage((p) => Math.min(totalPages, p + 1));
 
   return (
     <Modal
@@ -73,22 +82,25 @@ export function NotificationHistoryModal({ visible, onClose }: Props) {
             <div style={headerStyle}>
               <div style={headerLeftStyle}>
                 <Icon name="bell" size={Size.Medium} color={themeColors.text.primary} />
-                <span style={headerTitleStyle}>Notifications</span>
+                <Text size={Size.Medium} weight="semibold" style={{ color: Colors.text.primary }}>
+                  Notifications
+                </Text>
                 {unreadCount > 0 && (
-                  <span style={unreadBadgeStyle}>{unreadCount}</span>
+                  <Badge
+                    label={String(unreadCount)}
+                    variant="danger"
+                    size={Size.TwoXSmall}
+                  />
                 )}
               </div>
               <div style={headerActionsStyle}>
                 {unreadCount > 0 && (
-                  <button style={headerBtnStyle} onClick={handleMarkAllRead}>
+                  <button style={headerBtnStyle} onClick={() => markAllRead()}>
                     Mark all read
                   </button>
                 )}
-                <button
-                  style={closeBtnStyle}
-                  onClick={onClose}
-                >
-                  <Icon name="close" size={Size.Small} color="rgba(255, 255, 255, 0.5)" />
+                <button style={closeBtnStyle} onClick={onClose}>
+                  <Icon name="x" size={Size.Small} color="rgba(255, 255, 255, 0.5)" />
                 </button>
               </div>
             </div>
@@ -98,29 +110,64 @@ export function NotificationHistoryModal({ visible, onClose }: Props) {
 
             {/* Notification list */}
             <div style={listContainerStyle}>
-              {notifications.length === 0 ? (
+              {paginatedNotifications.length === 0 ? (
                 <div style={emptyStateStyle}>
                   <Icon name="bell-off" size={Size.Large} color="rgba(255, 255, 255, 0.15)" />
-                  <span style={emptyTextStyle}>No notifications yet</span>
+                  <Text size={Size.Small} appearance={TextAppearance.Muted}>
+                    No notifications yet
+                  </Text>
                 </div>
               ) : (
-                notifications.map((notif) => (
+                paginatedNotifications.map((notif) => (
                   <NotificationItem key={notif.id} notification={notif} />
                 ))
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer with pagination */}
             {notifications.length > 0 && (
               <>
                 <div style={dividerStyle} />
                 <div style={footerStyle}>
-                  <button style={clearBtnStyle} onClick={handleClear}>
-                    Clear history
+                  <button style={clearBtnStyle} onClick={() => clearHistory()}>
+                    <Icon name="trash-2" size={Size.TwoXSmall} color="rgba(255, 255, 255, 0.35)" />
+                    <span>Clear</span>
                   </button>
-                  <span style={countStyle}>
-                    {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
-                  </span>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div style={paginationStyle}>
+                      <button
+                        style={{
+                          ...pageBtnStyle,
+                          opacity: page <= 1 ? 0.3 : 1,
+                          cursor: page <= 1 ? "default" : "pointer",
+                        }}
+                        onClick={handlePrevPage}
+                        disabled={page <= 1}
+                      >
+                        <Icon name="chevron-left" size={Size.TwoXSmall} color="rgba(255, 255, 255, 0.6)" />
+                      </button>
+                      <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+                        {page} / {totalPages}
+                      </Text>
+                      <button
+                        style={{
+                          ...pageBtnStyle,
+                          opacity: page >= totalPages ? 0.3 : 1,
+                          cursor: page >= totalPages ? "default" : "pointer",
+                        }}
+                        onClick={handleNextPage}
+                        disabled={page >= totalPages}
+                      >
+                        <Icon name="chevron-right" size={Size.TwoXSmall} color="rgba(255, 255, 255, 0.6)" />
+                      </button>
+                    </div>
+                  )}
+
+                  <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted}>
+                    {notifications.length} total
+                  </Text>
                 </div>
               </>
             )}
@@ -131,7 +178,7 @@ export function NotificationHistoryModal({ visible, onClose }: Props) {
   );
 }
 
-// ─── Notification Item ───────────────────────────────────────────
+// ─── Notification Item ──────────────────────────────────────────
 
 function NotificationItem({ notification }: { notification: NotificationRecord }) {
   const config = TYPE_CONFIG[notification.type];
@@ -139,49 +186,56 @@ function NotificationItem({ notification }: { notification: NotificationRecord }
   return (
     <div style={{
       ...itemStyle,
-      opacity: notification.read ? 0.6 : 1,
+      opacity: notification.read ? 0.55 : 1,
     }}>
       <div style={{
         ...itemIconStyle,
-        backgroundColor: `${config.color}15`,
+        backgroundColor: `${config.color}12`,
+        border: `1px solid ${config.color}20`,
       }}>
         <Icon name={config.icon} size={Size.Small} color={config.color} />
       </div>
       <div style={itemContentStyle}>
-        <span style={itemTitleStyle}>{notification.title}</span>
+        <Text size={Size.Small} weight="medium" style={{ color: Colors.text.primary }}>
+          {notification.title}
+        </Text>
         {notification.message && (
-          <span style={itemMessageStyle}>{notification.message}</span>
+          <Text size={Size.TwoXSmall} appearance={TextAppearance.Muted} numberOfLines={2}>
+            {notification.message}
+          </Text>
         )}
-        <span style={itemTimeStyle}>{timeAgo(notification.timestamp)}</span>
+        <Text size={Size.TwoXSmall} style={{ color: "rgba(255, 255, 255, 0.2)", marginTop: 2 }}>
+          {timeAgo(notification.timestamp)}
+        </Text>
       </div>
       {!notification.read && <div style={unreadDotStyle} />}
     </div>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────
+// ─── Styles ─────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     justifyContent: "center",
     alignItems: "center",
   },
   modalWrapper: {
-    maxWidth: 420,
-    width: "90%",
-    maxHeight: "70%",
+    maxWidth: 440,
+    width: "92%",
+    maxHeight: "75%",
   },
 });
 
 const glassCardStyle: React.CSSProperties = {
-  background: "rgba(18, 18, 24, 0.85)",
-  backdropFilter: "blur(24px)",
-  WebkitBackdropFilter: "blur(24px)",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  borderRadius: 16,
-  boxShadow: "0 24px 48px rgba(0, 0, 0, 0.5), inset 0 0 0 0.5px rgba(255, 255, 255, 0.05)",
+  background: "rgba(18, 18, 24, 0.92)",
+  backdropFilter: "blur(32px)",
+  WebkitBackdropFilter: "blur(32px)",
+  border: "1px solid rgba(255, 255, 255, 0.10)",
+  borderRadius: 20,
+  boxShadow: "0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08)",
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
@@ -200,23 +254,6 @@ const headerLeftStyle: React.CSSProperties = {
   gap: 10,
 };
 
-const headerTitleStyle: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 600,
-  color: "rgba(255, 255, 255, 0.92)",
-  fontFamily: "-apple-system, system-ui, sans-serif",
-};
-
-const unreadBadgeStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: "#fff",
-  backgroundColor: Colors.status.danger,
-  borderRadius: 10,
-  padding: "1px 7px",
-  lineHeight: "16px",
-};
-
 const headerActionsStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -227,10 +264,10 @@ const headerBtnStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 500,
   color: Colors.accent.primary,
-  background: "none",
-  border: "none",
+  background: "rgba(167, 139, 250, 0.10)",
+  border: "1px solid rgba(167, 139, 250, 0.20)",
   cursor: "pointer",
-  padding: "4px 8px",
+  padding: "4px 10px",
   borderRadius: 6,
   fontFamily: "-apple-system, system-ui, sans-serif",
 };
@@ -242,20 +279,20 @@ const closeBtnStyle: React.CSSProperties = {
   width: 28,
   height: 28,
   borderRadius: 8,
-  background: "rgba(255, 255, 255, 0.05)",
-  border: "none",
+  background: "rgba(255, 255, 255, 0.06)",
+  border: "1px solid rgba(255, 255, 255, 0.06)",
   cursor: "pointer",
   padding: 0,
 };
 
 const dividerStyle: React.CSSProperties = {
   height: 1,
-  backgroundColor: "rgba(255, 255, 255, 0.06)",
+  backgroundColor: "rgba(255, 255, 255, 0.08)",
 };
 
 const listContainerStyle: React.CSSProperties = {
   overflowY: "auto",
-  maxHeight: 400,
+  maxHeight: 420,
   padding: "4px 0",
 };
 
@@ -268,23 +305,21 @@ const emptyStateStyle: React.CSSProperties = {
   padding: "48px 20px",
 };
 
-const emptyTextStyle: React.CSSProperties = {
-  fontSize: 13,
-  color: "rgba(255, 255, 255, 0.3)",
-  fontFamily: "-apple-system, system-ui, sans-serif",
-};
-
 const footerStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  padding: "10px 20px",
+  padding: "8px 16px",
+  gap: 8,
 };
 
 const clearBtnStyle: React.CSSProperties = {
-  fontSize: 12,
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+  fontSize: 11,
   fontWeight: 500,
-  color: "rgba(255, 255, 255, 0.4)",
+  color: "rgba(255, 255, 255, 0.35)",
   background: "none",
   border: "none",
   cursor: "pointer",
@@ -293,13 +328,25 @@ const clearBtnStyle: React.CSSProperties = {
   fontFamily: "-apple-system, system-ui, sans-serif",
 };
 
-const countStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: "rgba(255, 255, 255, 0.25)",
-  fontFamily: "-apple-system, system-ui, sans-serif",
+const paginationStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
 };
 
-// ─── Notification item styles ────────────────────────────────────
+const pageBtnStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 24,
+  height: 24,
+  borderRadius: 6,
+  background: "rgba(255, 255, 255, 0.06)",
+  border: "1px solid rgba(255, 255, 255, 0.06)",
+  padding: 0,
+};
+
+// ─── Notification item styles ───────────────────────────────────
 
 const itemStyle: React.CSSProperties = {
   display: "flex",
@@ -314,9 +361,9 @@ const itemIconStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  width: 32,
-  height: 32,
-  borderRadius: 8,
+  width: 34,
+  height: 34,
+  borderRadius: 10,
   flexShrink: 0,
   marginTop: 1,
 };
@@ -325,30 +372,8 @@ const itemContentStyle: React.CSSProperties = {
   flex: 1,
   display: "flex",
   flexDirection: "column",
-  gap: 2,
+  gap: 1,
   minWidth: 0,
-};
-
-const itemTitleStyle: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 500,
-  color: "rgba(255, 255, 255, 0.85)",
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  lineHeight: 1.3,
-};
-
-const itemMessageStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: "rgba(255, 255, 255, 0.45)",
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  lineHeight: 1.3,
-};
-
-const itemTimeStyle: React.CSSProperties = {
-  fontSize: 10,
-  color: "rgba(255, 255, 255, 0.25)",
-  fontFamily: "-apple-system, system-ui, sans-serif",
-  marginTop: 2,
 };
 
 const unreadDotStyle: React.CSSProperties = {
@@ -357,5 +382,5 @@ const unreadDotStyle: React.CSSProperties = {
   borderRadius: 4,
   backgroundColor: Colors.accent.primary,
   flexShrink: 0,
-  marginTop: 5,
+  marginTop: 6,
 };

@@ -135,6 +135,15 @@ export function Navbar() {
             <ScrollView style={styles.mobileMenuExpanded} contentContainerStyle={styles.menuContent}>
               {/* Navigation Items */}
               <View style={styles.menuNavItems}>
+                {/* Tap Trading - purple accent */}
+                <Pressable
+                  onPress={() => { setMenuOpen(false); navigate("/tap"); }}
+                  style={[styles.menuNavItem, { backgroundColor: themeColors.background.raised }]}
+                >
+                  <Icon name="pointer" size={Size.Medium} color={Colors.accent.primary} />
+                  <Text size={Size.Medium} style={{ color: Colors.accent.primary }}>Tap</Text>
+                </Pressable>
+
                 {/* Portfolio - only show when authenticated */}
                 {isAuthenticated && (
                   <Pressable
@@ -256,6 +265,17 @@ export function Navbar() {
         </View>
 
         <View style={styles.rightSection}>
+          {/* Tap Trading button - purple accent */}
+          <Button
+            label="Tap"
+            onPress={() => navigate("/tap")}
+            size={Size.Medium}
+            shape={Shape.Rounded}
+            appearance={Appearance.Primary}
+            iconLeft="pointer"
+            backgroundOpacity={0.15}
+          />
+
           {/* Leaderboard button - dark yellow bg with bright yellow text */}
           <Button
             label={t("navigation:leaderboard")}
@@ -291,12 +311,16 @@ export function Navbar() {
             iconLeft="user"
           />
 
-          {/* Notification bell */}
-          <Pressable
-            onPress={() => setNotifModalOpen(true)}
-            style={styles.bellButton}
-          >
-            <Icon name="bell" size={Size.Medium} color={themeColors.text.primary} />
+          {/* Notification bell (icon-only Button with badge) */}
+          <View style={styles.bellButtonWrapper}>
+            <Button
+              label=""
+              onPress={() => setNotifModalOpen(true)}
+              size={Size.Medium}
+              shape={Shape.Rounded}
+              appearance={Appearance.Neutral}
+              iconLeft="bell"
+            />
             {unreadCount > 0 && (
               <View style={styles.bellBadge}>
                 <Text size={Size.TwoXSmall} style={styles.bellBadgeText}>
@@ -304,7 +328,7 @@ export function Navbar() {
                 </Text>
               </View>
             )}
-          </Pressable>
+          </View>
 
           {/* Settings button (icon-only) */}
           <Button
@@ -442,14 +466,8 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   // Bell / notification styles
-  bellButton: {
+  bellButtonWrapper: {
     position: "relative",
-    padding: spacing.xs,
-    borderRadius: radii.md,
-    minHeight: 36,
-    minWidth: 36,
-    justifyContent: "center",
-    alignItems: "center",
   },
   bellBadge: {
     position: "absolute",

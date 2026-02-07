@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.border.subtle,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     marginVertical: spacing.xs,
   },
 });
